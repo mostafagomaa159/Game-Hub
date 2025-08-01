@@ -32,7 +32,7 @@ function Login() {
     <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 px-4">
       <div className="w-full max-w-md p-8 bg-white dark:bg-gray-800 shadow-xl rounded-xl transition duration-300">
         <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white mb-6">
-          Welcome Back 👋
+          Welcome To <br /> GamesX Market 👋
         </h2>
 
         {error && (

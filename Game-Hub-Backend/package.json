@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "mongodb.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "env-cmd ./config/dev.env node src/index.js",
     "dev": "env-cmd ./config/dev.env nodemon src/index.js",
     "test": "env-cmd ./config/test.env jest --watch --runInBand"
   },

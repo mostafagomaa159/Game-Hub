@@ -82,18 +82,11 @@ const Navbar = () => {
     }
 
     if (user.isAdmin) {
-      navLinks.push(
-        {
-          to: "/admin",
-          label: "Admin Dashboard",
-          icon: <ShieldCheck size={16} />,
-        }
-        // {
-        //   to: "/admin/deposits",
-        //   label: "Admin Deposits",
-        //   icon: <ArrowDownCircle size={16} />,
-        // }
-      );
+      navLinks.push({
+        to: "/admin",
+        label: "Admin Dashboard",
+        icon: <ShieldCheck size={16} />,
+      });
     }
   }
 
@@ -111,7 +104,7 @@ const Navbar = () => {
             to="/"
             className="font-bold text-lg tracking-wide hidden md:block text-blue-500 hover:text-blue-600"
           >
-            Game Hub
+            GamesX Market
           </Link>
 
           <div className="md:flex space-x-6 hidden">
