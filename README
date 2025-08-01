@@ -1,29 +1,41 @@
-# 🎮 Game Hub
+# Game Hub 🎮
 
-A full-stack item trading platform built for **Last Chaos** players. Players can list items for sale, buy items using in-app coins, and manage their wallet with PayPal integration. Admins can monitor and approve deposits, withdrawals, and detect fraud.
+A full-stack marketplace app for trading in-game items securely.
 
----
+## 🌍 Features
 
-## 🚀 Features
+- 💰 Coin-based deposit/withdraw system
+- 🛒 Item listing and browsing (React frontend)
+- 🔐 JWT-based login & protected routes
+- 🧾 Admin dashboard for transaction approvals
+- 📦 PayPal integration (withdrawal payouts)
+- 🔍 Search, filters, pagination
+- ⭐ Seller rating system
+- 📊 Trade history export (CSV)
 
-- 🛒 **Item Marketplace** – Post, edit, delete, and browse trade listings
-- 💰 **Coin Wallet** – Buy items with coins, deposit via PayPal, withdraw to PayPal or bank
-- 🔐 **JWT Authentication** – User login/register with token storage
-- 🧑‍💼 **Admin Dashboard** – Approve/reject transactions, view trade history, and fraud flags
-- 📨 **Post-Purchase Messaging** – Contact seller after buying item
+## 🧠 Tech Stack
 
----
+- **Frontend:** React + Tailwind CSS
+- **Backend:** Node.js + Express
+- **Database:** MongoDB + Mongoose
+- **Auth:** JWT
+- **Payments:** PayPal API
+- **Cloud:** Firebase (if used)
 
-## 🧱 Tech Stack
+## 🧪 How to Run Locally
 
-| Frontend | Backend |
-|----------|---------|
-| React + Tailwind | Node.js + Express |
-| Axios | MongoDB + Mongoose |
-| React Router | Firebase (Auth/Storage) |
-| Toastify + Lucide Icons | PayPal Payouts SDK |
+### 🔧 Backend
+```bash
+cd game-hub-backend
+npm install
+npm start
 
----
+💻 Frontend
+cd game-hub-frontend
+npm install
+npm run dev
 
-## 📦 Project Structure
-
+👨‍💻 Admin Login
+Admin credentials (for testing):
+Email: mos10.gom.17@gmail.com
+Password: Red12345!
