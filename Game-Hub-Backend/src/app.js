@@ -9,10 +9,22 @@ const tradeRoutes = require("./routers/trade");
 const adminRouter = require("./routers/admin");
 const cors = require("cors");
 const app = express();
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://game-hub-git-main-game-hub2.vercel.app", // ✅ Add your Vercel frontend domain
+  "https://game-hub.vercel.app", // ✅ Add the default Vercel production domain if needed
+];
+
 app.use(
   cors({
-    origin: "http://localhost:3000", // ✅ your frontend URL
-    credentials: true, // ✅ only needed if your backend sets cookies or uses sessions
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
   })
 );
 app.use(express.json());
