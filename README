@@ -1,0 +1,22 @@
+# Game Hub 💻🎮
+
+Full-stack trading app for Last Chaos players.
+
+## Features
+- 🔐 JWT Auth with Role-based Access (Admin/User)
+- 📦 Item marketplace (buy/sell)
+- 💰 Coin wallet with PayPal deposits & withdrawals
+- ✅ Admin dashboard with fraud checks
+
+## Tech Stack
+- **Frontend:** React + Tailwind
+- **Backend:** Node.js + Express + MongoDB + Firebase
+- **Payment:** PayPal Payouts API
+
+## Installation
+
+### Frontend
+```bash
+cd Game-Hub-Frontend
+npm install
+npm start
