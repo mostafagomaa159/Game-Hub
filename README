@@ -1,0 +1,43 @@
+# GamesX Market 🎮
+
+A full-stack marketplace app for trading in-game items securely.
+
+## 🌍 Features
+
+- 💰 Coin-based deposit/withdraw system
+- 🛒 Item listing and browsing (React frontend)
+- 🔐 JWT-based login & protected routes
+- 🧾 Admin dashboard for transaction approvals
+- 📦 PayPal integration (withdrawal payouts)
+- 🔍 Search, filters, pagination
+- ⭐ Seller rating system
+- 📊 Trade history export (CSV)
+
+## 🧠 Tech Stack
+
+- **Frontend:** React + Tailwind CSS
+- **Backend:** Node.js + Express
+- **Database:** MongoDB + Mongoose
+- **Auth:** JWT
+- **Payments:** PayPal API
+- **Cloud:** Firebase (if used)
+
+## 🧪 How to Run Locally
+
+### 🔧 Backend
+
+```bash
+cd game-hub-backend
+npm install
+npm start
+
+💻 Frontend
+cd game-hub-frontend
+npm install
+npm run dev
+
+👨‍💻 Admin Login
+Admin credentials (for testing):
+Email: mos10.gom.17@gmail.com
+Password: Red12345!
+```
