@@ -14,7 +14,12 @@ function Login() {
     setError("");
 
     try {
-      const res = await axios.post("/users/login", { email, password });
+      const res = await axios.post(
+        "/users/login",
+        { email, password },
+        { headers: { "Content-Type": "application/json" } }
+      );
+
       localStorage.setItem("token", res.data.token);
       navigate("/all-posts");
     } catch (err) {

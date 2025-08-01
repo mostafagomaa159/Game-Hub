@@ -34,16 +34,22 @@ const AllPosts = () => {
 
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
+
       if (!token) {
         setUserId(null);
         return;
       }
 
       try {
-        const res = await axios.get("/users/me");
+        const res = await axios.get("/users/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setUserId(res.data._id);
-      } catch {
+      } catch (err) {
         setUserId(null);
+        localStorage.removeItem("token"); // Optional: Clean up invalid token
       }
     };
 

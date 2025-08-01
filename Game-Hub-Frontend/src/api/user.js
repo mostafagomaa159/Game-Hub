@@ -9,5 +9,6 @@ export const uploadAvatar = (file) => {
   });
 };
 
+// ✅ Use axios.defaults.baseURL to get the same base URL
 export const getAvatarUrl = (userId) =>
-  `http://localhost:3001/users/${userId}/avatar`;
+  `${axios.defaults.baseURL}/users/${userId}/avatar`;

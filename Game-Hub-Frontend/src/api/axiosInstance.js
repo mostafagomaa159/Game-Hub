@@ -2,7 +2,8 @@
 import axios from "axios";
 
 const instance = axios.create({
-  baseURL: "http://localhost:3001", // Your backend base URL
+  baseURL: "https://game-hub-backend-application-524e6ef2f7e7.herokuapp.com", // Your backend base URL
+  withCredentials: true, // ✅ only needed for cookie/session-based auth
 });
 
 // Add the token to every request
