@@ -40,6 +40,12 @@ const newPostSchema = new mongoose.Schema(
       ref: "User",
       default: [],
     },
+    requests: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "User",
+      default: [],
+    },
+
     owner: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,

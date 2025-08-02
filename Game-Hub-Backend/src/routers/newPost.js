@@ -3,6 +3,7 @@ const newPost = require("../models/newPost");
 const auth = require("../middleware/auth");
 const User = require("../models/user");
 const router = new express.Router();
+const Trade = require("../models/Trade");
 
 // Create new post
 router.post("/newpost", auth, async (req, res) => {
@@ -276,6 +277,68 @@ router.post("/newpost/:id/cancel-trade", auth, async (req, res) => {
   } catch (err) {
     console.error("Cancel trade error:", err);
     res.status(500).send({ error: "Failed to cancel trade" });
+  }
+});
+
+// Send request to buy (without reserving)
+router.post("/newpost/:id/request", auth, async (req, res) => {
+  try {
+    const post = await newPost.findById(req.params.id);
+    if (!post) return res.status(404).send({ error: "Post not found" });
+
+    // Prevent self-request
+    if (post.owner.toString() === req.user._id.toString()) {
+      return res.status(400).send({ error: "You can't request your own post" });
+    }
+
+    // Prevent duplicate request
+    if (post.requests.includes(req.user._id)) {
+      return res.status(400).send({ error: "Already requested" });
+    }
+
+    // ✅ Add to post.requests array
+    post.requests.push(req.user._id);
+    await post.save();
+
+    // ✅ Create a new Trade document
+    const trade = new Trade({
+      item: post._id,
+      buyer: req.user._id,
+      seller: post.owner,
+      price: post.price,
+    });
+
+    await trade.save();
+
+    res.status(201).send({ message: "Request sent", post });
+  } catch (e) {
+    console.error("Send request error:", e);
+    res.status(500).send({ error: "Failed to send request" });
+  }
+});
+
+// Cancel request
+router.post("/newpost/:id/cancel-request", auth, async (req, res) => {
+  try {
+    const post = await newPost.findById(req.params.id);
+    if (!post) return res.status(404).send({ error: "Post not found" });
+
+    // Remove user from post.requests array
+    post.requests = post.requests.filter(
+      (id) => id.toString() !== req.user._id.toString()
+    );
+    await post.save();
+
+    // ✅ Also remove the corresponding Trade document
+    await Trade.findOneAndDelete({
+      buyer: req.user._id,
+      item: post._id,
+    });
+
+    res.send({ message: "Request cancelled", post });
+  } catch (e) {
+    console.error("Cancel request error:", e);
+    res.status(500).send({ error: "Failed to cancel request" });
   }
 });
 

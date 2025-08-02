@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "mongodb.js",
   "scripts": {
-   "start": "node src/index.js",
+    "start": "node src/index.js",
     "dev": "env-cmd ./config/dev.env nodemon src/index.js",
     "test": "env-cmd ./config/test.env jest --watch --runInBand"
   },
@@ -28,6 +28,7 @@
     "multer": "^2.0.2",
     "react-router-dom": "^7.7.0",
     "sharp": "^0.34.1",
+    "socket.io": "^4.8.1",
     "validator": "^13.15.0"
   },
   "description": "",

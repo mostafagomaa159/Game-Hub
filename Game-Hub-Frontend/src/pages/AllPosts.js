@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import axios from "../api/axiosInstance";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const POSTS_PER_PAGE = 12;
 
@@ -87,6 +89,29 @@ const AllPosts = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [selectedPost, showLoginModal]);
+
+  const handleToggleRequest = async () => {
+    if (!userId) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    try {
+      const isAlreadyRequested = selectedPost.requests?.includes(userId);
+      const url = `/newpost/${selectedPost._id}/${
+        isAlreadyRequested ? "cancel-request" : "request"
+      }`;
+      const res = await axios.post(url);
+      const updatedPost = res.data.post;
+      setPosts((prev) =>
+        prev.map((p) => (p._id === updatedPost._id ? updatedPost : p))
+      );
+      setSelectedPostId(updatedPost._id);
+      toast.success(isAlreadyRequested ? "Request cancelled" : "Request sent");
+    } catch (err) {
+      console.error("Request toggle error", err);
+    }
+  };
 
   const handleVote = async (postId, voteType) => {
     if (!userId) {
@@ -377,6 +402,16 @@ const AllPosts = () => {
                   </button>
                 )}
               </>
+            )}
+            {userId && selectedPost.owner?._id !== userId && (
+              <button
+                className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
+                onClick={handleToggleRequest}
+              >
+                {selectedPost.requests?.includes(userId)
+                  ? "Cancel Request"
+                  : "Send Request"}
+              </button>
             )}
           </div>
         </div>

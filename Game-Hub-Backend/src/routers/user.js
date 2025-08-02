@@ -22,6 +22,14 @@ router.post("/users", async (req, res) => {
       .send({ error: "Registration failed. Email may already be in use." });
   }
 });
+router.get("/users", auth, async (req, res) => {
+  try {
+    const users = await User.find().select("name email createdAt");
+    res.send(users);
+  } catch (e) {
+    res.status(500).send({ error: "Failed to fetch users" });
+  }
+});
 
 // Login
 router.post("/users/login", async (req, res) => {
@@ -185,6 +193,39 @@ router.get("/me/trade-requests", auth, async (req, res) => {
     res.send({ count: trades.length });
   } catch (e) {
     res.status(500).send({ error: "Failed to load requests" });
+  }
+});
+router.get("/me/sent-trade-requests", auth, async (req, res) => {
+  try {
+    const trades = await Trade.find({
+      buyer: req.user._id,
+      status: "pending",
+    });
+    res.send({ count: trades.length });
+  } catch (e) {
+    res.status(500).send({ error: "Failed to load sent requests" });
+  }
+});
+router.get("/me/sent-trades", auth, async (req, res) => {
+  try {
+    const trades = await Trade.find({ buyer: req.user._id })
+      .populate("seller", "name email")
+      .populate("item");
+    res.send(trades);
+  } catch (e) {
+    res.status(500).send({ error: "Failed to load sent trades" });
+  }
+});
+router.get("/trade/:id", auth, async (req, res) => {
+  try {
+    const trade = await Trade.findById(req.params.id)
+      .populate("buyer", "name email")
+      .populate("seller", "name email")
+      .populate("item");
+    if (!trade) return res.status(404).send({ error: "Trade not found" });
+    res.send(trade);
+  } catch (e) {
+    res.status(500).send({ error: "Failed to fetch trade" });
   }
 });
 

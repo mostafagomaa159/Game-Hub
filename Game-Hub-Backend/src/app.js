@@ -9,6 +9,7 @@ const tradeRoutes = require("./routers/trade");
 const adminRouter = require("./routers/admin");
 const cors = require("cors");
 const app = express();
+const chatRouter = require("./routers/chat");
 const allowedOrigins = [
   "http://localhost:3000",
   "https://game-hub-git-main-game-hub2.vercel.app", // ✅ Add your Vercel frontend domain
@@ -37,6 +38,7 @@ app.use(financeRoutes);
 app.use(transactionRoutes);
 app.use(adminRouter);
 app.use(tradeRoutes);
+app.use(chatRouter);
 app.get("/", (req, res) => {
   res.send("GameHub Backend is running ✅");
 });
