@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+
 import axios from "../api/axiosInstance";
 import {
   LogOut,
@@ -12,8 +13,8 @@ import {
   Home,
   Moon,
   Sun,
-  ArrowDownCircle,
-  ArrowUpCircle,
+  //  ArrowDownCircle,
+  //ArrowUpCircle,
   ShieldCheck,
 } from "lucide-react";
 import { useUser } from "../context/UserContext";
@@ -67,10 +68,15 @@ const Navbar = () => {
   if (user) {
     navLinks.push(
       { to: "/dashboard", label: "Dashboard", icon: <Home size={16} /> },
-      { to: "/deposit", label: "Deposit", icon: <ArrowDownCircle size={16} /> },
-      { to: "/withdraw", label: "Withdraw", icon: <ArrowUpCircle size={16} /> },
+      // { to: "/deposit", label: "Deposit", icon: <ArrowDownCircle size={16} /> },
+      // { to: "/withdraw", label: "Withdraw", icon: <ArrowUpCircle size={16} /> },
       { to: "/newpost", label: "Create Post", icon: <PlusCircle size={16} /> },
-      { to: "/profile", label: "Profile", icon: <User size={16} /> }
+      { to: "/profile", label: "Profile", icon: <User size={16} /> },
+      {
+        to: "/requests",
+        label: "Requests",
+        icon: <FileText size={16} />,
+      }
     );
 
     if (!user.isAdmin) {

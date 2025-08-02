@@ -12,6 +12,8 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:3000",
   "https://game-hub-git-main-game-hub2.vercel.app", // ✅ Add your Vercel frontend domain
+  "https://game-aeas1daoo-game-hub2.vercel.app",
+  "https://game-hub-one-vert.vercel.app",
   "https://game-hub.vercel.app", // ✅ Add the default Vercel production domain if needed
 ];
 

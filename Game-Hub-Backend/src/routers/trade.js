@@ -46,4 +46,17 @@ router.patch("/trade/:id/confirm", auth, async (req, res) => {
   }
 });
 
+// GET seller's incoming trade requests
+router.get("/my-requests", auth, async (req, res) => {
+  try {
+    const trades = await Trade.find({ seller: req.user._id })
+      .populate("buyer", "name email")
+      .populate("item");
+    res.send(trades);
+  } catch (err) {
+    console.error("Get trades error:", err);
+    res.status(500).send({ error: "Failed to fetch trades" });
+  }
+});
+
 module.exports = router;

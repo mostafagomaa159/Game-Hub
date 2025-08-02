@@ -6,6 +6,7 @@ const Transaction = require("../models/transaction");
 const multer = require("multer");
 const newPost = require("../models/newPost");
 const router = new express.Router();
+const Trade = require("../models/Trade");
 
 // Register
 router.post("/users", async (req, res) => {
@@ -172,6 +173,18 @@ router.get("/me/trade-history", auth, async (req, res) => {
   } catch (err) {
     console.error("User Trade History Error:", err);
     res.status(500).send({ error: "Server Error" });
+  }
+});
+// GET /me/trade-requests
+router.get("/me/trade-requests", auth, async (req, res) => {
+  try {
+    const trades = await Trade.find({
+      seller: req.user._id,
+      status: "pending",
+    });
+    res.send({ count: trades.length });
+  } catch (e) {
+    res.status(500).send({ error: "Failed to load requests" });
   }
 });
 

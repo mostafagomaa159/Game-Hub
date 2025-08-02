@@ -19,7 +19,7 @@ import { UserProvider } from "./context/UserContext";
 import MyTransactions from "./pages/MyTransactions";
 import DepositSuccess from "./pages/DepositSuccess";
 import PostList from "./components/PostList";
-
+import Requests from "./pages/Requests";
 import "react-toastify/dist/ReactToastify.css";
 
 function App() {
@@ -51,6 +51,8 @@ function App() {
                   </RequireAuth>
                 }
               />
+              <Route path="/requests" element={<Requests />} />
+
               <Route path="/all-posts" element={<AllPosts />} />
               <Route
                 path="/profile"
