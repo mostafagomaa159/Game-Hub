@@ -25,7 +25,6 @@ const newPostSchema = new mongoose.Schema(
     discord: {
       type: String,
       trim: true,
-      required: true,
     },
     good_response: {
       type: Number,

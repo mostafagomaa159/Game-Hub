@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import axios from "../api/axiosInstance";
 import { Edit2, Trash2 } from "lucide-react";
 import { toast, ToastContainer } from "react-toastify";
@@ -15,15 +15,18 @@ const Dashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [editData, setEditData] = useState(null);
   const postsPerPage = 5;
-
-  useEffect(() => {
-    fetchPosts();
-  }, []);
-
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get("/newpost", {
+        params: {
+          page: currentPage,
+          limit: postsPerPage,
+          search,
+          priceMax,
+          priceMin,
+          availableOnly,
+        },
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -35,7 +38,10 @@ const Dashboard = () => {
       setError("Failed to fetch posts. Please log in.");
       setLoading(false);
     }
-  };
+  }, [currentPage, postsPerPage, search, priceMax, priceMin, availableOnly]);
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
   const handleEdit = (post) => setEditData({ ...post });
 

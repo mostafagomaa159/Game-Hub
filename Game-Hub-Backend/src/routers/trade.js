@@ -5,44 +5,34 @@ const auth = require("../middleware/auth");
 
 const router = new express.Router();
 
-router.patch("/trade/:id/confirm", auth, async (req, res) => {
+router.post("/trade/:id/cancel", auth, async (req, res) => {
   try {
     const trade = await Trade.findById(req.params.id);
     if (!trade) return res.status(404).send({ error: "Trade not found" });
 
-    if (
-      String(trade.buyer) !== String(req.user._id) &&
-      String(trade.seller) !== String(req.user._id)
-    ) {
+    const isBuyer = String(trade.buyer) === String(req.user._id);
+    const isSeller = String(trade.seller) === String(req.user._id);
+
+    if (!isBuyer && !isSeller) {
       return res.status(403).send({ error: "Not authorized" });
     }
 
-    if (String(trade.buyer) === String(req.user._id)) {
-      trade.buyerConfirmed = true;
+    // ❌ Block cancel if user has already confirmed
+    if (
+      (isBuyer && trade.buyerConfirmed) ||
+      (isSeller && trade.sellerConfirmed)
+    ) {
+      return res
+        .status(403)
+        .send({ error: "You have already confirmed this trade." });
     }
 
-    if (String(trade.seller) === String(req.user._id)) {
-      trade.sellerConfirmed = true;
-    }
-
-    // If both confirmed
-    if (trade.buyerConfirmed && trade.sellerConfirmed) {
-      trade.status = "completed";
-
-      const seller = await User.findById(trade.seller);
-      seller.coins += trade.price;
-      await seller.save();
-    } else if (trade.buyerConfirmed) {
-      trade.status = "buyer_confirmed";
-    } else if (trade.sellerConfirmed) {
-      trade.status = "seller_confirmed";
-    }
-
+    trade.status = "cancelled";
     await trade.save();
-    res.send(trade);
-  } catch (e) {
-    console.error("Confirm trade error:", e);
-    res.status(500).send({ error: "Failed to confirm trade" });
+    res.send({ success: true, post: trade });
+  } catch (err) {
+    console.error("Cancel trade error:", err);
+    res.status(500).send({ error: "Failed to cancel trade" });
   }
 });
 

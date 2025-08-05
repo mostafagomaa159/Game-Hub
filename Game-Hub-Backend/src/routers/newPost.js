@@ -22,11 +22,34 @@ router.post("/newpost", auth, async (req, res) => {
 // Get current user's posts
 router.get("/newpost", auth, async (req, res) => {
   try {
-    await req.user.populate("newpost");
-    res.send(req.user.newpost);
+    const { page = 1, limit = 10, title, status } = req.query;
+    const userId = req.user._id;
+
+    const filter = { owner: userId }; // base filter to only get user’s posts
+
+    if (title) {
+      filter.title = { $regex: title, $options: "i" }; // case-insensitive search
+    }
+
+    if (status) {
+      filter.status = status; // e.g., "active", "sold", etc.
+    }
+
+    const total = await NewPost.countDocuments(filter); // total count
+    const posts = await NewPost.find(filter)
+      .skip((page - 1) * limit)
+      .limit(Number(limit))
+      .sort({ createdAt: -1 }); // optional sort by latest
+
+    res.send({
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      posts,
+    });
   } catch (e) {
     console.error("Error in /newpost route:", e);
-    res.status(500).send();
+    res.status(500).send({ error: "Failed to fetch posts" });
   }
 });
 

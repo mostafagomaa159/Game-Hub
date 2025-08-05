@@ -37,7 +37,6 @@ const AdminDashboard = () => {
           alert("Unauthorized access.");
           return navigate("/");
         }
-
         const [
           pendingDepositsRes,
           pendingWithdrawalsRes,

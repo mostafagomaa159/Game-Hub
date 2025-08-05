@@ -19,6 +19,7 @@ const AllPosts = () => {
   const [userId, setUserId] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const modalRef = useRef(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const fetchAllPosts = async () => {
@@ -151,24 +152,34 @@ const AllPosts = () => {
       alert(err.response?.data?.error || "Buy failed");
     }
   };
-
   const handleConfirmTrade = async () => {
+    setIsProcessing(true);
     try {
       const res = await axios.post(
-        `/newpost/${selectedPost._id}/confirm-trade`
+        `/newpost/${selectedPost._id}/confirm-trade`,
+        {}, // ✅ must include an empty bodyy
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
       );
       const updatedPost = res.data;
-
-      setSelectedPostId(updatedPost._id); // ensure modal sync
+      setSelectedPostId(updatedPost._id);
       setPosts((prev) =>
         prev.map((p) => (p._id === updatedPost._id ? updatedPost : p))
       );
     } catch (err) {
-      console.error("Confirm trade error", err);
+      console.error(
+        "Confirm trade error",
+        err.response?.data || err.message || err
+      );
+      setIsProcessing(false);
     }
   };
 
   const handleCancelTrade = async () => {
+    // setIsProcessing(true);
     try {
       const res = await axios.post(
         `/newpost/${selectedPost._id}/cancel-trade`,
@@ -188,11 +199,21 @@ const AllPosts = () => {
       setSelectedPostId(updatedPost._id);
     } catch (err) {
       console.error("Cancel trade error", err);
+      // setIsProcessing(false);
     }
   };
+  const userAlreadyConfirmed = () => {
+    if (!selectedPost || !userId) return false;
 
-  const userAlreadyConfirmed = () =>
-    selectedPost?.tradeConfirmations?.includes(userId);
+    const isBuyer = selectedPost.buyer?._id === userId;
+    const isSeller = selectedPost.seller?._id === userId;
+
+    return (
+      (isBuyer && selectedPost.status === "buyer_confirmed") ||
+      (isSeller && selectedPost.status === "seller_confirmed") ||
+      selectedPost.status === "completed"
+    );
+  };
 
   const isOwner =
     selectedPost?.owner?._id === userId || selectedPost?.owner === userId;
@@ -344,12 +365,12 @@ const AllPosts = () => {
             <p className="mb-2 text-yellow-500 font-semibold">
               {selectedPost.price} Coins
             </p>
-            <p className="mb-2 text-sm">
+            {/* <p className="mb-2 text-sm">
               Discord:{" "}
               <span className="text-blue-600 dark:text-blue-400">
                 {selectedPost.discord}
               </span>
-            </p>
+            </p> */}
             <p
               className={`text-sm font-semibold ${
                 selectedPost.avaliable ? "text-green-600" : "text-red-500"
@@ -367,21 +388,32 @@ const AllPosts = () => {
             {selectedPost.tradeStatus === "pending" &&
               (isOwner || isBuyer) &&
               !userAlreadyConfirmed() && (
-                <button
-                  onClick={handleConfirmTrade}
-                  className="mt-4 w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl"
-                >
-                  Confirm Trade
-                </button>
+                <>
+                  <button
+                    onClick={handleConfirmTrade}
+                    disabled={isProcessing}
+                    className={`mt-4 w-full py-2 rounded-xl text-white ${
+                      isProcessing
+                        ? "bg-green-400 cursor-not-allowed"
+                        : "bg-green-600 hover:bg-green-700"
+                    }`}
+                  >
+                    Confirm Trade
+                  </button>
+
+                  <button
+                    onClick={handleCancelTrade}
+                    disabled={isProcessing}
+                    className={`mt-2 w-full py-2 rounded-xl text-white ${
+                      isProcessing
+                        ? "bg-red-400 cursor-not-allowed"
+                        : "bg-red-600 hover:bg-red-700"
+                    }`}
+                  >
+                    Cancel Trade
+                  </button>
+                </>
               )}
-            {selectedPost.tradeStatus === "pending" && (isOwner || isBuyer) && (
-              <button
-                onClick={handleCancelTrade}
-                className="mt-2 w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl"
-              >
-                Cancel Trade
-              </button>
-            )}
 
             {/* Buy */}
             {userId && selectedPost.owner?._id !== userId && (

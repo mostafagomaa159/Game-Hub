@@ -13,8 +13,6 @@ import {
   Home,
   Moon,
   Sun,
-  //  ArrowDownCircle,
-  //ArrowUpCircle,
   ShieldCheck,
 } from "lucide-react";
 import { useUser } from "../context/UserContext";
@@ -68,8 +66,6 @@ const Navbar = () => {
   if (user) {
     navLinks.push(
       { to: "/dashboard", label: "Dashboard", icon: <Home size={16} /> },
-      // { to: "/deposit", label: "Deposit", icon: <ArrowDownCircle size={16} /> },
-      // { to: "/withdraw", label: "Withdraw", icon: <ArrowUpCircle size={16} /> },
       { to: "/newpost", label: "Create Post", icon: <PlusCircle size={16} /> },
       { to: "/profile", label: "Profile", icon: <User size={16} /> },
       {
@@ -103,9 +99,12 @@ const Navbar = () => {
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="md:hidden text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white"
+            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
+
+          {/* Desktop title */}
           <Link
             to="/"
             className="font-bold text-lg tracking-wide hidden md:block text-blue-500 hover:text-blue-600"
@@ -171,8 +170,19 @@ const Navbar = () => {
         </div>
       </div>
 
+      {/* Mobile menu */}
       {isMobileMenuOpen && (
         <div className="md:hidden mt-3 space-y-2 border-t border-gray-200 dark:border-neutral-800 pt-3">
+          {/* Mobile title / home link (visible only in mobile menu) */}
+          <Link
+            to="/"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition rounded-md flex items-center space-x-2 font-bold text-blue-500"
+          >
+            <Home size={18} />
+            <span>GamesX Market</span>
+          </Link>
+
           {navLinks.map(({ to, label, icon }) => (
             <Link
               key={to}
@@ -184,6 +194,32 @@ const Navbar = () => {
               <span>{label}</span>
             </Link>
           ))}
+
+          {/* Guest route if not logged in */}
+          {!user && (
+            <Link
+              to="/login"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition rounded-md flex items-center space-x-2"
+            >
+              <LogIn size={16} />
+              <span>Login</span>
+            </Link>
+          )}
+
+          {/* Logout button for mobile when logged in */}
+          {user && (
+            <button
+              onClick={() => {
+                handleLogout();
+                setIsMobileMenuOpen(false);
+              }}
+              className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition rounded-md flex items-center space-x-2"
+            >
+              <LogOut size={16} />
+              <span>Logout</span>
+            </button>
+          )}
         </div>
       )}
     </nav>

@@ -1,8 +1,12 @@
+// FULL UPDATED Requests.js WITH RESPONSIVE CHAT + EMOJI PICKER
+
 import axios from "../api/axiosInstance";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle, Smile } from "lucide-react";
 import Modal from "react-modal";
 import { io } from "socket.io-client";
 import React, { useEffect, useRef, useState } from "react";
+import Picker from "@emoji-mart/react";
+import data from "@emoji-mart/data";
 
 const socket = io(process.env.REACT_APP_SOCKET_URL || "http://localhost:3001", {
   withCredentials: true,
@@ -20,6 +24,29 @@ const Card = ({ children }) => (
 
 const CardContent = ({ children }) => <div>{children}</div>;
 
+const SkeletonCard = () => (
+  <div className="bg-gray-700 p-4 rounded shadow animate-pulse h-48">
+    <div className="h-6 bg-gray-600 rounded w-1/2 mb-4"></div>
+    <div className="h-4 bg-gray-600 rounded w-3/4 mb-2"></div>
+    <div className="h-4 bg-gray-600 rounded w-1/2 mb-2"></div>
+    <div className="h-4 bg-gray-600 rounded w-2/3 mb-2"></div>
+    <div className="flex gap-2 mt-4">
+      <div className="h-8 w-20 bg-gray-600 rounded"></div>
+      <div className="h-8 w-20 bg-gray-600 rounded"></div>
+    </div>
+  </div>
+);
+
+const ChatSkeleton = () => (
+  <div className="flex flex-col gap-2">
+    {[1, 2, 3].map((i) => (
+      <div key={i} className="animate-pulse flex justify-start">
+        <div className="bg-gray-600 rounded px-4 py-2 w-3/4 h-6"></div>
+      </div>
+    ))}
+  </div>
+);
+
 const Requests = () => {
   const [view, setView] = useState("incoming");
   const [requests, setRequests] = useState([]);
@@ -28,12 +55,17 @@ const Requests = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [user, setUser] = useState(null);
   const [typingUser, setTypingUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
   const typingTimeoutRef = useRef(null);
   const messageEndRef = useRef(null);
 
   const scrollToBottom = () => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
   const formatTime = (isoDate) => {
     const date = new Date(isoDate);
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -41,6 +73,7 @@ const Requests = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const userRes = await axios.get("/users/me", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -52,6 +85,8 @@ const Requests = () => {
         setRequests(res.data);
       } catch (err) {
         console.error("Fetch error", err);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -88,6 +123,7 @@ const Requests = () => {
 
     setChatOpenId(id);
     setMessages([]);
+    setMessagesLoading(true);
     socket.emit("joinRoom", { roomId: id });
 
     try {
@@ -101,7 +137,7 @@ const Requests = () => {
           senderId: typeof m.sender === "object" ? m.sender._id : m.sender,
           senderName: typeof m.sender === "object" ? m.sender.name : m.sender,
           createdAt: m.createdAt,
-          status: m.status, // ✅ include status from DB so ✔️✔✔ appear correctly
+          status: m.status,
         }))
       );
 
@@ -111,10 +147,12 @@ const Requests = () => {
       });
     } catch (e) {
       console.error("Failed to load chat", e);
+    } finally {
+      setMessagesLoading(false);
     }
   };
-  socket.on("messagesSeen", ({ roomId, seenBy }) => {
-    // Optional: Only update if current chat is open
+
+  socket.on("messagesSeen", ({ roomId }) => {
     if (chatOpenId === roomId) {
       setMessages((prev) =>
         prev.map((msg) =>
@@ -125,20 +163,15 @@ const Requests = () => {
   });
 
   const sendMessage = () => {
-    // Don't send empty message or if user not loaded
     if (!inputMessage.trim() || !user) return;
 
-    // Prepare the message payload for the backend
     const messageData = {
       roomId: chatOpenId,
       message: inputMessage,
-      sender: user._id, // This goes to MongoDB (ObjectId expected)
+      sender: user._id,
     };
 
-    // Send to server using socket.io
     socket.emit("sendMessage", messageData);
-
-    // Clear the input box
     setInputMessage("");
   };
 
@@ -185,140 +218,177 @@ const Requests = () => {
         {view === "incoming" ? "Incoming Requests" : "My Sent Requests"}
       </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {requests.map((req) => (
-          <Card key={req._id}>
-            <CardContent>
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold">
-                  {view === "incoming"
-                    ? `Buyer: ${req.buyer.name}`
-                    : `Seller: ${req.seller.name}`}
-                </h2>
-                <MessageCircle
-                  className="cursor-pointer"
-                  onClick={() => toggleChat(req._id)}
-                />
-              </div>
-              <p className="mt-2">
-                <strong>Description:</strong> {req.item.description}
-              </p>
-              <p>
-                <strong>Price:</strong> {req.price} coins
-              </p>
-              <p>
-                <strong>Server:</strong> {req.item.server}
-              </p>
-
-              {view === "incoming" && (
-                <div className="flex gap-2 mt-4">
-                  <Button
-                    className="bg-green-600 hover:bg-green-700"
-                    onClick={() => handleConfirm(req._id)}
-                  >
-                    Confirm
-                  </Button>
-                  <Button
-                    className="bg-red-600 hover:bg-red-700"
-                    onClick={() => handleCancel(req.item._id)}
-                  >
-                    Cancel
-                  </Button>
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      ) : requests.length === 0 ? (
+        <div className="text-center text-gray-400 text-lg mt-10">
+          <div className="text-4xl animate-bounce mb-2">📭</div>
+          No {view === "incoming" ? "incoming" : "sent"} requests found.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {requests.map((req) => (
+            <Card key={req._id}>
+              <CardContent>
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-bold">
+                    {view === "incoming"
+                      ? `Buyer: ${req.buyer.name}`
+                      : `Seller: ${req.seller.name}`}
+                  </h2>
+                  <MessageCircle
+                    className="cursor-pointer"
+                    onClick={() => toggleChat(req._id)}
+                  />
                 </div>
-              )}
+                <p className="mt-2">
+                  <strong>Description:</strong> {req.item.description}
+                </p>
+                <p>
+                  <strong>Price:</strong> {req.price} coins
+                </p>
+                <p>
+                  <strong>Server:</strong> {req.item.server}
+                </p>
 
-              <Modal
-                isOpen={chatOpenId === req._id}
-                onRequestClose={() => toggleChat(null)}
-                className="bg-white p-4 rounded-md w-1/2 mx-auto mt-20"
-                overlayClassName="fixed inset-0 bg-black bg-opacity-70"
-              >
-                <div className="relative flex flex-col h-[500px] sm:h-[600px]">
-                  <button
-                    onClick={() => toggleChat(null)}
-                    className="absolute top-3 right-4 text-gray-500 hover:text-red-500 text-xl"
-                    aria-label="Close chat"
-                  >
-                    &times;
-                  </button>
-                  <div className="bg-gray-900 text-white text-lg font-semibold px-4 py-2 rounded-t">
-                    Chat with{" "}
-                    {view === "incoming" ? req.buyer.name : req.seller.name}
+                {view === "incoming" && (
+                  <div className="flex gap-2 mt-4">
+                    <Button
+                      className="bg-green-600 hover:bg-green-700"
+                      onClick={() => handleConfirm(req._id)}
+                    >
+                      Confirm
+                    </Button>
+                    <Button
+                      className="bg-red-600 hover:bg-red-700"
+                      onClick={() => handleCancel(req.item._id)}
+                    >
+                      Cancel
+                    </Button>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-3 bg-gray-800 text-white">
-                    {messages.map((msg, index) => {
-                      const isOwn =
-                        msg.sender === user._id || msg.senderName === user.name;
+                )}
 
-                      return (
-                        <div
-                          key={index}
-                          className={`mb-2 ${
-                            isOwn ? "text-right" : "text-left"
-                          }`}
-                        >
-                          <span className="block text-sm text-gray-400">
-                            {msg.senderName || msg.sender}
-                          </span>
+                <Modal
+                  isOpen={chatOpenId === req._id}
+                  onRequestClose={() => toggleChat(null)}
+                  className="bg-white p-4 rounded-md w-[95%] sm:w-[90%] md:w-[70%] lg:w-[50%] xl:w-[40%] max-w-[600px] mx-auto mt-20"
+                  overlayClassName="fixed inset-0 bg-black bg-opacity-70"
+                >
+                  <div className="relative flex flex-col h-[80vh]">
+                    <button
+                      onClick={() => toggleChat(null)}
+                      className="absolute top-3 right-4 text-gray-500 hover:text-red-500 text-xl"
+                      aria-label="Close chat"
+                    >
+                      &times;
+                    </button>
+                    <div className="bg-gray-900 text-white text-lg font-semibold px-4 py-2 rounded-t">
+                      Chat with{" "}
+                      {view === "incoming" ? req.buyer.name : req.seller.name}
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-3 bg-gray-800 text-white">
+                      {messagesLoading ? (
+                        <ChatSkeleton />
+                      ) : (
+                        messages.map((msg, index) => {
+                          const isOwn =
+                            msg.sender === user._id ||
+                            msg.senderName === user.name;
 
-                          <div className="inline-block bg-gray-700 p-2 rounded max-w-xs relative text-white">
-                            <span>{msg.message}</span>
+                          return (
+                            <div
+                              key={index}
+                              className={`mb-2 ${
+                                isOwn ? "text-right" : "text-left"
+                              }`}
+                            >
+                              <span className="block text-sm text-gray-400">
+                                {msg.senderName || msg.sender}
+                              </span>
 
-                            <div className="text-xs text-gray-400 mt-1 flex items-center gap-1 justify-end">
-                              <div className="text-xs text-gray-400 mt-1 flex items-center gap-1 justify-end">
-                                <span>{formatTime(msg.createdAt)}</span>
-                                {isOwn && (
-                                  <>
-                                    {msg.status === "seen" ? (
-                                      <span className="text-blue-400">✔✔</span>
-                                    ) : msg.status === "delivered" ? (
-                                      <span className="text-white">✔✔</span>
-                                    ) : (
-                                      <span className="text-green-500">✔️</span>
-                                    )}
-                                  </>
-                                )}
+                              <div className="inline-block bg-gray-700 p-2 rounded max-w-xs relative text-white">
+                                <span>{msg.message}</span>
+                                <div className="text-xs text-gray-400 mt-1 flex items-center gap-1 justify-end">
+                                  <span>{formatTime(msg.createdAt)}</span>
+                                  {isOwn && (
+                                    <>
+                                      {msg.status === "seen" ? (
+                                        <span className="text-blue-400">
+                                          ✔✔
+                                        </span>
+                                      ) : msg.status === "delivered" ? (
+                                        <span className="text-white">✔✔</span>
+                                      ) : (
+                                        <span className="text-green-500">
+                                          ✔️
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          );
+                        })
+                      )}
+                      {typingUser && (
+                        <div className="text-sm italic text-gray-400 mb-2">
+                          {typingUser} is typing...
                         </div>
-                      );
-                    })}
+                      )}
+                      <div ref={messageEndRef} />
+                    </div>
 
-                    {typingUser && (
-                      <div className="text-sm italic text-gray-400 mb-2">
-                        {typingUser} is typing...
-                      </div>
-                    )}
-                    <div ref={messageEndRef} />
-                  </div>
+                    <div className="flex items-center border-t border-gray-700 p-2 bg-gray-900 relative">
+                      {showEmojiPicker && (
+                        <div className="absolute bottom-14 left-0 z-50">
+                          <Picker
+                            data={data}
+                            onEmojiSelect={(emoji) =>
+                              setInputMessage((prev) => prev + emoji.native)
+                            }
+                            theme="dark"
+                            previewPosition="none"
+                          />
+                        </div>
+                      )}
 
-                  <div className="flex border-t border-gray-700 p-2 bg-gray-900">
-                    <input
-                      className="flex-1 px-3 py-2 rounded bg-gray-700 text-white placeholder-gray-400"
-                      placeholder="Type a message..."
-                      value={inputMessage}
-                      onChange={(e) => {
-                        setInputMessage(e.target.value);
-                        socket.emit("typing", {
-                          roomId: chatOpenId,
-                          sender: user.name,
-                        });
-                      }}
-                    />
-                    <button
-                      onClick={sendMessage}
-                      className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
-                    >
-                      Send
-                    </button>
+                      <input
+                        className="flex-1 px-3 py-2 rounded bg-gray-700 text-white placeholder-gray-400"
+                        placeholder="Type a message..."
+                        value={inputMessage}
+                        onChange={(e) => {
+                          setInputMessage(e.target.value);
+                          socket.emit("typing", {
+                            roomId: chatOpenId,
+                            sender: user.name,
+                          });
+                        }}
+                      />
+                      <button
+                        className="ml-2 text-gray-300 hover:text-white"
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      >
+                        <Smile />
+                      </button>
+                      <button
+                        onClick={sendMessage}
+                        className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                      >
+                        Send
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </Modal>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </Modal>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
