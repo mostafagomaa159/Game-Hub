@@ -1,5 +1,4 @@
 // FULL UPDATED Requests.js WITH RESPONSIVE CHAT + EMOJI PICKER
-
 import axios from "../api/axiosInstance";
 import { MessageCircle, Smile } from "lucide-react";
 import Modal from "react-modal";
@@ -152,15 +151,17 @@ const Requests = () => {
     }
   };
 
-  socket.on("messagesSeen", ({ roomId }) => {
-    if (chatOpenId === roomId) {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.senderId === user._id ? { ...msg, status: "seen" } : msg
-        )
-      );
-    }
-  });
+  useEffect(() => {
+    socket.on("messagesSeen", ({ roomId }) => {
+      if (chatOpenId === roomId) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.senderId === user._id ? { ...msg, status: "seen" } : msg
+          )
+        );
+      }
+    });
+  }, [chatOpenId, user]);
 
   const sendMessage = () => {
     if (!inputMessage.trim() || !user) return;
@@ -296,7 +297,7 @@ const Requests = () => {
                       ) : (
                         messages.map((msg, index) => {
                           const isOwn =
-                            msg.sender === user._id ||
+                            msg.senderId === user._id ||
                             msg.senderName === user.name;
 
                           return (
@@ -356,7 +357,6 @@ const Requests = () => {
                           />
                         </div>
                       )}
-
                       <input
                         className="flex-1 px-3 py-2 rounded bg-gray-700 text-white placeholder-gray-400"
                         placeholder="Type a message..."

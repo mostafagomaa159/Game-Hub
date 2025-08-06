@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "../api/axiosInstance";
+import SkeletonCard from "../components/common/SkeletonCard";
 
 const MyTransactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -9,6 +10,7 @@ const MyTransactions = () => {
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
@@ -18,8 +20,12 @@ const MyTransactions = () => {
           axios.get("/me/trade-history", { headers }),
         ]);
 
-        setTransactions(transactionsRes.data);
-        setTradeHistory(tradeHistoryRes.data);
+        setTransactions(
+          Array.isArray(transactionsRes.data) ? transactionsRes.data : []
+        );
+        setTradeHistory(
+          Array.isArray(tradeHistoryRes.data) ? tradeHistoryRes.data : []
+        );
       } catch (error) {
         console.error("Error fetching data", error);
       } finally {
@@ -31,13 +37,15 @@ const MyTransactions = () => {
   }, []);
 
   const renderStatusButton = (status) => {
-    const base = "px-3 py-1 rounded text-white w-fit";
+    const base = "px-3 py-1 rounded text-white w-fit text-sm";
     if (status === "approved")
       return <span className={`${base} bg-green-700`}>Approved</span>;
     if (status === "rejected")
       return <span className={`${base} bg-red-700`}>Rejected</span>;
     if (status === "pending")
-      return <span className={`${base} bg-yellow-600`}>Pending</span>;
+      return (
+        <span className={`${base} bg-yellow-600 text-black`}>Pending</span>
+      );
     return null;
   };
 
@@ -56,10 +64,36 @@ const MyTransactions = () => {
     return transactions.filter((tx) => tx.type === filterType);
   };
 
+  const SKELETON_COUNT = 6; // number of skeleton cards to show
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      <div className="p-4 text-white max-w-5xl mx-auto">
+        <h2 className="text-2xl font-bold mb-4">My Transactions</h2>
+
+        <div className="mb-4">
+          <label htmlFor="filter" className="mr-2">
+            Filter by:
+          </label>
+          <select
+            id="filter"
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="p-2 rounded bg-gray-900 border border-gray-600 text-white"
+            disabled
+          >
+            <option value="all">All</option>
+            <option value="deposit">Deposits</option>
+            <option value="withdraw">Withdrawals</option>
+            <option value="history">Trade History</option>
+          </select>
+        </div>
+
+        <div className="grid gap-4">
+          {Array.from({ length: SKELETON_COUNT }).map((_, idx) => (
+            <SkeletonCard key={idx} isHistory={filterType === "history"} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -67,10 +101,10 @@ const MyTransactions = () => {
   const list = filtered();
 
   return (
-    <div className="p-4 text-white">
+    <div className="p-4 text-white max-w-5xl mx-auto">
       <h2 className="text-2xl font-bold mb-4">My Transactions</h2>
 
-      <div className="mb-4">
+      <div className="mb-4 flex items-center gap-3">
         <label htmlFor="filter" className="mr-2">
           Filter by:
         </label>
@@ -88,7 +122,11 @@ const MyTransactions = () => {
       </div>
 
       {list.length === 0 ? (
-        <p>No data found.</p>
+        <div className="text-center text-gray-400 text-lg mt-10">
+          <div className="text-4xl animate-bounce mb-2">📭</div>
+          No {filterType === "history" ? "trade history" : "transactions"}{" "}
+          found.
+        </div>
       ) : (
         <div className="grid gap-4">
           {list.map((item) => (
@@ -123,7 +161,7 @@ const MyTransactions = () => {
                   </p>
                 </>
               ) : (
-                <div className="flex justify-between">
+                <div className="flex flex-col md:flex-row md:justify-between gap-3">
                   <div>
                     <p>
                       <strong>Amount:</strong> {item.amount} coins
@@ -142,7 +180,7 @@ const MyTransactions = () => {
                       </p>
                     )}
                   </div>
-                  <div className="flex items-center">
+                  <div className="flex items-center gap-3">
                     {renderStatusButton(item.status)}
                   </div>
                 </div>

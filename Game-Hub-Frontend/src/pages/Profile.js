@@ -1,46 +1,114 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
+import useSWR, { mutate as globalMutate } from "swr";
 import axios from "../api/axiosInstance";
 import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+const fetcher = (url) => axios.get(url).then((r) => r.data);
 
 const Profile = () => {
-  const [user, setUser] = useState({});
+  const {
+    data: user,
+    error,
+    isValidating,
+  } = useSWR("/users/me", fetcher, {
+    revalidateOnFocus: true,
+    dedupingInterval: 5000,
+    shouldRetryOnError: false,
+  });
+
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const fetchUser = async () => {
-    try {
-      const res = await axios.get("/users/me");
-      setUser(res.data);
-      setName(res.data.name);
-      setEmail(res.data.email);
-    } catch (err) {
-      console.error("Failed to fetch user", err);
-    }
-  };
+  const handleStartEditing = useCallback(() => {
+    setForm({
+      name: user?.name ?? "",
+      email: user?.email ?? "",
+      password: "",
+    });
+    setEditing(true);
+  }, [user]);
 
-  useEffect(() => {
-    fetchUser();
+  const handleCancel = useCallback(() => {
+    setEditing(false);
+    setForm((f) => ({ ...f, password: "" }));
   }, []);
 
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-    try {
-      const updateData = { name, email };
-      if (password.trim() !== "") {
-        updateData.password = password;
-      }
+  const handleChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  }, []);
 
-      await axios.patch("/users/me", updateData);
-      setEditing(false);
-      setPassword("");
-      fetchUser();
-    } catch (err) {
-      console.error("Failed to update user", err);
-    }
-  };
+  const handleToggleShowPassword = useCallback(
+    () => setShowPassword((s) => !s),
+    []
+  );
+
+  const handleUpdate = useCallback(
+    async (e) => {
+      e.preventDefault();
+      setSaving(true);
+
+      const payload = { name: form.name, email: form.email };
+      if (form.password?.trim()) payload.password = form.password;
+
+      try {
+        await globalMutate(
+          "/users/me",
+          async (current) => {
+            const res = await axios.patch("/users/me", payload);
+            return res?.data ? res.data : { ...(current || {}), ...payload };
+          },
+          {
+            optimisticData: { ...(user || {}), ...payload },
+            rollbackOnError: true,
+            revalidate: true,
+          }
+        );
+
+        toast.success("✅ Profile updated successfully!");
+        setEditing(false);
+        setForm((f) => ({ ...f, password: "" }));
+      } catch (err) {
+        console.error("Profile update failed", err);
+        toast.error("❌ Failed to update profile.");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [form, user]
+  );
+
+  if (!user && !error) {
+    return (
+      <div className="max-w-xl mx-auto mt-10 p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-lg">
+        <h2 className="text-2xl font-bold mb-6 text-center">👤 Profile</h2>
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-3/4" />
+          <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-5/6" />
+          <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-1/3" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !user) {
+    return (
+      <div className="max-w-xl mx-auto mt-10 p-6 bg-white dark:bg-gray-900 rounded-2xl shadow-lg">
+        <h2 className="text-2xl font-bold mb-6 text-center">👤 Profile</h2>
+        <p className="text-red-500 mb-4">Failed to load profile.</p>
+        <button
+          onClick={() => globalMutate("/users/me")}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-xl mx-auto mt-10 p-6 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl shadow-lg">
@@ -49,13 +117,13 @@ const Profile = () => {
       {!editing && (
         <div className="space-y-4">
           <p>
-            <strong>🧑 Name:</strong> {user.name}
+            <strong>🧑 Name:</strong> {user?.name ?? "-"}
           </p>
           <p>
-            <strong>📧 Email:</strong> {user.email}
+            <strong>📧 Email:</strong> {user?.email ?? "-"}
           </p>
           <p>
-            <strong>💰 Coins:</strong> {user.coins ?? 0}
+            <strong>💰 Coins:</strong> {user?.coins ?? 0}
           </p>
 
           <div className="flex gap-3 pt-4">
@@ -74,42 +142,52 @@ const Profile = () => {
           </div>
 
           <button
-            onClick={() => setEditing(true)}
+            onClick={handleStartEditing}
             className="w-full mt-6 bg-gray-800 hover:bg-gray-900 dark:bg-gray-700 dark:hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition"
           >
             Update Profile
           </button>
+
+          {isValidating && (
+            <p className="text-sm text-gray-500 mt-2">Refreshing...</p>
+          )}
         </div>
       )}
 
       {editing && (
         <form onSubmit={handleUpdate} className="space-y-4">
           <input
+            name="name"
             type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={form.name}
+            onChange={handleChange}
             className="w-full p-3 rounded-md border dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             required
             placeholder="Name"
+            disabled={saving}
           />
           <input
+            name="email"
             type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={form.email}
+            onChange={handleChange}
             className="w-full p-3 rounded-md border dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             required
             placeholder="Email"
+            disabled={saving}
           />
           <div className="relative">
             <input
+              name="password"
               type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={form.password}
+              onChange={handleChange}
               className="w-full p-3 rounded-md border dark:border-gray-600 dark:bg-gray-800 dark:text-white pr-10"
               placeholder="New Password (leave blank to keep current)"
+              disabled={saving}
             />
             <span
-              onClick={() => setShowPassword((prev) => !prev)}
+              onClick={handleToggleShowPassword}
               className="absolute right-3 top-3 cursor-pointer text-gray-600 dark:text-gray-300"
             >
               {showPassword ? "🙈" : "👁️"}
@@ -119,17 +197,16 @@ const Profile = () => {
           <div className="flex justify-between gap-3">
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition disabled:opacity-60"
+              disabled={saving}
             >
-              Save
+              {saving ? "Saving..." : "Save"}
             </button>
             <button
-              onClick={() => {
-                setEditing(false);
-                setPassword("");
-              }}
+              onClick={handleCancel}
               className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition"
               type="button"
+              disabled={saving}
             >
               Cancel
             </button>

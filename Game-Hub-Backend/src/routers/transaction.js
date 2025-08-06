@@ -29,9 +29,7 @@ router.get("/transactions/pending", auth, adminAuth, async (req, res) => {
   }
 });
 
-// 💰 Deposit Request
 // 💰 Deposit Request (PayPal or Bank)
-// 💰 Deposit Request (Bank)
 router.post("/transactions/deposit", auth, async (req, res) => {
   try {
     const { amount, method, iban, accountNumber } = req.body;

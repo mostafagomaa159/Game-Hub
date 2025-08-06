@@ -1,3 +1,4 @@
+// src/pages/Dashboard.js
 import React, { useCallback, useEffect, useState } from "react";
 import axios from "../api/axiosInstance";
 import { Edit2, Trash2 } from "lucide-react";
@@ -14,8 +15,14 @@ const Dashboard = () => {
   const [availableOnly, setAvailableOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [editData, setEditData] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+
   const postsPerPage = 5;
+
+  // Fetch posts (uses res.data.posts when available)
   const fetchPosts = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get("/newpost", {
@@ -31,14 +38,18 @@ const Dashboard = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-      setPosts(res.data);
-      setLoading(false);
+
+      const dataPosts = res.data?.posts ?? res.data;
+      setPosts(Array.isArray(dataPosts) ? dataPosts : []);
     } catch (err) {
       console.error(err);
       setError("Failed to fetch posts. Please log in.");
+      setPosts([]);
+    } finally {
       setLoading(false);
     }
   }, [currentPage, postsPerPage, search, priceMax, priceMin, availableOnly]);
+
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
@@ -47,6 +58,7 @@ const Dashboard = () => {
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
     try {
       const { description, price, server, avaliable, discord } = editData;
       await axios.patch(`/newpost/${editData._id}`, {
@@ -58,10 +70,13 @@ const Dashboard = () => {
       });
       toast.success("Post updated successfully!");
       setEditData(null);
-      fetchPosts();
+      // refresh
+      await fetchPosts();
     } catch (err) {
       console.error(err);
       toast.error("Failed to update post.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -78,7 +93,7 @@ const Dashboard = () => {
   };
 
   const filteredPosts = posts.filter((post) => {
-    const matchesSearch = post.description
+    const matchesSearch = (post.description || "")
       .toLowerCase()
       .includes(search.toLowerCase());
     const matchesPrice =
@@ -91,7 +106,61 @@ const Dashboard = () => {
   const indexOfLast = currentPage * postsPerPage;
   const indexOfFirst = indexOfLast - postsPerPage;
   const currentPosts = filteredPosts.slice(indexOfFirst, indexOfLast);
-  const totalPages = Math.ceil(filteredPosts.length / postsPerPage);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredPosts.length / postsPerPage)
+  );
+
+  // Number of skeleton rows to show; match postsPerPage but cap on very small screens
+  const skeletonCount = postsPerPage;
+
+  // Small spinner component (used in pagination and Save button)
+  const SmallSpinner = ({ className = "inline-block w-4 h-4 mr-2" }) => (
+    <svg
+      className={`${className} animate-spin`}
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      ></circle>
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+      ></path>
+    </svg>
+  );
+
+  // Table-shaped skeleton row
+  const TableSkeletonRow = ({ keyIndex }) => (
+    <tr key={`sk-${keyIndex}`} className="animate-pulse">
+      <td className="p-4">
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+      </td>
+      <td className="p-4">
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-6" />
+      </td>
+      <td className="p-4">
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-12" />
+      </td>
+      <td className="p-4">
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20" />
+      </td>
+      <td className="p-4">
+        <div className="flex gap-2">
+          <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded" />
+          <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded" />
+        </div>
+      </td>
+    </tr>
+  );
 
   return (
     <div className="min-h-screen bg-white dark:bg-darkBackground text-gray-800 dark:text-gray-200 p-6">
@@ -136,74 +205,92 @@ const Dashboard = () => {
           </label>
         </div>
 
-        {/* Table */}
-        {loading ? (
-          <p>Loading...</p>
-        ) : error ? (
-          <p className="text-red-600">{error}</p>
-        ) : filteredPosts.length === 0 ? (
-          <p>No posts found.</p>
-        ) : (
-          <>
-            <div className="overflow-x-auto bg-white dark:bg-darkCard shadow-md rounded-lg">
-              <table className="w-full table-auto">
-                <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm">
-                  <tr>
-                    <th className="p-4 text-left">Description</th>
-                    <th className="p-4 text-left">Available</th>
-                    <th className="p-4 text-left">Price</th>
-                    <th className="p-4 text-left">Server</th>
-                    <th className="p-4 text-left">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm divide-y">
-                  {currentPosts.map((post) => (
-                    <tr
-                      key={post._id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-                    >
-                      <td className="p-4">{post.description}</td>
-                      <td className="p-4">{post.avaliable ? "Yes" : "No"}</td>
-                      <td className="p-4">{post.price}</td>
-                      <td className="p-4">{post.server}</td>
-                      <td className="p-4 space-x-2">
-                        <button
-                          onClick={() => handleEdit(post)}
-                          className="text-blue-600 hover:text-blue-800 transition"
-                        >
-                          <Edit2 className="inline w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(post._id)}
-                          className="text-red-600 hover:text-red-800 transition"
-                        >
-                          <Trash2 className="inline w-5 h-5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        {/* Table / Skeleton */}
+        <div className="overflow-x-auto bg-white dark:bg-darkCard shadow-md rounded-lg">
+          <table className="w-full table-auto">
+            <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm">
+              <tr>
+                <th className="p-4 text-left">Description</th>
+                <th className="p-4 text-left">Available</th>
+                <th className="p-4 text-left">Price</th>
+                <th className="p-4 text-left">Server</th>
+                <th className="p-4 text-left">Actions</th>
+              </tr>
+            </thead>
 
-            {/* Pagination */}
-            <div className="mt-6 flex justify-center space-x-2">
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`px-3 py-1 rounded-md border transition ${
-                    currentPage === i + 1
-                      ? "bg-blue-600 text-white shadow"
-                      : "bg-white dark:bg-gray-800 dark:text-white text-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
+            <tbody className="text-sm divide-y">
+              {loading ? (
+                // render skeleton rows equal to postsPerPage
+                <>
+                  {Array.from({ length: skeletonCount }).map((_, i) => (
+                    <TableSkeletonRow keyIndex={i} key={`skeleton-${i}`} />
+                  ))}
+                </>
+              ) : error ? (
+                <tr>
+                  <td colSpan={5} className="p-6 text-red-600">
+                    {error}
+                  </td>
+                </tr>
+              ) : filteredPosts.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-6">
+                    No posts found.
+                  </td>
+                </tr>
+              ) : (
+                currentPosts.map((post) => (
+                  <tr
+                    key={post._id}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                  >
+                    <td className="p-4">{post.description}</td>
+                    <td className="p-4">{post.avaliable ? "Yes" : "No"}</td>
+                    <td className="p-4">{post.price}</td>
+                    <td className="p-4">{post.server}</td>
+                    <td className="p-4 space-x-2">
+                      <button
+                        onClick={() => handleEdit(post)}
+                        className="text-blue-600 hover:text-blue-800 transition"
+                      >
+                        <Edit2 className="inline w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(post._id)}
+                        className="text-red-600 hover:text-red-800 transition"
+                      >
+                        <Trash2 className="inline w-5 h-5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination with small spinner when loading */}
+        <div className="mt-6 flex items-center justify-center space-x-2">
+          {loading && (
+            <div className="flex items-center text-sm text-gray-500 mr-2">
+              <SmallSpinner className="inline-block w-4 h-4 mr-2" />
+              loading...
             </div>
-          </>
-        )}
+          )}
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => setCurrentPage(i + 1)}
+              className={`px-3 py-1 rounded-md border transition ${
+                currentPage === i + 1
+                  ? "bg-blue-600 text-white shadow"
+                  : "bg-white dark:bg-gray-800 dark:text-white text-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700"
+              }`}
+            >
+              {i + 1}
+            </button>
+          ))}
+        </div>
 
         {/* Edit Modal */}
         {editData && (
@@ -263,8 +350,14 @@ const Dashboard = () => {
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="submit"
-                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+                    disabled={isSaving}
+                    className={`flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition ${
+                      isSaving ? "opacity-80 cursor-not-allowed" : ""
+                    }`}
                   >
+                    {isSaving && (
+                      <SmallSpinner className="inline-block w-4 h-4" />
+                    )}
                     Save
                   </button>
                   <button
