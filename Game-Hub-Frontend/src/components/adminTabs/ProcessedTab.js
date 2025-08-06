@@ -4,6 +4,7 @@ import axios from "../../api/axiosInstance";
 import SkeletonCard from "../common/SkeletonCard";
 
 const ITEMS_PER_PAGE = 5;
+const SKELETON_COUNT = 6; // keep layout stable while loading
 
 const ProcessedTab = ({
   searchTerm = "",
@@ -11,34 +12,55 @@ const ProcessedTab = ({
   sortOrder = "desc",
   currentPage = 1,
   setCurrentPage,
-  setProcessedCount, // <- new prop from parent
+  setProcessedCount, // optional setter from parent
 }) => {
   const [processed, setProcessed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
+  const [error, setError] = useState("");
 
-  const fetchData = async () => {
+  const fetchData = async (signal) => {
     try {
+      setError("");
       setLoading(true);
       const token = localStorage.getItem("token");
       const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get("/transactions/processed", { headers });
-      setProcessed(res.data || []);
-      // update parent count on initial load if setter provided
+      const res = await axios.get("/transactions/processed", {
+        headers,
+        signal,
+      });
+      const data = res.data || [];
+      setProcessed(data);
       if (typeof setProcessedCount === "function") {
-        setProcessedCount(Array.isArray(res.data) ? res.data.length : 0);
+        setProcessedCount(Array.isArray(data) ? data.length : 0);
       }
     } catch (err) {
+      if (axios.isCancel && axios.isCancel(err)) return;
       console.error("Failed to fetch processed transactions", err);
+      setError("Failed to load processed transactions. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    const controller = new AbortController();
+    let mounted = true;
+    (async () => {
+      if (!mounted) return;
+      await fetchData(controller.signal);
+    })();
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const retryFetch = async () => {
+    const controller = new AbortController();
+    await fetchData(controller.signal);
+  };
 
   const updateNote = async (id, note) => {
     setProcessingId(id);
@@ -63,18 +85,17 @@ const ProcessedTab = ({
   // Filtering
   const term = (searchTerm || "").toLowerCase();
   const filtered = processed.filter((tx) => {
-    const owner = tx.userId?.name || tx.userId?.email || "";
-    const email = tx.userId?.email || "";
-    return (
-      owner.toLowerCase().includes(term) || email.toLowerCase().includes(term)
-    );
+    const owner = (tx.userId?.name || tx.userId?.email || "").toLowerCase();
+    const email = (tx.userId?.email || "").toLowerCase();
+    if (!term) return true;
+    return owner.includes(term) || email.includes(term);
   });
 
   // Sorting
   filtered.sort((a, b) => {
     if (sortBy === "amount" || sortBy === "price") {
-      const aval = a.amount || a.price || 0;
-      const bval = b.amount || b.price || 0;
+      const aval = Number(a.amount ?? a.price ?? 0);
+      const bval = Number(b.amount ?? b.price ?? 0);
       return sortOrder === "asc" ? aval - bval : bval - aval;
     } else {
       const at = new Date(a.createdAt || a.updatedAt).getTime();
@@ -95,78 +116,146 @@ const ProcessedTab = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalPages]);
 
+  // --- UI branches: loading / error / empty / normal
+
   if (loading) {
     return (
-      <div>
-        {Array.from({ length: 3 }).map((_, i) => (
-          <SkeletonCard key={i} />
-        ))}
+      <div className="py-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto px-3">
+          {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+            <SkeletonCard key={i} variant="post" isHistory />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="py-8">
+        <div className="max-w-2xl mx-auto text-center px-3">
+          <div className="text-red-600 dark:text-red-400 font-semibold mb-3">
+            {error}
+          </div>
+          <button
+            onClick={retryFetch}
+            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 transition"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
 
   if (paginated.length === 0) {
-    return <p className="text-gray-400">No processed transactions.</p>;
-  }
+    return (
+      <div className="py-8">
+        <div className="max-w-2xl mx-auto text-center px-4">
+          <div className="text-4xl animate-bounce mb-2">📭</div>
+          <div className="text-gray-600 dark:text-gray-300 text-lg">
+            No processed transactions.
+          </div>
 
-  return (
-    <div>
-      {paginated.map((item) => (
-        <div
-          key={item._id}
-          className="p-4 rounded-lg shadow-md mb-4 bg-gray-800"
-        >
-          <p>
-            <strong>Name:</strong> {item.userId?.name}
-          </p>
-          <p>
-            <strong>Email:</strong> {item.userId?.email}
-          </p>
-          <p>
-            <strong>Amount:</strong> {item.amount} coins
-          </p>
-          <p>
-            <strong>Status:</strong> {item.status}
-          </p>
-          <p>
-            <strong>Type:</strong> {item.type}
-          </p>
-          <p>
-            <strong>Method:</strong> {item.method}
-          </p>
-
-          <div className="mt-3">
-            <label className="text-sm">Admin Note:</label>
-            <textarea
-              defaultValue={item.adminNote || ""}
-              onBlur={(e) => updateNote(item._id, e.target.value)}
-              className="w-full mt-1 p-2 rounded bg-gray-900 border border-gray-600"
-              disabled={processingId === item._id}
-            />
-            {processingId === item._id && (
-              <p className="text-sm text-gray-400 mt-1">Saving...</p>
-            )}
+          <div className="mt-6 flex items-center justify-center gap-4">
+            <button
+              onClick={retryFetch}
+              className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 transition"
+            >
+              Retry
+            </button>
           </div>
         </div>
-      ))}
+      </div>
+    );
+  }
 
-      {totalPages > 1 && (
-        <div className="flex justify-center mt-4 gap-2">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
-            <button
-              key={pg}
-              onClick={() => setCurrentPage?.(pg)}
-              className={`px-3 py-1 rounded ${
-                pg === currentPage
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-700 text-gray-300"
-              }`}
+  // Normal render
+  return (
+    <div className="py-4">
+      <div className="max-w-6xl mx-auto px-3">
+        <div className="space-y-4">
+          {paginated.map((item) => (
+            <div
+              key={item._id}
+              className="p-4 rounded-lg shadow-md mb-2 bg-white text-gray-900 border border-gray-100 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
             >
-              {pg}
-            </button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <p className="text-sm">
+                    <strong className="mr-2">Name:</strong>
+                    <span className="font-medium">
+                      {item.userId?.name || "N/A"}
+                    </span>
+                  </p>
+                  <p className="text-sm mt-1">
+                    <strong className="mr-2">Email:</strong>
+                    <span className="font-medium">
+                      {item.userId?.email || "N/A"}
+                    </span>
+                  </p>
+                  <p className="text-sm mt-1">
+                    <strong className="mr-2">Amount:</strong>
+                    <span className="font-medium">
+                      {item.amount ?? "-"} coins
+                    </span>
+                  </p>
+                </div>
+
+                <div className="text-sm text-right">
+                  <p>
+                    <strong className="mr-2">Status:</strong>
+                    <span className="font-medium">{item.status ?? "-"}</span>
+                  </p>
+                  <p className="mt-1">
+                    <strong className="mr-2">Type:</strong>
+                    <span className="font-medium">{item.type ?? "-"}</span>
+                  </p>
+                  <p className="mt-1">
+                    <strong className="mr-2">Method:</strong>
+                    <span className="font-medium">{item.method ?? "-"}</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <label className="text-sm text-gray-700 dark:text-gray-300">
+                  Admin Note:
+                </label>
+                <textarea
+                  defaultValue={item.adminNote || ""}
+                  onBlur={(e) => updateNote(item._id, e.target.value)}
+                  className="w-full mt-1 p-2 rounded bg-white border border-gray-200 text-gray-900 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100"
+                  disabled={processingId === item._id}
+                />
+                {processingId === item._id && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Saving...
+                  </p>
+                )}
+              </div>
+            </div>
           ))}
         </div>
-      )}
+
+        {totalPages > 1 && (
+          <div className="flex justify-center mt-6 gap-2">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+              <button
+                key={pg}
+                onClick={() => setCurrentPage?.(pg)}
+                className={`px-3 py-1 rounded transition ${
+                  pg === currentPage
+                    ? "bg-blue-600 text-white dark:bg-blue-500"
+                    : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                }`}
+              >
+                {pg}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -106,6 +106,9 @@ export default function UsersTab({
         setUsers((prev) =>
           prev.map((u) => (u._id === user._id ? res.data.user : u))
         );
+
+        // If you want immediate logout for the target user, backend should issue a socket/message.
+        // Frontend cannot force other users to logout unless they check token validity.
       } else {
         fetchUsers();
       }
@@ -234,7 +237,7 @@ export default function UsersTab({
         .join("")
         .toUpperCase() || "?";
     return (
-      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center text-sm font-semibold text-gray-100">
+      <div className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center text-sm font-semibold text-gray-800 dark:text-gray-100">
         {user?.avatarUrl ? (
           <img
             src={user.avatarUrl}
@@ -252,14 +255,14 @@ export default function UsersTab({
     const isAdmin = !!user?.isAdmin;
     const role = user?.role || (isAdmin ? "admin" : "user");
     return (
-      <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-600/20 text-indigo-300">
+      <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-600/20 dark:text-indigo-300">
         {role}
       </span>
     );
   };
 
   /* ---------------------------
-     Edit User Form (unchanged layout, slightly refined)
+     Edit User Form
      --------------------------- */
   const EditUserForm = ({ user }) => {
     const [form, setForm] = useState({
@@ -289,34 +292,42 @@ export default function UsersTab({
     return (
       <form
         onSubmit={submit}
-        className="bg-gray-900 rounded-lg shadow-lg p-5 w-full max-w-md"
+        className="bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 border border-gray-100 dark:border-gray-700 rounded-lg shadow-lg p-5 w-full max-w-md"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Edit user</h3>
-          <div className="text-sm text-gray-400">{user._id?.slice(-6)}</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {user._id?.slice(-6)}
+          </div>
         </div>
 
-        <label className="block text-sm text-gray-300">Name</label>
+        <label className="block text-sm text-gray-600 dark:text-gray-300">
+          Name
+        </label>
         <input
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
-          className="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full mt-1 p-2 rounded bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
 
-        <label className="block text-sm text-gray-300 mt-3">Email</label>
+        <label className="block text-sm text-gray-600 dark:text-gray-300 mt-3">
+          Email
+        </label>
         <input
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
-          className="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full mt-1 p-2 rounded bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
 
         <div className="grid grid-cols-2 gap-3 mt-3">
           <div>
-            <label className="block text-sm text-gray-300">Role (legacy)</label>
+            <label className="block text-sm text-gray-600 dark:text-gray-300">
+              Role (legacy)
+            </label>
             <select
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700"
+              className="w-full mt-1 p-2 rounded bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
             >
               <option value="user">User</option>
               <option value="seller">Seller</option>
@@ -325,32 +336,36 @@ export default function UsersTab({
           </div>
 
           <div>
-            <label className="block text-sm text-gray-300">Coins</label>
+            <label className="block text-sm text-gray-600 dark:text-gray-300">
+              Coins
+            </label>
             <input
               type="number"
               value={form.coins}
               onChange={(e) =>
                 setForm({ ...form, coins: Number(e.target.value) })
               }
-              className="w-full mt-1 p-2 rounded bg-gray-800 border border-gray-700"
+              className="w-full mt-1 p-2 rounded bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
             />
           </div>
         </div>
 
         <div className="flex items-center gap-4 mt-3">
-          <label className="flex items-center gap-2 text-sm text-gray-300">
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
               checked={form.isActive}
               onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+              className="rounded"
             />{" "}
             Active
           </label>
-          <label className="flex items-center gap-2 text-sm text-gray-300">
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
             <input
               type="checkbox"
               checked={form.isAdmin}
               onChange={(e) => setForm({ ...form, isAdmin: e.target.checked })}
+              className="rounded"
             />{" "}
             Admin
           </label>
@@ -363,14 +378,14 @@ export default function UsersTab({
               setShowEditUser(false);
               setSelectedUser(null);
             }}
-            className="px-3 py-2 rounded bg-gray-700 hover:bg-gray-600"
+            className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={saving}
-            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 disabled:opacity-70"
           >
             {saving ? (
               <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
@@ -392,7 +407,7 @@ export default function UsersTab({
   };
 
   /* ---------------------------
-     EDIT POST FORM — responsive, mobile-first
+     EDIT POST FORM — shows form skeleton while saving
      --------------------------- */
   const EditPostForm = ({ post }) => {
     const [form, setForm] = useState({
@@ -439,34 +454,46 @@ export default function UsersTab({
       }
     };
 
-    // Render: modal that is full-screen on small screens, centered on larger screens
+    // When saving, show a form-like skeleton and disable inputs
+    if (saving) {
+      return (
+        <div className="p-4">
+          <SkeletonCard variant="form" />
+        </div>
+      );
+    }
+
+    // Render actual form when not saving
     return (
       <div className="w-full max-w-4xl mx-auto">
-        <div className="bg-gray-900 rounded-xl shadow-xl overflow-hidden border border-gray-800">
+        <div className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-xl shadow-xl overflow-hidden border border-gray-100 dark:border-gray-700">
           {/* header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-800">
+          <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800">
             <div>
               <h3 className="text-lg font-semibold">Edit Post</h3>
-              <div className="text-xs text-gray-400">ID: {post._id}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                ID: {post._id}
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
               <div
                 className={`text-sm px-3 py-1 rounded-full ${
                   form.tradeStatus === "available"
-                    ? "bg-green-600/20 text-green-300"
+                    ? "bg-green-100 text-green-800 dark:bg-green-600/20 dark:text-green-300"
                     : form.tradeStatus === "pending"
-                    ? "bg-yellow-600/20 text-yellow-300"
+                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-600/20 dark:text-yellow-300"
                     : form.tradeStatus === "completed"
-                    ? "bg-blue-600/20 text-blue-300"
-                    : "bg-red-600/20 text-red-300"
+                    ? "bg-blue-100 text-blue-800 dark:bg-blue-600/20 dark:text-blue-300"
+                    : "bg-red-100 text-red-800 dark:bg-red-600/20 dark:text-red-300"
                 }`}
               >
                 {form.tradeStatus}
               </div>
               <button
                 onClick={() => setEditPostData(null)}
-                className="text-gray-400 hover:text-gray-200 p-2 rounded-md bg-gray-800/40"
+                className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-2 rounded-md bg-gray-100 dark:bg-gray-800/40"
+                aria-label="Close"
               >
                 ✕
               </button>
@@ -480,24 +507,30 @@ export default function UsersTab({
           >
             {/* left / main (desc + meta) */}
             <div className="lg:col-span-2 space-y-3">
-              <label className="block text-sm text-gray-300">Description</label>
+              <label className="block text-sm text-gray-700 dark:text-gray-300">
+                Description
+              </label>
               <textarea
                 value={form.description}
                 onChange={(e) =>
                   setForm({ ...form, description: e.target.value })
                 }
                 rows={6}
-                className={`w-full p-3 rounded bg-gray-800 border ${
-                  errors.description ? "border-red-500" : "border-gray-700"
+                className={`w-full p-3 rounded bg-gray-50 dark:bg-gray-800 border ${
+                  errors.description
+                    ? "border-red-500"
+                    : "border-gray-200 dark:border-gray-700"
                 } focus:outline-none focus:ring-2 focus:ring-blue-500`}
               />
               {errors.description && (
-                <div className="text-xs text-red-400">{errors.description}</div>
+                <div className="text-xs text-red-500">{errors.description}</div>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm text-gray-300">Price</label>
+                  <label className="block text-sm text-gray-700 dark:text-gray-300">
+                    Price
+                  </label>
                   <input
                     type="number"
                     min="0"
@@ -505,34 +538,40 @@ export default function UsersTab({
                     onChange={(e) =>
                       setForm({ ...form, price: e.target.value })
                     }
-                    className={`w-full p-2 rounded bg-gray-800 border ${
-                      errors.price ? "border-red-500" : "border-gray-700"
+                    className={`w-full p-2 rounded bg-gray-50 dark:bg-gray-800 border ${
+                      errors.price
+                        ? "border-red-500"
+                        : "border-gray-200 dark:border-gray-700"
                     } focus:outline-none focus:ring-2 focus:ring-blue-500`}
                   />
                   {errors.price && (
-                    <div className="text-xs text-red-400">{errors.price}</div>
+                    <div className="text-xs text-red-500">{errors.price}</div>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm text-gray-300">Server</label>
+                  <label className="block text-sm text-gray-700 dark:text-gray-300">
+                    Server
+                  </label>
                   <input
                     value={form.server}
                     onChange={(e) =>
                       setForm({ ...form, server: e.target.value })
                     }
-                    className="w-full p-2 rounded bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-2 rounded bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm text-gray-300">Discord</label>
+                  <label className="block text-sm text-gray-700 dark:text-gray-300">
+                    Discord
+                  </label>
                   <input
                     value={form.discord}
                     onChange={(e) =>
                       setForm({ ...form, discord: e.target.value })
                     }
-                    className="w-full p-2 rounded bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-2 rounded bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -540,8 +579,8 @@ export default function UsersTab({
 
             {/* right / meta */}
             <aside className="space-y-3">
-              <div className="bg-gray-800 p-3 rounded border border-gray-700">
-                <label className="flex items-center gap-2 text-sm text-gray-300 mb-2">
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-2">
                   <input
                     type="checkbox"
                     checked={form.avaliable}
@@ -551,7 +590,7 @@ export default function UsersTab({
                   />{" "}
                   Available
                 </label>
-                <label className="flex items-center gap-2 text-sm text-gray-300 mb-2">
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-2">
                   <input
                     type="checkbox"
                     checked={form.isActive}
@@ -563,7 +602,7 @@ export default function UsersTab({
                 </label>
 
                 <div className="mt-2">
-                  <label className="block text-sm text-gray-300 mb-1">
+                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
                     Good responses
                   </label>
                   <input
@@ -572,12 +611,12 @@ export default function UsersTab({
                     onChange={(e) =>
                       setForm({ ...form, good_response: e.target.value })
                     }
-                    className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                    className="w-full p-2 rounded bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
                   />
                 </div>
 
                 <div className="mt-2">
-                  <label className="block text-sm text-gray-300 mb-1">
+                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
                     Bad responses
                   </label>
                   <input
@@ -586,12 +625,12 @@ export default function UsersTab({
                     onChange={(e) =>
                       setForm({ ...form, bad_response: e.target.value })
                     }
-                    className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                    className="w-full p-2 rounded bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
                   />
                 </div>
 
                 <div className="mt-3">
-                  <label className="block text-sm text-gray-300 mb-1">
+                  <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
                     Trade status
                   </label>
                   <select
@@ -599,7 +638,7 @@ export default function UsersTab({
                     onChange={(e) =>
                       setForm({ ...form, tradeStatus: e.target.value })
                     }
-                    className="w-full p-2 rounded bg-gray-900 border border-gray-700"
+                    className="w-full p-2 rounded bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700"
                   >
                     <option value="available">available</option>
                     <option value="pending">pending</option>
@@ -609,17 +648,23 @@ export default function UsersTab({
                 </div>
               </div>
 
-              <div className="bg-gray-800 p-3 rounded border border-gray-700 text-sm">
-                <div className="font-medium text-gray-200 mb-2">Preview</div>
-                <div className="text-xs text-gray-300 mb-2">
+              <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 text-sm">
+                <div className="font-medium text-gray-800 dark:text-gray-200 mb-2">
+                  Preview
+                </div>
+                <div className="text-xs text-gray-600 dark:text-gray-300 mb-2">
                   {form.description?.slice(0, 120) || "(no description)"}
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-gray-400">Price</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                    Price
+                  </div>
                   <div className="font-medium">{form.price ?? "-"}</div>
                 </div>
                 <div className="flex items-center justify-between mt-1">
-                  <div className="text-sm text-gray-400">Available</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                    Available
+                  </div>
                   <div className="text-sm">{form.avaliable ? "Yes" : "No"}</div>
                 </div>
               </div>
@@ -630,7 +675,7 @@ export default function UsersTab({
               <button
                 type="button"
                 onClick={() => setEditPostData(null)}
-                className="px-3 py-2 rounded bg-gray-700 hover:bg-gray-600"
+                className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700"
               >
                 Cancel
               </button>
@@ -638,7 +683,7 @@ export default function UsersTab({
               <button
                 type="submit"
                 disabled={saving}
-                className={`px-4 py-2 rounded ${
+                className={`px-4 py-2 rounded text-white ${
                   saving ? "bg-blue-500/70" : "bg-blue-600 hover:bg-blue-700"
                 }`}
               >
@@ -682,16 +727,19 @@ export default function UsersTab({
   return (
     <div className="p-3">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Users</h2>
-        <div className="text-sm text-gray-400">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+          Users
+        </h2>
+        <div className="text-sm text-gray-600 dark:text-gray-400">
           {loading ? "Loading..." : `${users.length} shown`}
         </div>
       </div>
 
+      {/* USERS GRID */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <SkeletonCard key={i} />
+            <SkeletonCard key={i} variant="user" />
           ))}
         </div>
       ) : (
@@ -699,7 +747,7 @@ export default function UsersTab({
           {users.map((user) => (
             <article
               key={user._id}
-              className="bg-gray-900 rounded-lg p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition"
+              className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-100 dark:border-gray-700 rounded-lg p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition"
             >
               <div className="flex items-start gap-3">
                 <Avatar user={user} />
@@ -710,7 +758,7 @@ export default function UsersTab({
                     </h3>
                     <RoleBadge user={user} />
                   </div>
-                  <p className="text-xs text-gray-400 truncate mt-1">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate mt-1">
                     {user.email}
                   </p>
 
@@ -718,15 +766,15 @@ export default function UsersTab({
                     <span
                       className={`px-2 py-1 rounded-full ${
                         coerceBool(user.isActive)
-                          ? "bg-green-600/20 text-green-300"
-                          : "bg-red-600/20 text-red-300"
+                          ? "bg-green-100 text-green-800 dark:bg-green-600/20 dark:text-green-300"
+                          : "bg-red-100 text-red-800 dark:bg-red-600/20 dark:text-red-300"
                       }`}
                     >
                       {coerceBool(user.isActive) ? "Active" : "Banned"}
                     </span>
-                    <span className="text-gray-400">
+                    <span className="text-gray-600 dark:text-gray-400">
                       coins:{" "}
-                      <span className="font-medium text-gray-200">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
                         {user.coins ?? 0}
                       </span>
                     </span>
@@ -741,19 +789,19 @@ export default function UsersTab({
                       setSelectedUser(user);
                       setShowEditUser(true);
                     }}
-                    className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-sm"
+                    className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm"
                   >
                     Edit Profile
                   </button>
                   <button
                     onClick={() => toggleUserActive(user)}
-                    className="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700 text-sm"
+                    className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-sm"
                   >
                     {coerceBool(user.isActive) ? "Ban" : "Unban"}
                   </button>
                   <button
                     onClick={() => fetchUserPosts(user._id)}
-                    className="px-3 py-1 rounded bg-gray-800 hover:bg-gray-700 text-sm"
+                    className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-sm"
                   >
                     Edit Posts
                   </button>
@@ -763,7 +811,7 @@ export default function UsersTab({
                 <div className="md:hidden w-full flex justify-end">
                   <div className="relative inline-block text-left">
                     <button
-                      className="inline-flex justify-center w-full rounded px-3 py-1 bg-gray-800 text-sm"
+                      className="inline-flex justify-center w-full rounded px-3 py-1 bg-gray-200 dark:bg-gray-800 text-sm"
                       onClick={() => {
                         const el = document.getElementById(
                           `actions-${user._id}`
@@ -789,7 +837,7 @@ export default function UsersTab({
 
                     <div
                       id={`actions-${user._id}`}
-                      className="hidden absolute right-0 mt-2 w-44 bg-gray-900 rounded shadow z-20"
+                      className="hidden absolute right-0 mt-2 w-44 bg-white dark:bg-gray-900 rounded shadow z-20 border border-gray-100 dark:border-gray-700"
                     >
                       <button
                         onClick={() => {
@@ -799,7 +847,7 @@ export default function UsersTab({
                             .getElementById(`actions-${user._id}`)
                             ?.classList.add("hidden");
                         }}
-                        className="w-full text-left px-3 py-2 text-sm"
+                        className="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                       >
                         Edit
                       </button>
@@ -810,7 +858,7 @@ export default function UsersTab({
                             .getElementById(`actions-${user._id}`)
                             ?.classList.add("hidden");
                         }}
-                        className="w-full text-left px-3 py-2 text-sm"
+                        className="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                       >
                         {coerceBool(user.isActive) ? "Ban" : "Unban"}
                       </button>
@@ -821,7 +869,7 @@ export default function UsersTab({
                             .getElementById(`actions-${user._id}`)
                             ?.classList.add("hidden");
                         }}
-                        className="w-full text-left px-3 py-2 text-sm"
+                        className="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-gray-100"
                       >
                         Posts
                       </button>
@@ -836,7 +884,7 @@ export default function UsersTab({
 
       {/* pagination */}
       <div className="mt-4 flex items-center justify-between gap-3">
-        <div className="text-sm text-gray-400">
+        <div className="text-sm text-gray-600 dark:text-gray-400">
           {totalPages
             ? `Page ${currentPage} of ${totalPages}`
             : `Page ${currentPage}`}
@@ -845,11 +893,14 @@ export default function UsersTab({
           <button
             onClick={gotoPrev}
             disabled={currentPage <= 1}
-            className="px-3 py-1 rounded bg-gray-800 disabled:opacity-50"
+            className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-800 disabled:opacity-50"
           >
             Prev
           </button>
-          <button onClick={gotoNext} className="px-3 py-1 rounded bg-gray-800">
+          <button
+            onClick={gotoNext}
+            className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-800"
+          >
             Next
           </button>
         </div>
@@ -858,15 +909,22 @@ export default function UsersTab({
       {/* Edit User Modal */}
       {showEditUser && selectedUser && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowEditUser(false);
-              setSelectedUser(null);
-            }
-          }}
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          aria-modal="true"
+          role="dialog"
         >
-          <EditUserForm user={selectedUser} />
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowEditUser(false);
+                setSelectedUser(null);
+              }
+            }}
+          />
+          <div className="relative p-4 w-full max-w-md">
+            <EditUserForm user={selectedUser} />
+          </div>
         </div>
       )}
 
@@ -874,18 +932,20 @@ export default function UsersTab({
       {showPostsPanel && (
         <div className="fixed inset-0 z-40 flex">
           <div
-            className="w-full md:w-2/3 lg:w-1/2 bg-gray-900 p-4 overflow-y-auto"
+            className="w-full md:w-2/3 lg:w-1/2 bg-white dark:bg-gray-900 p-4 overflow-y-auto border-l border-gray-100 dark:border-gray-700"
             aria-live="polite"
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold">User posts</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                User posts
+              </h3>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
                     setShowPostsPanel(false);
                     setSelectedUserPosts([]);
                   }}
-                  className="px-2 py-1 rounded bg-gray-800"
+                  className="px-2 py-1 rounded bg-gray-200 dark:bg-gray-800"
                 >
                   Close
                 </button>
@@ -895,20 +955,19 @@ export default function UsersTab({
             {postsLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-24 bg-gray-800 rounded animate-pulse"
-                  />
+                  <SkeletonCard key={i} variant="post" />
                 ))}
               </div>
             ) : selectedUserPosts.length === 0 ? (
-              <div className="text-gray-400">No posts found.</div>
+              <div className="text-gray-600 dark:text-gray-400">
+                No posts found.
+              </div>
             ) : (
               <div className="space-y-3">
                 {selectedUserPosts.map((post) => (
                   <div
                     key={post._id}
-                    className="bg-gray-800 p-4 rounded-lg hover:shadow-lg transition"
+                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg p-4 hover:shadow-lg transition border border-gray-100 dark:border-gray-700"
                   >
                     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -917,30 +976,30 @@ export default function UsersTab({
                             <h4 className="font-semibold text-sm truncate">
                               {post.description?.slice(0, 90) || "(no title)"}
                             </h4>
-                            <p className="text-xs text-gray-400 mt-1 line-clamp-3">
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-3">
                               {post.description?.slice(0, 220) ||
                                 "(no description)"}
                             </p>
                           </div>
 
                           <div className="flex flex-col items-end gap-2">
-                            <div className="text-sm font-semibold bg-gray-900 px-3 py-1 rounded">
+                            <div className="text-sm font-semibold bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded">
                               {post.price ?? "-"}
                             </div>
                             <div
                               className={`text-xs px-2 py-0.5 rounded ${
                                 post.tradeStatus === "available"
-                                  ? "bg-green-600/20 text-green-300"
+                                  ? "bg-green-100 text-green-800 dark:bg-green-600/20 dark:text-green-300"
                                   : post.tradeStatus === "pending"
-                                  ? "bg-yellow-600/20 text-yellow-300"
+                                  ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-600/20 dark:text-yellow-300"
                                   : post.tradeStatus === "completed"
-                                  ? "bg-blue-600/20 text-blue-300"
-                                  : "bg-red-600/20 text-red-300"
+                                  ? "bg-blue-100 text-blue-800 dark:bg-blue-600/20 dark:text-blue-300"
+                                  : "bg-red-100 text-red-800 dark:bg-red-600/20 dark:text-red-300"
                               }`}
                             >
                               {post.tradeStatus ?? "-"}
                             </div>
-                            <div className="text-xs text-gray-400">
+                            <div className="text-xs text-gray-600 dark:text-gray-400">
                               {post.avaliable ?? post.available
                                 ? "Available"
                                 : "Not available"}
@@ -948,7 +1007,7 @@ export default function UsersTab({
                           </div>
                         </div>
 
-                        <div className="mt-3 text-xs text-gray-400 flex flex-wrap gap-3">
+                        <div className="mt-3 text-xs text-gray-600 dark:text-gray-400 flex flex-wrap gap-3">
                           <div>Server: {post.server ?? "-"}</div>
                           <div>Discord: {post.discord ?? "-"}</div>
                         </div>
@@ -957,13 +1016,13 @@ export default function UsersTab({
                       <div className="flex-shrink-0 flex flex-col gap-2 pt-2 md:pt-0">
                         <button
                           onClick={() => setEditPostData(post)}
-                          className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-sm"
+                          className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => deletePost(post._id)}
-                          className="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-sm"
+                          className="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-sm"
                         >
                           Delete
                         </button>
@@ -991,7 +1050,7 @@ export default function UsersTab({
         // full-screen on small screens, centered on medium/large
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
           <div
-            className="absolute inset-0 bg-black/60"
+            className="absolute inset-0 bg-black/40"
             onClick={() => setEditPostData(null)}
           />
           <div className="relative w-full max-w-4xl mx-auto">

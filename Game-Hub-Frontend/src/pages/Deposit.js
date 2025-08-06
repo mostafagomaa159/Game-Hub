@@ -103,16 +103,16 @@ const Deposit = () => {
         type="number"
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
-        className="w-full p-2 mb-4 rounded bg-gray-800 border border-gray-700"
+        className="w-full p-2 mb-4 rounded bg-gray-800 border border-gray-700 text-white placeholder-gray-400"
         placeholder="Enter amount"
         min="1"
       />
 
-      <label className="block mb-1">Select Method:</label>
+      <label className="block mb-1 text-gray-300">Select Method:</label>
       <select
         value={method}
         onChange={(e) => setMethod(e.target.value)}
-        className="w-full p-2 mb-4 rounded bg-gray-800 border border-gray-700"
+        className="w-full p-2 mb-4 rounded bg-gray-800 border border-gray-700 text-white"
       >
         <option value="paypal">PayPal</option>
         <option value="bank">Bank Transfer</option>
@@ -128,7 +128,7 @@ const Deposit = () => {
               iban && !isValidIban(iban)
                 ? "border-red-500 focus:outline-red-500"
                 : "border-gray-700"
-            }`}
+            } text-white placeholder-gray-400`}
             placeholder="IBAN"
           />
           {iban && !isValidIban(iban) && (
@@ -143,7 +143,7 @@ const Deposit = () => {
               accountNumber && !isValidAccountNumber(accountNumber)
                 ? "border-red-500 focus:outline-red-500"
                 : "border-gray-700"
-            }`}
+            } text-white placeholder-gray-400`}
             placeholder="Account Number"
           />
           {accountNumber && !isValidAccountNumber(accountNumber) && (
@@ -157,11 +157,11 @@ const Deposit = () => {
       <button
         onClick={handleDeposit}
         disabled={!amount || Number(amount) <= 0 || loading || isBankInvalid}
-        className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+        className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white"
       >
         {loading ? "Processing..." : "Deposit"}
       </button>
-      <p className="text-yellow-300 text-sm mt-3">
+      <p className="text-yellow-400 text-sm mt-3">
         Note: Coins will be added once your payment is reviewed and approved by
         an admin.
       </p>
@@ -169,7 +169,11 @@ const Deposit = () => {
       {status && (
         <p
           className={`mt-4 ${
-            status.startsWith("✅") ? "text-green-400" : "text-red-400"
+            status.startsWith("✅")
+              ? "text-green-400"
+              : status.startsWith("❌")
+              ? "text-red-500"
+              : "text-red-400"
           }`}
         >
           {status}

@@ -37,14 +37,22 @@ const MyTransactions = () => {
   }, []);
 
   const renderStatusButton = (status) => {
-    const base = "px-3 py-1 rounded text-white w-fit text-sm";
+    const base = "px-3 py-1 rounded w-fit text-sm font-semibold text-white";
     if (status === "approved")
-      return <span className={`${base} bg-green-700`}>Approved</span>;
+      return (
+        <span className={`${base} bg-green-700 dark:bg-green-600`}>
+          Approved
+        </span>
+      );
     if (status === "rejected")
-      return <span className={`${base} bg-red-700`}>Rejected</span>;
+      return (
+        <span className={`${base} bg-red-700 dark:bg-red-600`}>Rejected</span>
+      );
     if (status === "pending")
       return (
-        <span className={`${base} bg-yellow-600 text-black`}>Pending</span>
+        <span className="px-3 py-1 rounded w-fit text-sm font-semibold bg-yellow-400 text-black dark:bg-yellow-500 dark:text-black">
+          Pending
+        </span>
       );
     return null;
   };
@@ -52,9 +60,17 @@ const MyTransactions = () => {
   const renderTradeStatus = (status) => {
     const base = "font-semibold inline-flex items-center gap-1";
     if (status === "completed")
-      return <span className={`${base} text-green-400`}>✅ Completed</span>;
+      return (
+        <span className={`${base} text-green-600 dark:text-green-400`}>
+          ✅ Completed
+        </span>
+      );
     if (status === "cancelled")
-      return <span className={`${base} text-red-400`}>❌ Cancelled</span>;
+      return (
+        <span className={`${base} text-red-600 dark:text-red-400`}>
+          ❌ Cancelled
+        </span>
+      );
     return status;
   };
 
@@ -64,22 +80,22 @@ const MyTransactions = () => {
     return transactions.filter((tx) => tx.type === filterType);
   };
 
-  const SKELETON_COUNT = 6; // number of skeleton cards to show
+  const SKELETON_COUNT = 6;
 
   if (loading) {
     return (
-      <div className="p-4 text-white max-w-5xl mx-auto">
+      <div className="p-4 max-w-5xl mx-auto bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-md shadow-md">
         <h2 className="text-2xl font-bold mb-4">My Transactions</h2>
 
         <div className="mb-4">
-          <label htmlFor="filter" className="mr-2">
+          <label htmlFor="filter" className="mr-2 font-medium">
             Filter by:
           </label>
           <select
             id="filter"
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="p-2 rounded bg-gray-900 border border-gray-600 text-white"
+            className="p-2 rounded border border-gray-300 bg-white text-gray-900 cursor-not-allowed dark:bg-gray-800 dark:border-gray-600 dark:text-white"
             disabled
           >
             <option value="all">All</option>
@@ -101,18 +117,18 @@ const MyTransactions = () => {
   const list = filtered();
 
   return (
-    <div className="p-4 text-white max-w-5xl mx-auto">
+    <div className="p-4 max-w-5xl mx-auto bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-md shadow-md">
       <h2 className="text-2xl font-bold mb-4">My Transactions</h2>
 
       <div className="mb-4 flex items-center gap-3">
-        <label htmlFor="filter" className="mr-2">
+        <label htmlFor="filter" className="mr-2 font-medium">
           Filter by:
         </label>
         <select
           id="filter"
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="p-2 rounded bg-gray-900 border border-gray-600 text-white"
+          className="p-2 rounded border border-gray-300 bg-white text-gray-900 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
         >
           <option value="all">All</option>
           <option value="deposit">Deposits</option>
@@ -122,7 +138,7 @@ const MyTransactions = () => {
       </div>
 
       {list.length === 0 ? (
-        <div className="text-center text-gray-400 text-lg mt-10">
+        <div className="text-center text-gray-500 dark:text-gray-400 text-lg mt-10">
           <div className="text-4xl animate-bounce mb-2">📭</div>
           No {filterType === "history" ? "trade history" : "transactions"}{" "}
           found.
@@ -130,7 +146,10 @@ const MyTransactions = () => {
       ) : (
         <div className="grid gap-4">
           {list.map((item) => (
-            <div key={item._id} className="bg-gray-800 p-4 rounded shadow-md">
+            <div
+              key={item._id}
+              className="bg-gray-100 text-gray-900 rounded shadow-md p-4 dark:bg-gray-800 dark:text-white"
+            >
               {filterType === "history" ? (
                 <>
                   <p>
@@ -174,7 +193,7 @@ const MyTransactions = () => {
                       {new Date(item.createdAt).toLocaleString()}
                     </p>
                     {(item.adminNote || item.adminLog?.note) && (
-                      <p className="text-sm text-yellow-300 mt-1 max-w-xs">
+                      <p className="text-sm text-yellow-600 dark:text-yellow-400 mt-1 max-w-xs">
                         <strong>Status:</strong>{" "}
                         {item.adminNote || item.adminLog.note}
                       </p>

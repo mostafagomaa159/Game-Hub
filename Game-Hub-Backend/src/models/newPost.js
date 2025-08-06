@@ -57,7 +57,13 @@ const newPostSchema = new mongoose.Schema(
     },
     tradeStatus: {
       type: String,
-      enum: ["available", "pending", "completed", "cancelled"], // ✅ Added "available"
+      enum: [
+        "available",
+        "pending",
+        "completed",
+        "cancelled",
+        "pending_release",
+      ], // ✅ Added "available"
       default: "available", // ✅ Changed from null to "available"
     },
     tradeConfirmations: {
