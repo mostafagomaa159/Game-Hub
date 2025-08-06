@@ -280,9 +280,11 @@ router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
     post.tradeConfirmations = (post.tradeConfirmations || []).map(String);
 
     if (post.tradeConfirmations.includes(userId)) {
+      const fresh = await Post.findById(postId)
+        .populate("owner buyer")
+        .session(session);
       await session.commitTransaction();
       session.endSession();
-      const fresh = await Post.findById(postId).populate("owner buyer");
       return res.send(fresh);
     }
 
@@ -292,9 +294,8 @@ router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
     const confirmedByBuyer = post.tradeConfirmations.includes(buyerId);
 
     if (confirmedByOwner && confirmedByBuyer) {
-      // schedule a 24-hour hold (pending_release)
-      //const releaseAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      const releaseAt = new Date(Date.now() + 1 * 60 * 1000); // 10 minutes
+      // schedule a 1-minute hold (pending_release)
+      const releaseAt = new Date(Date.now() + 1 * 60 * 1000); // 1 minute
 
       post.tradeStatus = "pending_release";
       post.releaseAt = releaseAt;
