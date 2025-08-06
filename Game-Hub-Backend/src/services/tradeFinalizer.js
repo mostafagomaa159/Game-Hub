@@ -4,9 +4,20 @@ const Post = require("../models/newPost");
 const TradeTransaction = require("../models/TradeTransaction");
 const User = require("../models/user");
 
+/**
+ * finalizeTradeByPostId(postId, { io, actorId, session, force })
+ *
+ * - force: boolean (default false). When true, skips releaseAt/time check and
+ *   allows admins to finalize immediately (override).
+ */
 async function finalizeTradeByPostId(
   postId,
-  { io = null, actorId = null, session: externalSession = null } = {}
+  {
+    io = null,
+    actorId = null,
+    session: externalSession = null,
+    force = false,
+  } = {}
 ) {
   // actorId: who triggered the finalization (null = system)
   let session;
@@ -27,7 +38,8 @@ async function finalizeTradeByPostId(
       return { ok: false, reason: "post-not-found" };
     }
 
-    if (post.tradeStatus !== "pending_release") {
+    // only require pending_release when not forced
+    if (!force && post.tradeStatus !== "pending_release") {
       if (ownSession) {
         await session.commitTransaction();
         session.endSession();
@@ -35,13 +47,15 @@ async function finalizeTradeByPostId(
       return { ok: false, reason: "not-pending_release" };
     }
 
-    // ensure releaseAt passed
-    if (!post.releaseAt || post.releaseAt > new Date()) {
-      if (ownSession) {
-        await session.commitTransaction();
-        session.endSession();
+    // ensure releaseAt passed unless force override
+    if (!force) {
+      if (!post.releaseAt || post.releaseAt > new Date()) {
+        if (ownSession) {
+          await session.commitTransaction();
+          session.endSession();
+        }
+        return { ok: false, reason: "releaseAt-not-reached" };
       }
-      return { ok: false, reason: "releaseAt-not-reached" };
     }
 
     const tx = await TradeTransaction.findOne({ post: post._id }).session(
@@ -88,10 +102,15 @@ async function finalizeTradeByPostId(
     tx.releaseAt = null;
     tx.logs = tx.logs || [];
     tx.logs.push({
-      message: "Trade auto-finalized",
+      message: force ? "Trade force-finalized (admin)" : "Trade auto-finalized",
       by: actorId || null,
       at: new Date(),
     });
+    // optionally record actor as admin handler
+    if (actorId) {
+      tx.adminHandledBy = actorId;
+      tx.adminHandledAt = new Date();
+    }
     await tx.save({ session });
 
     if (ownSession) {
@@ -180,8 +199,6 @@ async function finalizeDueTrades({ io = null, limit = 100 } = {}) {
       await tx.save({ session });
 
       finalized++;
-
-      // emit events after commit? we will emit after commit for all finalized
     }
 
     await session.commitTransaction();
@@ -190,7 +207,6 @@ async function finalizeDueTrades({ io = null, limit = 100 } = {}) {
     // emit events outside transaction
     try {
       if (io && finalized > 0) {
-        // fetch those posts again with buyer and owner for emitting
         const finalizedPosts = await Post.find({
           tradeStatus: "completed",
           tradeCompletedAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) }, // recently completed

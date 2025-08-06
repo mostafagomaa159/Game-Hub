@@ -297,15 +297,19 @@ router.post(
   async (req, res) => {
     const postId = req.params.postId;
     try {
+      // Force = true lets admins bypass the releaseAt/time lock
       const result = await finalizeTradeByPostId(postId, {
         io: req.io,
         actorId: req.user._id,
+        force: true, // <- added
       });
+
       if (result.ok)
         return res.send({
           message: "Trade force-released",
           postId: result.postId,
         });
+
       return res
         .status(400)
         .send({ error: result.reason || "Cannot finalize" });

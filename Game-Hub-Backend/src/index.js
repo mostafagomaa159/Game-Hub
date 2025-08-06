@@ -105,7 +105,7 @@ io.on("connection", (socket) => {
  * NOTE: If you run multiple instances of this server, ensure only one instance
  * performs the scheduled job (e.g. external cron, leader election, or run worker).
  */
-const FINALIZE_INTERVAL_MS = 60 * 1000; // 1 minute
+const FINALIZE_INTERVAL_MS = 5 * 60 * 1000; // 1 minute
 
 setInterval(async () => {
   try {

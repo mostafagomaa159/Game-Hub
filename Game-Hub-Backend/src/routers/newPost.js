@@ -295,7 +295,7 @@ router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
 
     if (confirmedByOwner && confirmedByBuyer) {
       // schedule a 1-minute hold (pending_release)
-      const releaseAt = new Date(Date.now() + 1 * 60 * 1000); // 1 minute
+      const releaseAt = new Date(Date.now() + 5 * 60 * 1000); // 1 minute
 
       post.tradeStatus = "pending_release";
       post.releaseAt = releaseAt;
