@@ -91,7 +91,7 @@ io.on("connection", (socket) => {
 // --- ADD THIS PERIODIC TRADE FINALIZER ---
 
 const ADMIN_JWT_TOKEN =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2ODkyMTg2ZWFmMWFhMjEyNTQzZWQ0MTciLCJpYXQiOjE3NTQ0ODE4NzZ9.n5VXahNPSCalzeBCPSmgKYpXnS4ICayTZ6RCdweX2Vc"; // Replace with your real admin JWT token
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2ODkyMTg3ZWFmMWFhMjEyNTQzZWQ0M2IiLCJpYXQiOjE3NTQ0ODQzMTZ9.9rVyY10J3hvlPQ99gNSM7ghIe0nRo0X5ZmahREiCRkY"; // Replace with your real admin JWT token
 
 setInterval(async () => {
   try {

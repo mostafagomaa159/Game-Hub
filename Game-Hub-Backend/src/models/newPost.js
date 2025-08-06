@@ -83,6 +83,11 @@ const newPostSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    releaseAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
   },
   {
     timestamps: true,
