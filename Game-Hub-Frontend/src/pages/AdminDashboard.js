@@ -17,6 +17,9 @@ const TradeHistoryTab = React.lazy(() =>
   import("../components/adminTabs/TradeHistoryTab")
 );
 const UsersTab = React.lazy(() => import("../components/adminTabs/UsersTab"));
+const DisputesTab = React.lazy(() =>
+  import("../components/adminTabs/DepositsTab")
+);
 
 const SKELETON_COUNT = 5;
 
@@ -185,6 +188,16 @@ const AdminDashboard = () => {
           >
             Users
           </button>
+          <button
+            onClick={() => setActiveTab("disputes")}
+            className={`px-4 py-2 rounded transition ${
+              activeTab === "disputes"
+                ? "bg-blue-600 text-white dark:bg-blue-500"
+                : "bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+            }`}
+          >
+            Disputes
+          </button>
         </div>
 
         {/* Search & sort controls (shared) */}
@@ -278,6 +291,7 @@ const AdminDashboard = () => {
                 setCurrentPage={setCurrentPage}
               />
             )}
+            {activeTab === "disputes" && <DisputesTab />}
           </Suspense>
         )}
       </div>

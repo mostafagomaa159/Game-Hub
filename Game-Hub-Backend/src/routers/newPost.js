@@ -593,5 +593,91 @@ router.post("/newpost/:id/cancel-request", auth, async (req, res) => {
     res.status(500).send({ error: "Failed to cancel request" });
   }
 });
+router.post("/newpost/:id/report", auth, async (req, res) => {
+  const userId = req.user._id;
+  const postId = req.params.id;
+  const videoUrl = req.body?.videoUrl;
+
+  if (!videoUrl) {
+    return res.status(400).send({ error: "Video URL is required" });
+  }
+
+  const post = await newPost.findById(postId);
+  if (!post) {
+    return res.status(404).send({ error: "Post not found" });
+  }
+
+  if (
+    String(post.owner) !== String(userId) &&
+    String(post.buyer) !== String(userId)
+  ) {
+    return res
+      .status(403)
+      .send({ error: "Not authorized to report this trade" });
+  }
+
+  // Find or create transaction
+  let tx = await TradeTransaction.findOne({ post: postId });
+  if (!tx) {
+    tx = new TradeTransaction({
+      post: postId,
+      buyer: post.buyer,
+      seller: post.owner,
+    });
+  }
+
+  tx.status = "disputed";
+  tx.dispute = tx.dispute || {};
+  tx.dispute.videos = tx.dispute.videos || [];
+  tx.dispute.videos.push({
+    url: videoUrl,
+    uploader: userId,
+    at: new Date(),
+  });
+
+  await tx.save();
+
+  post.tradeStatus = "pending"; // prevent auto-release during dispute
+  await post.save();
+
+  // 🔔 Emit to both participants and admin
+  try {
+    const io = req.io;
+    if (io) {
+      const buyerIdStr = String(post.buyer);
+      const ownerIdStr = String(post.owner);
+
+      // Notify buyer & seller
+      io.to(buyerIdStr).emit("tradeDisputed", {
+        postId: String(post._id),
+        by: String(userId),
+        videoUrl,
+        message: "Trade reported — admin will review.",
+      });
+      io.to(ownerIdStr).emit("tradeDisputed", {
+        postId: String(post._id),
+        by: String(userId),
+        videoUrl,
+        message: "Trade reported — admin will review.",
+      });
+
+      // ✅ Notify admin panel
+      io.emit("admin:dispute_created", {
+        postId: String(post._id),
+        tradeId: String(tx._id),
+        reportedBy: String(userId),
+        videoUrl,
+      });
+    }
+  } catch (e) {
+    console.warn("report route: socket emit failed", e?.message || e);
+  }
+
+  res.send({
+    message: "Trade dispute submitted",
+    tradeTransaction: tx,
+    post,
+  });
+});
 
 module.exports = router;
