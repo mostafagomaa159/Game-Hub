@@ -44,4 +44,23 @@ app.use(chatRouter);
 app.get("/", (req, res) => {
   res.send("GameHub Backend is running ✅");
 });
+
+app.get("/_routes", (req, res) => {
+  const routes = [];
+  app._router.stack.forEach((middleware) => {
+    if (middleware.route) {
+      // routes registered directly on the app
+      routes.push(middleware.route.path);
+    } else if (middleware.name === "router") {
+      // router middleware
+      middleware.handle.stack.forEach((handler) => {
+        if (handler.route) {
+          routes.push(handler.route.path);
+        }
+      });
+    }
+  });
+  res.json(routes);
+});
+
 module.exports = app;
