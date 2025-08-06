@@ -6,6 +6,9 @@ const axios = require("axios");
 const User = require("./models/user");
 const Chat = require("./models/chat");
 
+// service to auto-finalize trades
+const { finalizeDueTrades } = require("./services/tradeFinalizer");
+
 const server = http.createServer(app);
 
 const io = socketIO(server, {
@@ -95,40 +98,35 @@ io.on("connection", (socket) => {
   });
 });
 
-const ADMIN_JWT_TOKEN = process.env.ADMIN_JWT_TOKEN || ""; // set this in your env (recommended)
-if (!ADMIN_JWT_TOKEN) {
-  console.warn(
-    "⚠️  ADMIN_JWT_TOKEN not set. Finalize-trades background job will not run until you set ADMIN_JWT_TOKEN env var."
-  );
-}
+/**
+ * Auto-finalizer: run finalizeDueTrades every minute.
+ * This calls internal service directly (no HTTP self-call / admin JWT required).
+ *
+ * NOTE: If you run multiple instances of this server, ensure only one instance
+ * performs the scheduled job (e.g. external cron, leader election, or run worker).
+ */
+const FINALIZE_INTERVAL_MS = 60 * 1000; // 1 minute
 
-const FINALIZE_INTERVAL_MS = 60 * 1000; // every 1 minute
-const FINALIZE_URL =
-  process.env.FINALIZE_URL || "http://localhost:3001/newpost/finalize-trades";
-
-if (ADMIN_JWT_TOKEN) {
-  // start background finalizer (runs in this Node process)
-  setInterval(async () => {
-    try {
-      const res = await axios.post(FINALIZE_URL, null, {
-        headers: {
-          Authorization: `Bearer ${ADMIN_JWT_TOKEN}`,
-        },
-        timeout: 30 * 1000,
-      });
-      console.log("[Trade Finalizer]:", res.data?.message || "no message");
-    } catch (err) {
-      console.error(
-        "[Trade Finalizer] Error:",
-        err?.response?.data || err.message
-      );
+setInterval(async () => {
+  try {
+    const result = await finalizeDueTrades({ io });
+    if (result && result.ok) {
+      if (result.finalizedCount && result.finalizedCount > 0) {
+        console.log(
+          `[Trade Finalizer] finalized ${result.finalizedCount} trades`
+        );
+      } else {
+        // no trades finalized this run; that's normal
+        // console.debug(`[Trade Finalizer] no trades to finalize`);
+      }
+    } else if (result && result.reason) {
+      // informational
+      // console.debug(`[Trade Finalizer] info: ${result.reason}`);
     }
-  }, FINALIZE_INTERVAL_MS);
-
-  console.log(
-    `[Trade Finalizer] scheduled every ${FINALIZE_INTERVAL_MS / 1000}s`
-  );
-}
+  } catch (err) {
+    console.error("[Trade Finalizer] unexpected error:", err);
+  }
+}, FINALIZE_INTERVAL_MS);
 
 const port = process.env.PORT || 3001;
 server.listen(port, () => {

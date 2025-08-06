@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import axios from "../../api/axiosInstance";
 import SkeletonCard from "../../components/common/SkeletonCard";
+import { toast } from "react-toastify";
 
 const PAGE_SIZE = 12;
 
@@ -34,6 +35,9 @@ export default function UsersTab({
   const [selectedUserPosts, setSelectedUserPosts] = useState([]);
   const [showPostsPanel, setShowPostsPanel] = useState(false);
   const [postsLoading, setPostsLoading] = useState(false);
+
+  // new: track loading for post-level admin actions
+  const [actionLoadingMap, setActionLoadingMap] = useState({});
 
   const [editPostData, setEditPostData] = useState(null);
 
@@ -83,8 +87,54 @@ export default function UsersTab({
       setShowPostsPanel(true);
     } catch (err) {
       console.error("fetchUserPosts", err);
+      toast.error("Failed to load user posts");
     } finally {
       setPostsLoading(false);
+    }
+  };
+
+  // --- helper to set per-post action loading flags
+  const setActionLoading = (postId, val) =>
+    setActionLoadingMap((prev) => ({ ...prev, [postId]: !!val }));
+
+  // --- Force release a post (admin)
+  const forceReleasePost = async (postId) => {
+    if (
+      !window.confirm(
+        "Force release this trade now? This will release funds to the seller."
+      )
+    )
+      return;
+    try {
+      setActionLoading(postId, true);
+      const res = await axios.post(`/admin/trades/${postId}/force-release`);
+      toast.success(res?.data?.message || "Trade force released");
+      // refresh posts list to show updated tradeStatus
+      if (selectedUser) await fetchUserPosts(selectedUser._id);
+      fetchUsers(currentPage);
+    } catch (err) {
+      console.error("forceReleasePost", err);
+      toast.error(err?.response?.data?.error || "Force release failed");
+    } finally {
+      setActionLoading(postId, false);
+    }
+  };
+
+  // --- Refund / cancel a post (admin)
+  const refundPost = async (postId) => {
+    if (!window.confirm("Refund this trade (return coins to buyer)?")) return;
+    try {
+      setActionLoading(postId, true);
+      const res = await axios.post(`/admin/trades/${postId}/refund`);
+      toast.success(res?.data?.message || "Trade refunded");
+      // refresh posts list and users
+      if (selectedUser) await fetchUserPosts(selectedUser._id);
+      fetchUsers(currentPage);
+    } catch (err) {
+      console.error("refundPost", err);
+      toast.error(err?.response?.data?.error || "Refund failed");
+    } finally {
+      setActionLoading(postId, false);
     }
   };
 
@@ -106,9 +156,6 @@ export default function UsersTab({
         setUsers((prev) =>
           prev.map((u) => (u._id === user._id ? res.data.user : u))
         );
-
-        // If you want immediate logout for the target user, backend should issue a socket/message.
-        // Frontend cannot force other users to logout unless they check token validity.
       } else {
         fetchUsers();
       }
@@ -224,6 +271,7 @@ export default function UsersTab({
       setSelectedUserPosts((prev) => prev.filter((p) => p._id !== postId));
     } catch (err) {
       console.error("deletePost", err);
+      toast.error("Failed to delete post");
     }
   };
 
@@ -1010,6 +1058,13 @@ export default function UsersTab({
                         <div className="mt-3 text-xs text-gray-600 dark:text-gray-400 flex flex-wrap gap-3">
                           <div>Server: {post.server ?? "-"}</div>
                           <div>Discord: {post.discord ?? "-"}</div>
+                          {post.tradeStatus === "pending_release" &&
+                            post.releaseAt && (
+                              <div>
+                                Release At:{" "}
+                                {new Date(post.releaseAt).toLocaleString()}
+                              </div>
+                            )}
                         </div>
                       </div>
 
@@ -1026,6 +1081,30 @@ export default function UsersTab({
                         >
                           Delete
                         </button>
+
+                        {post.tradeStatus === "pending_release" && (
+                          <>
+                            <button
+                              onClick={() => forceReleasePost(post._id)}
+                              disabled={!!actionLoadingMap[post._id]}
+                              className="px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-white text-sm mt-2"
+                            >
+                              {actionLoadingMap[post._id]
+                                ? "Processing..."
+                                : "Force Release"}
+                            </button>
+
+                            <button
+                              onClick={() => refundPost(post._id)}
+                              disabled={!!actionLoadingMap[post._id]}
+                              className="px-3 py-1 rounded bg-yellow-600 hover:bg-yellow-700 text-white text-sm mt-2"
+                            >
+                              {actionLoadingMap[post._id]
+                                ? "Processing..."
+                                : "Refund"}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1047,7 +1126,6 @@ export default function UsersTab({
 
       {/* Edit Post Modal */}
       {editPostData && (
-        // full-screen on small screens, centered on medium/large
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
           <div
             className="absolute inset-0 bg-black/40"

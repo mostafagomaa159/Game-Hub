@@ -1,11 +1,21 @@
+// src/routers/admin.js
 const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const adminAuth = require("../middleware/adminAuth");
+const mongoose = require("mongoose");
+
 const Transaction = require("../models/transaction");
 const TradeTransaction = require("../models/TradeTransaction");
 const User = require("../models/user");
-const newPost = require("../models/newPost"); // ✅ Added missing import
+const newPost = require("../models/newPost");
+
+// service to finalize single trades (and used by force-release)
+const { finalizeTradeByPostId } = require("../services/tradeFinalizer");
+
+// -------------------------
+// Withdrawals & transactions
+// -------------------------
 
 // Get paginated withdrawals (default: status=pending)
 router.get("/withdrawals", auth, adminAuth, async (req, res) => {
@@ -15,7 +25,7 @@ router.get("/withdrawals", auth, adminAuth, async (req, res) => {
   try {
     const total = await Transaction.countDocuments(match);
     const transactions = await Transaction.find(match)
-      .populate("userId", "name email") // Show who requested withdrawal
+      .populate("userId", "name email")
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
@@ -26,6 +36,7 @@ router.get("/withdrawals", auth, adminAuth, async (req, res) => {
       currentPage: Number(page),
     });
   } catch (err) {
+    console.error("Admin withdrawals error:", err);
     res.status(500).json({ error: "Failed to fetch transactions" });
   }
 });
@@ -53,6 +64,7 @@ router.post("/withdrawals/:id/approve", auth, adminAuth, async (req, res) => {
       message: "Withdrawal approved and PayPal payout simulated.",
     });
   } catch (e) {
+    console.error("Approve withdrawal error:", e);
     res.status(500).json({ error: "Error approving withdrawal" });
   }
 });
@@ -70,7 +82,7 @@ router.post("/withdrawals/:id/reject", auth, adminAuth, async (req, res) => {
     // Refund coins to the user
     const user = await User.findById(transaction.userId);
     if (user) {
-      user.coins += transaction.amount;
+      user.coins = (user.coins || 0) + Number(transaction.amount || 0);
       await user.save();
     }
 
@@ -82,17 +94,20 @@ router.post("/withdrawals/:id/reject", auth, adminAuth, async (req, res) => {
       message: "Withdrawal rejected and coins refunded.",
     });
   } catch (e) {
+    console.error("Reject withdrawal error:", e);
     res.status(500).json({ error: "Error rejecting withdrawal" });
   }
 });
 
-// Admin Trade History Route
+// -------------------------
+// Admin Trade History
+// -------------------------
 router.get("/admin/trade-history", auth, adminAuth, async (req, res) => {
   try {
     const posts = await newPost
       .find({ tradeStatus: { $in: ["completed", "cancelled"] } })
       .select(
-        "description price server tradeStatus tradeCompletedAt cancellationNote createdAt updatedAt"
+        "description price server tradeStatus tradeCompletedAt cancellationNote createdAt updatedAt owner buyer"
       )
       .populate("owner", "name email")
       .populate("buyer", "name email")
@@ -105,12 +120,13 @@ router.get("/admin/trade-history", auth, adminAuth, async (req, res) => {
   }
 });
 
-// ✅ Optional: Admin route test
+// Admin route test
 router.get("/admin/test", auth, adminAuth, (req, res) => {
   res.send({ message: "✅ Admin route working", user: req.user });
 });
+
 // -----------------------------------------------------------------------------
-// Admin: Pending Releases / Manual Release routes
+// Admin: Pending Releases / Manual Release routes (new + existing)
 // -----------------------------------------------------------------------------
 
 /**
@@ -164,6 +180,8 @@ router.get("/admin/trades/:id", auth, adminAuth, async (req, res) => {
  * POST /admin/trades/:id/release
  * Admin manually releases funds to seller for a pending_release tx.
  * Body (optional): { note: "..." }
+ *
+ * (You already had this - kept intact)
  */
 router.post("/admin/trades/:id/release", auth, adminAuth, async (req, res) => {
   const session = await mongoose.startSession();
@@ -246,7 +264,145 @@ router.post("/admin/trades/:id/release", auth, adminAuth, async (req, res) => {
   }
 });
 
-// --- Admin: user management ---
+// -------------------------
+// NEW: Posts-level pending list & admin force/refund endpoints
+// -------------------------
+
+/**
+ * GET /admin/pending-trades
+ * List posts with tradeStatus "pending_release" (populated)
+ */
+router.get("/admin/pending-trades", auth, adminAuth, async (req, res) => {
+  try {
+    const pending = await newPost
+      .find({ tradeStatus: "pending_release" })
+      .populate("owner buyer")
+      .sort({ releaseAt: 1 })
+      .limit(200);
+    return res.send(pending);
+  } catch (err) {
+    console.error("Admin pending-trades error:", err);
+    return res.status(500).send({ error: "Failed to fetch pending trades" });
+  }
+});
+
+/**
+ * POST /admin/trades/:postId/force-release
+ * Force finalize a single post's trade (admin)
+ */
+router.post(
+  "/admin/trades/:postId/force-release",
+  auth,
+  adminAuth,
+  async (req, res) => {
+    const postId = req.params.postId;
+    try {
+      const result = await finalizeTradeByPostId(postId, {
+        io: req.io,
+        actorId: req.user._id,
+      });
+      if (result.ok)
+        return res.send({
+          message: "Trade force-released",
+          postId: result.postId,
+        });
+      return res
+        .status(400)
+        .send({ error: result.reason || "Cannot finalize" });
+    } catch (err) {
+      console.error("Admin force-release error:", err);
+      return res.status(500).send({ error: "Failed to force release" });
+    }
+  }
+);
+
+/**
+ * POST /admin/trades/:postId/refund
+ * Refund/cancel a post (admin) — return coins to buyer and mark tx refunded
+ */
+router.post(
+  "/admin/trades/:postId/refund",
+  auth,
+  adminAuth,
+  async (req, res) => {
+    const postId = req.params.postId;
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const post = await newPost.findById(postId).session(session);
+      if (!post) throw new Error("Post not found");
+
+      if (
+        post.tradeStatus !== "pending_release" &&
+        post.tradeStatus !== "pending"
+      ) {
+        throw new Error("Not refundable");
+      }
+
+      const tx = await TradeTransaction.findOne({ post: post._id }).session(
+        session
+      );
+      if (!tx) throw new Error("Transaction not found");
+
+      // refund buyer
+      const buyer = await User.findById(post.buyer).session(session);
+      if (buyer) {
+        buyer.coins = (buyer.coins || 0) + Number(tx.amount || 0);
+        await buyer.save({ session });
+      }
+
+      // update tx and post
+      tx.status = "refunded";
+      tx.logs = tx.logs || [];
+      tx.logs.push({
+        message: "Refunded by admin",
+        by: req.user._id,
+        at: new Date(),
+      });
+      await tx.save({ session });
+
+      post.tradeStatus = "cancelled";
+      post.avaliable = true;
+      post.buyer = null;
+      post.releaseAt = null;
+      post.cancellationNote = "Refunded by admin";
+      await post.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      // emit socket events to buyer & seller about refund
+      try {
+        if (req.io) {
+          const buyerId = String(buyer._id);
+          const ownerId = String(post.owner);
+          req.io.to(buyerId).emit("tradeRefunded", {
+            postId: String(post._id),
+            message: "Trade refunded by admin",
+          });
+          req.io.to(ownerId).emit("tradeRefunded", {
+            postId: String(post._id),
+            message: "Trade refunded by admin",
+          });
+        }
+      } catch (e) {
+        console.warn("admin refund: socket emit failed", e?.message || e);
+      }
+
+      return res.send({ message: "Refund processed" });
+    } catch (err) {
+      await session.abortTransaction().catch(() => {});
+      session.endSession();
+      console.error("Admin refund error:", err);
+      return res.status(500).send({ error: err.message || "Refund failed" });
+    }
+  }
+);
+
+// -------------------------
+// Admin: users, posts management (unchanged)
+// -------------------------
+
 // GET /admin/users?search=&page=&limit=
 router.get("/admin/users", auth, adminAuth, async (req, res) => {
   try {
@@ -260,7 +416,7 @@ router.get("/admin/users", auth, adminAuth, async (req, res) => {
 
     const total = await User.countDocuments(q);
     const users = await User.find(q)
-      .select("-password -tokens -avatar") // don't leak sensitive fields
+      .select("-password -tokens -avatar")
       .skip((page - 1) * limit)
       .limit(Number(limit))
       .sort({ createdAt: -1 });
@@ -279,10 +435,8 @@ router.get("/admin/users", auth, adminAuth, async (req, res) => {
 });
 
 // PUT /admin/users/:id  (edit user profile by admin)
-
 router.put("/admin/users/:id", auth, adminAuth, async (req, res) => {
   try {
-    // Allow isAdmin now. Keep 'role' for backward compatibility (we'll map it).
     const allowed = ["name", "email", "role", "coins", "isActive", "isAdmin"];
     const updates = Object.keys(req.body);
     const invalid = updates.filter((u) => !allowed.includes(u));
@@ -311,7 +465,6 @@ router.put("/admin/users/:id", auth, adminAuth, async (req, res) => {
 
     await user.save();
 
-    // exclude sensitive fields when returning
     const obj = user.toObject();
     delete obj.password;
     delete obj.tokens;
@@ -362,7 +515,6 @@ router.get("/admin/users/:id/posts", auth, adminAuth, async (req, res) => {
     const posts = await newPost
       .find(postsQuery)
       .skip((page - 1) * limit)
-
       .limit(Number(limit))
       .sort({ createdAt: -1 });
 

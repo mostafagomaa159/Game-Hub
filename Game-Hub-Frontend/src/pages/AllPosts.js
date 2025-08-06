@@ -50,9 +50,7 @@ const AllPosts = () => {
         return;
       }
       try {
-        const res = await axios.get("/users/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await axios.get("/users/me");
         setUserId(res.data._id);
         localStorage.setItem("user", JSON.stringify(res.data));
       } catch (err) {
