@@ -1,4 +1,3 @@
-// models/TradeTransaction.js
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
@@ -34,13 +33,14 @@ const tradeTransactionSchema = new Schema(
     seller: { type: Schema.Types.ObjectId, ref: "User", required: true },
     amount: { type: Number, required: true, min: 0 },
 
-    // lifecycle: reserved -> pending_release -> released | refunded | disputed
+    // lifecycle: reserved -> pending_release -> completed/released | refunded | disputed
     status: {
       type: String,
       enum: [
         "reserved", // buyer paid and item reserved
         "pending_release", // both confirmed, waiting releaseAt
-        "released", // seller paid
+        "released", // *legacy name* — seller paid
+        "completed", // canonical final state in routes
         "refunded", // buyer refunded
         "disputed", // dispute opened
         "cancelled", // cancelled before reservation finalization

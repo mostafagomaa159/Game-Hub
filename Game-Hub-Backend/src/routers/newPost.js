@@ -410,52 +410,117 @@ router.post("/newpost/:id/cancel-trade", auth, async (req, res) => {
 });
 // Run this periodically (e.g. every 10 mins) or call manually by admin
 router.post("/newpost/finalize-trades", auth, async (req, res) => {
-  // Optionally check req.user.isAdmin here
+  // optional: require admin
+  // if (!req.user?.isAdmin) return res.status(403).send({ error: "Admin required" });
 
   const session = await mongoose.startSession();
-  session.startTransaction();
+  await session.startTransaction();
   try {
     const now = new Date();
 
-    // Find all posts with tradeStatus "pending_release" whose releaseAt has passed
-    const postsToFinalize = await Post.find({
-      tradeStatus: "pending_release",
-      releaseAt: { $lte: now },
-    }).session(session);
+    // Find posts that are pending_release and whose releaseAt <= now
+    // We only select minimally needed fields to keep memory low
+    const postsToFinalize = await Post.find(
+      {
+        tradeStatus: "pending_release",
+        releaseAt: { $lte: now },
+      },
+      // projection: include owner, buyer, price
+      { owner: 1, buyer: 1, price: 1 }
+    ).session(session);
 
     let finalizedCount = 0;
 
     for (const post of postsToFinalize) {
+      // load the transaction inside the same session
       const tx = await TradeTransaction.findOne({ post: post._id }).session(
         session
       );
+
+      // require a pending_release transaction
       if (!tx || tx.status !== "pending_release") {
         // skip if no valid transaction found
         continue;
       }
 
-      // Safety checks: buyer, seller, amount
+      // safety checks
       if (!post.buyer || !post.owner || !tx.amount) continue;
 
-      // Add coins to seller
-      const seller = await User.findById(post.owner).session(session);
-      if (!seller) continue;
+      // add coins to seller
+      const sellerId =
+        typeof post.owner === "object"
+          ? post.owner._id || post.owner
+          : post.owner;
+      const buyerId =
+        typeof post.buyer === "object"
+          ? post.buyer._id || post.buyer
+          : post.buyer;
 
-      seller.coins += tx.amount;
+      const seller = await User.findById(sellerId).session(session);
+      if (!seller) {
+        console.warn(
+          "Finalize: seller not found for post",
+          post._id.toString()
+        );
+        continue;
+      }
+
+      // transfer funds
+      seller.coins = (seller.coins || 0) + Number(tx.amount || 0);
       await seller.save({ session });
 
-      // Mark post and transaction as completed
-      post.tradeStatus = "completed";
-      post.avaliable = false; // no longer available
-      post.releaseAt = null;
-      await post.save({ session });
+      // mark post fields
+      const postDoc = await Post.findById(post._id).session(session);
+      postDoc.tradeStatus = "completed";
+      postDoc.avaliable = false;
+      postDoc.releaseAt = null;
+      postDoc.tradeCompletedAt = new Date();
+      // clear buyer if you don't want it visible after completion (optional)
+      // postDoc.buyer = null;
+      await postDoc.save({ session });
 
+      // mark tx completed
       tx.status = "completed";
+      tx.releaseAt = null;
       tx.logs = tx.logs || [];
-      tx.logs.push({ message: "Trade finalized, coins released to seller" });
+      tx.logs.push({
+        message: "Trade finalized, coins released to seller",
+        by: req.user ? req.user._id : null,
+        at: new Date(),
+      });
       await tx.save({ session });
 
       finalizedCount++;
+
+      // notify buyer & seller via sockets if available
+      try {
+        if (req.io) {
+          // Use socket rooms / naming conventions your app uses
+          // Example emits (adjust event names / payloads to your frontend)
+          req.io.to(String(sellerId)).emit("tradeFinalized", {
+            postId: post._id,
+            message: "Trade completed. Coins released to seller.",
+            sellerId,
+            buyerId,
+            amount: tx.amount,
+          });
+
+          req.io.to(String(buyerId)).emit("tradeFinalized", {
+            postId: post._id,
+            message: "Trade completed. Seller was paid.",
+            sellerId,
+            buyerId,
+            amount: tx.amount,
+          });
+        }
+      } catch (e) {
+        // don't fail the whole transaction because notification failed
+        console.warn(
+          "Notify sockets failed for post",
+          post._id.toString(),
+          e.message
+        );
+      }
     }
 
     await session.commitTransaction();
@@ -463,7 +528,7 @@ router.post("/newpost/finalize-trades", auth, async (req, res) => {
 
     return res.send({ message: `${finalizedCount} trades finalized.` });
   } catch (err) {
-    await session.abortTransaction();
+    await session.abortTransaction().catch(() => {});
     session.endSession();
     console.error("Finalize trades error:", err);
     return res.status(500).send({ error: "Failed to finalize trades" });

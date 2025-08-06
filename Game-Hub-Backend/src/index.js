@@ -1,7 +1,10 @@
+// index.js
 const app = require("./app");
 const http = require("http");
 const socketIO = require("socket.io");
 const axios = require("axios");
+const User = require("./models/user");
+const Chat = require("./models/chat");
 
 const server = http.createServer(app);
 
@@ -18,7 +21,7 @@ const io = socketIO(server, {
   },
 });
 
-// Inject io into req for all routes
+// ✅ Inject io into req object for all routes
 app.use((req, res, next) => {
   req.io = io;
   next();
@@ -27,16 +30,15 @@ app.use((req, res, next) => {
 io.on("connection", (socket) => {
   console.log("✅ A user connected");
 
+  // User joins a chat room
   socket.on("joinRoom", ({ roomId }) => {
     socket.join(roomId);
     console.log(`📥 User ${socket.id} joined room: ${roomId}`);
   });
 
+  // Sending a message
   socket.on("sendMessage", async ({ roomId, message, sender }) => {
     try {
-      const User = require("./models/user");
-      const Chat = require("./models/chat");
-
       const user = await User.findById(sender).select("name");
       if (!user) {
         console.error("❌ User not found:", sender);
@@ -47,9 +49,10 @@ io.on("connection", (socket) => {
         roomId,
         message,
         sender,
-        status: "sent",
+        status: "sent", // default
       });
 
+      // Emit to everyone in room
       io.to(roomId).emit("receiveMessage", {
         message: newMessage.message,
         sender: newMessage.sender,
@@ -62,9 +65,9 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Mark messages as seen
   socket.on("markAsSeen", async ({ roomId, userId }) => {
     try {
-      const Chat = require("./models/chat");
       await Chat.updateMany(
         {
           roomId,
@@ -73,42 +76,59 @@ io.on("connection", (socket) => {
         },
         { $set: { status: "seen" } }
       );
+
+      // Notify sender(s)
       io.to(roomId).emit("messagesSeen", { roomId, seenBy: userId });
     } catch (e) {
       console.error("❌ Failed to mark messages as seen:", e);
     }
   });
 
+  // Typing indicator
   socket.on("typing", ({ roomId, sender }) => {
     socket.to(roomId).emit("typing", { sender });
   });
 
+  // Disconnect
   socket.on("disconnect", () => {
     console.log("❎ User disconnected");
   });
 });
 
-// --- ADD THIS PERIODIC TRADE FINALIZER ---
+const ADMIN_JWT_TOKEN = process.env.ADMIN_JWT_TOKEN || ""; // set this in your env (recommended)
+if (!ADMIN_JWT_TOKEN) {
+  console.warn(
+    "⚠️  ADMIN_JWT_TOKEN not set. Finalize-trades background job will not run until you set ADMIN_JWT_TOKEN env var."
+  );
+}
 
-const ADMIN_JWT_TOKEN =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2ODkyMTg3ZWFmMWFhMjEyNTQzZWQ0M2IiLCJpYXQiOjE3NTQ0ODQzMTZ9.9rVyY10J3hvlPQ99gNSM7ghIe0nRo0X5ZmahREiCRkY"; // Replace with your real admin JWT token
+const FINALIZE_INTERVAL_MS = 60 * 1000; // every 1 minute
+const FINALIZE_URL =
+  process.env.FINALIZE_URL || "http://localhost:3001/newpost/finalize-trades";
 
-setInterval(async () => {
-  try {
-    const res = await axios.post(
-      "http://localhost:3001/newpost/finalize-trades",
-      null,
-      {
+if (ADMIN_JWT_TOKEN) {
+  // start background finalizer (runs in this Node process)
+  setInterval(async () => {
+    try {
+      const res = await axios.post(FINALIZE_URL, null, {
         headers: {
           Authorization: `Bearer ${ADMIN_JWT_TOKEN}`,
         },
-      }
-    );
-    console.log("[Trade Finalizer]:", res.data.message);
-  } catch (err) {
-    console.error("[Trade Finalizer] Error:", err.message);
-  }
-}, 60 * 1000); // every 1 minute
+        timeout: 30 * 1000,
+      });
+      console.log("[Trade Finalizer]:", res.data?.message || "no message");
+    } catch (err) {
+      console.error(
+        "[Trade Finalizer] Error:",
+        err?.response?.data || err.message
+      );
+    }
+  }, FINALIZE_INTERVAL_MS);
+
+  console.log(
+    `[Trade Finalizer] scheduled every ${FINALIZE_INTERVAL_MS / 1000}s`
+  );
+}
 
 const port = process.env.PORT || 3001;
 server.listen(port, () => {
