@@ -293,7 +293,9 @@ router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
 
     if (confirmedByOwner && confirmedByBuyer) {
       // schedule a 24-hour hold (pending_release)
-      const releaseAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      //const releaseAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const releaseAt = new Date(Date.now() + 1 * 60 * 1000); // 10 minutes
+
       post.tradeStatus = "pending_release";
       post.releaseAt = releaseAt;
 
@@ -403,6 +405,67 @@ router.post("/newpost/:id/cancel-trade", auth, async (req, res) => {
     return res
       .status(500)
       .send({ error: err.message || "Failed to cancel trade" });
+  }
+});
+// Run this periodically (e.g. every 10 mins) or call manually by admin
+router.post("/newpost/finalize-trades", auth, async (req, res) => {
+  // Optionally check req.user.isAdmin here
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const now = new Date();
+
+    // Find all posts with tradeStatus "pending_release" whose releaseAt has passed
+    const postsToFinalize = await Post.find({
+      tradeStatus: "pending_release",
+      releaseAt: { $lte: now },
+    }).session(session);
+
+    let finalizedCount = 0;
+
+    for (const post of postsToFinalize) {
+      const tx = await TradeTransaction.findOne({ post: post._id }).session(
+        session
+      );
+      if (!tx || tx.status !== "pending_release") {
+        // skip if no valid transaction found
+        continue;
+      }
+
+      // Safety checks: buyer, seller, amount
+      if (!post.buyer || !post.owner || !tx.amount) continue;
+
+      // Add coins to seller
+      const seller = await User.findById(post.owner).session(session);
+      if (!seller) continue;
+
+      seller.coins += tx.amount;
+      await seller.save({ session });
+
+      // Mark post and transaction as completed
+      post.tradeStatus = "completed";
+      post.avaliable = false; // no longer available
+      post.releaseAt = null;
+      await post.save({ session });
+
+      tx.status = "completed";
+      tx.logs = tx.logs || [];
+      tx.logs.push({ message: "Trade finalized, coins released to seller" });
+      await tx.save({ session });
+
+      finalizedCount++;
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.send({ message: `${finalizedCount} trades finalized.` });
+  } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("Finalize trades error:", err);
+    return res.status(500).send({ error: "Failed to finalize trades" });
   }
 });
 

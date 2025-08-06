@@ -1,8 +1,7 @@
 const app = require("./app");
 const http = require("http");
 const socketIO = require("socket.io");
-const User = require("./models/user");
-const Chat = require("./models/chat");
+const axios = require("axios");
 
 const server = http.createServer(app);
 
@@ -19,7 +18,7 @@ const io = socketIO(server, {
   },
 });
 
-// ✅ Inject io into req object for all routes
+// Inject io into req for all routes
 app.use((req, res, next) => {
   req.io = io;
   next();
@@ -28,15 +27,16 @@ app.use((req, res, next) => {
 io.on("connection", (socket) => {
   console.log("✅ A user connected");
 
-  // User joins a chat room
   socket.on("joinRoom", ({ roomId }) => {
     socket.join(roomId);
     console.log(`📥 User ${socket.id} joined room: ${roomId}`);
   });
 
-  // Sending a message
   socket.on("sendMessage", async ({ roomId, message, sender }) => {
     try {
+      const User = require("./models/user");
+      const Chat = require("./models/chat");
+
       const user = await User.findById(sender).select("name");
       if (!user) {
         console.error("❌ User not found:", sender);
@@ -47,10 +47,9 @@ io.on("connection", (socket) => {
         roomId,
         message,
         sender,
-        status: "sent", // default
+        status: "sent",
       });
 
-      // Emit to everyone in room
       io.to(roomId).emit("receiveMessage", {
         message: newMessage.message,
         sender: newMessage.sender,
@@ -63,9 +62,9 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Mark messages as seen
   socket.on("markAsSeen", async ({ roomId, userId }) => {
     try {
+      const Chat = require("./models/chat");
       await Chat.updateMany(
         {
           roomId,
@@ -74,24 +73,42 @@ io.on("connection", (socket) => {
         },
         { $set: { status: "seen" } }
       );
-
-      // Notify sender(s)
       io.to(roomId).emit("messagesSeen", { roomId, seenBy: userId });
     } catch (e) {
       console.error("❌ Failed to mark messages as seen:", e);
     }
   });
 
-  // Typing indicator
   socket.on("typing", ({ roomId, sender }) => {
     socket.to(roomId).emit("typing", { sender });
   });
 
-  // Disconnect
   socket.on("disconnect", () => {
     console.log("❎ User disconnected");
   });
 });
+
+// --- ADD THIS PERIODIC TRADE FINALIZER ---
+
+const ADMIN_JWT_TOKEN =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2ODkyMTg2ZWFmMWFhMjEyNTQzZWQ0MTciLCJpYXQiOjE3NTQ0ODE4NzZ9.n5VXahNPSCalzeBCPSmgKYpXnS4ICayTZ6RCdweX2Vc"; // Replace with your real admin JWT token
+
+setInterval(async () => {
+  try {
+    const res = await axios.post(
+      "http://localhost:3001/newpost/finalize-trades",
+      null,
+      {
+        headers: {
+          Authorization: `Bearer ${ADMIN_JWT_TOKEN}`,
+        },
+      }
+    );
+    console.log("[Trade Finalizer]:", res.data.message);
+  } catch (err) {
+    console.error("[Trade Finalizer] Error:", err.message);
+  }
+}, 60 * 1000); // every 1 minute
 
 const port = process.env.PORT || 3001;
 server.listen(port, () => {
