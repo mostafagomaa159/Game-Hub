@@ -2,14 +2,11 @@
 import axios from "../api/axiosInstance";
 import { MessageCircle, Smile } from "lucide-react";
 import Modal from "react-modal";
-import { io } from "socket.io-client";
+import socket from "../utils/socket";
+
 import React, { useEffect, useRef, useState } from "react";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
-
-const socket = io(process.env.REACT_APP_SOCKET_URL || "http://localhost:3001", {
-  withCredentials: true,
-});
 
 const Button = ({ children, onClick, className }) => (
   <button onClick={onClick} className={`px-4 py-2 rounded ${className}`}>

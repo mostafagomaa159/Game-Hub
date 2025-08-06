@@ -1,116 +1,83 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "../../api/axiosInstance";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import Skeleton from "@mui/material/Skeleton";
-import { toast } from "react-toastify";
-import { socket } from "../../utils/socket"; // Make sure this exports an initialized socket.io-client
+import socket from "../../utils/socket";
+
+import SkeletonCard from "../common/SkeletonCard";
 
 const DisputesTab = () => {
   const [disputes, setDisputes] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch all disputed trades
   const fetchDisputes = async () => {
     try {
       setLoading(true);
       const res = await axios.get("/admin/disputes");
       setDisputes(res.data || []);
     } catch (err) {
-      toast.error("Failed to fetch disputes");
+      console.error("Failed to fetch disputes:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDisputes();
-
-    // Listen for newly created disputes
-    socket.on("admin:dispute_created", (data) => {
-      toast.info("New dispute opened");
-      fetchDisputes();
-    });
-
-    // Listen for resolved disputes to refresh UI
-    socket.on("admin:dispute_resolved", (data) => {
-      toast.success("Dispute resolved");
-      fetchDisputes();
-    });
+    socket.on("admin:dispute_created", fetchDisputes);
+    socket.on("admin:dispute_resolved", fetchDisputes);
 
     return () => {
-      socket.off("admin:dispute_created");
-      socket.off("admin:dispute_resolved");
+      socket.off("admin:dispute_created", fetchDisputes);
+      socket.off("admin:dispute_resolved", fetchDisputes);
     };
   }, []);
 
-  const handleResolve = async (id, action) => {
-    const note = prompt(`Enter note for ${action}:`);
-    if (!note) return;
-
-    try {
-      await axios.post(`/admin/disputes/${id}/resolve`, { action, note });
-      toast.success("Dispute resolved");
-      fetchDisputes();
-    } catch (err) {
-      toast.error("Failed to resolve dispute");
-    }
-  };
-
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Card key={i}>
-            <CardContent>
-              <Skeleton variant="text" width="80%" />
-              <Skeleton variant="text" width="60%" />
-              <Skeleton variant="rectangular" height={40} />
-            </CardContent>
-          </Card>
+      <div className="p-4">
+        {[...Array(3)].map((_, i) => (
+          <SkeletonCard
+            key={i}
+            variant="rectangular"
+            height={80}
+            className="mb-4"
+          />
         ))}
       </div>
     );
   }
 
-  if (disputes.length === 0) {
-    return <p className="text-gray-400">No disputes found</p>;
+  if (!disputes.length) {
+    return <div className="p-4 text-gray-500">No disputes found.</div>;
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {disputes.map((tx) => (
-        <Card key={tx._id}>
-          <CardContent className="space-y-2">
-            <p className="text-sm text-gray-300">
-              <strong>Post:</strong> {tx.post?.description || "N/A"}
+    <div className="p-4">
+      <h2 className="text-xl font-bold mb-4">Active Disputes</h2>
+      <ul className="space-y-4">
+        {disputes.map((dispute) => (
+          <li
+            key={dispute._id}
+            className="p-4 border rounded-md shadow-sm bg-white dark:bg-gray-900"
+          >
+            <p>
+              <strong>Post:</strong> {dispute.post?.description || "N/A"}
             </p>
-            <p className="text-sm text-gray-300">
-              <strong>Amount:</strong> {tx.amount} coins
+            <p>
+              <strong>Buyer:</strong> {dispute.buyer?.username}
             </p>
-            <p className="text-sm text-gray-300">
-              <strong>Buyer:</strong> {tx.buyer?.username}
+            <p>
+              <strong>Seller:</strong> {dispute.seller?.username}
             </p>
-            <p className="text-sm text-gray-300">
-              <strong>Seller:</strong> {tx.seller?.username}
+            <p>
+              <strong>Reason:</strong>{" "}
+              {dispute.dispute?.reason || "Not specified"}
             </p>
-            <div className="flex gap-2 mt-3">
-              <Button
-                variant="destructive"
-                onClick={() => handleResolve(tx._id, "refund")}
-              >
-                Refund Buyer
-              </Button>
-              <Button
-                onClick={() => handleResolve(tx._id, "release")}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                Release to Seller
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+            <p>
+              <strong>Status:</strong> {dispute.status}
+            </p>
+            {/* Add resolve button if needed */}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };

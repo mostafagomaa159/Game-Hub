@@ -18,7 +18,7 @@ const TradeHistoryTab = React.lazy(() =>
 );
 const UsersTab = React.lazy(() => import("../components/adminTabs/UsersTab"));
 const DisputesTab = React.lazy(() =>
-  import("../components/adminTabs/DepositsTab")
+  import("../components/adminTabs/DisputesTab")
 );
 
 const SKELETON_COUNT = 5;
