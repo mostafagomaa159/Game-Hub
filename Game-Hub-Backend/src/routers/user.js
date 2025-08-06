@@ -32,18 +32,44 @@ router.get("/users", auth, async (req, res) => {
 });
 
 // Login
+// routes (or admin/user routes file)
 router.post("/users/login", async (req, res) => {
   try {
     const user = await User.findByCredentials(
       req.body.email,
       req.body.password
     );
+
+    // Defensive: coerce isActive (handles boolean, string "true"/"false", numeric 1/0)
+    const coerceIsActive = (val) => {
+      if (val === undefined || val === null) return false;
+      if (typeof val === "boolean") return val;
+      if (typeof val === "string") {
+        const s = val.toLowerCase();
+        return s === "true" || s === "1" || s === "yes";
+      }
+      if (typeof val === "number") return val !== 0;
+      return !!val;
+    };
+
+    const active = coerceIsActive(user.isActive);
+
+    if (!active) {
+      // Do not generate token for disabled users
+      return res.status(403).send({
+        error: "Account disabled",
+        message:
+          "Your account has been disabled. If you think this is a mistake, please contact support.",
+      });
+    }
+
     const token = await user.generateAuthToken();
-    res.send({ user, token });
+    // user.toJSON() will remove password/tokens/avatar (your model has that)
+    res.send({ user: user.toJSON(), token });
   } catch (e) {
-    // Send a clear message to the frontend
+    // Authentication failed or other error
     res.status(400).send({
-      message: e.message,
+      message: e.message || "Login failed",
     });
   }
 });

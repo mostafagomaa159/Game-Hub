@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+
     email: {
       type: String,
       required: true,
@@ -56,6 +57,10 @@ const userSchema = new mongoose.Schema(
     isAdmin: {
       type: Boolean,
       default: false,
+    },
+    isActive: {
+      type: Boolean,
+      required: true,
     },
     avatar: Buffer,
   },

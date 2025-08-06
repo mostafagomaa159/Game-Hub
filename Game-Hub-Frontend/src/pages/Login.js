@@ -48,7 +48,6 @@ function Login() {
     // final validation before submit
     if (!EMAIL_REGEX.test(email)) {
       setEmailError("Invalid email format");
-      // shake briefly to indicate problem
       setShake(true);
       setTimeout(() => setShake(false), 500);
       return;
@@ -68,14 +67,43 @@ function Login() {
         { headers: { "Content-Type": "application/json" } }
       );
 
-      localStorage.setItem("token", res.data.token);
-      if (res.data.user)
-        localStorage.setItem("user", JSON.stringify(res.data.user));
+      // If backend returns the user object, check isActive
+      const returnedUser = res.data?.user ?? null;
+      const token = res.data?.token ?? null;
+
+      if (returnedUser) {
+        // Defensive: coerce to boolean
+        const active = !!returnedUser.isActive;
+        if (!active) {
+          // Account exists and is banned/disabled
+          setServerError(
+            "Your account is banned. Contact support if you think this is a mistake."
+          );
+          setShake(true);
+          setTimeout(() => setShake(false), 600);
+          // Do NOT store token or navigate
+          return;
+        }
+      }
+
+      // If backend didn't return user, we still rely on server-side auth.
+      // Proceed only if token present; otherwise treat as failure.
+      if (!token) {
+        setServerError("Login failed: no token returned.");
+        setShake(true);
+        setTimeout(() => setShake(false), 600);
+        return;
+      }
+
+      // Store token and user and navigate
+      localStorage.setItem("token", token);
+      if (returnedUser)
+        localStorage.setItem("user", JSON.stringify(returnedUser));
 
       navigate("/all-posts");
     } catch (err) {
-      // show server message if available, else friendly default
       if (err.response) {
+        // Prefer server messages, fallbacks
         const serverMsg =
           err.response.data?.message ||
           err.response.data?.error ||
@@ -89,7 +117,6 @@ function Login() {
         setServerError("An unexpected error occurred. Try again.");
       }
 
-      // trigger shake animation to draw attention
       setShake(true);
       setTimeout(() => setShake(false), 600);
     } finally {

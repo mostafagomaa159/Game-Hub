@@ -279,9 +279,11 @@ router.get("/admin/users", auth, adminAuth, async (req, res) => {
 });
 
 // PUT /admin/users/:id  (edit user profile by admin)
+
 router.put("/admin/users/:id", auth, adminAuth, async (req, res) => {
   try {
-    const allowed = ["name", "email", "role", "coins", "isActive"];
+    // Allow isAdmin now. Keep 'role' for backward compatibility (we'll map it).
+    const allowed = ["name", "email", "role", "coins", "isActive", "isAdmin"];
     const updates = Object.keys(req.body);
     const invalid = updates.filter((u) => !allowed.includes(u));
     if (invalid.length)
@@ -290,7 +292,23 @@ router.put("/admin/users/:id", auth, adminAuth, async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).send({ error: "User not found" });
 
-    updates.forEach((u) => (user[u] = req.body[u]));
+    // Map role -> isAdmin if 'role' is present
+    if (req.body.role !== undefined) {
+      if (typeof req.body.role === "string") {
+        user.isAdmin = req.body.role === "admin";
+      } else if (typeof req.body.role === "boolean") {
+        user.isAdmin = !!req.body.role;
+      }
+    }
+
+    // Apply allowed direct fields: name, email, coins, isActive, isAdmin
+    const directFields = ["name", "email", "coins", "isActive", "isAdmin"];
+    directFields.forEach((f) => {
+      if (req.body[f] !== undefined) {
+        user[f] = req.body[f];
+      }
+    });
+
     await user.save();
 
     // exclude sensitive fields when returning
@@ -344,6 +362,7 @@ router.get("/admin/users/:id/posts", auth, adminAuth, async (req, res) => {
     const posts = await newPost
       .find(postsQuery)
       .skip((page - 1) * limit)
+
       .limit(Number(limit))
       .sort({ createdAt: -1 });
 
@@ -363,6 +382,7 @@ router.put("/admin/posts/:id", auth, adminAuth, async (req, res) => {
       "price",
       "discord",
       "server",
+      "isActive",
       "good_response",
       "bad_response",
       "tradeStatus",
