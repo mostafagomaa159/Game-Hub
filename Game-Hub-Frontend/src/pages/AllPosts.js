@@ -25,6 +25,11 @@ const AllPosts = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasConfirmed, setHasConfirmed] = useState(false);
 
+  // report modal state
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportUrl, setReportUrl] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+
   // set of postIds currently processing (to prevent duplicate actions on same post)
   const [processingIds, setProcessingIds] = useState(new Set());
 
@@ -265,7 +270,7 @@ const AllPosts = () => {
         prev.map((p) => (p._id === updatedPost._id ? updatedPost : p))
       );
 
-      setHasConfirmed(true); // ✅ Show Report button
+      setHasConfirmed(true); // ✅ Show Report button if applicable
     } catch (err) {
       console.error("Confirm trade error", err.response?.data || err.message);
       setIsProcessing(false);
@@ -300,6 +305,41 @@ const AllPosts = () => {
     }
   };
 
+  // Report submission
+  const submitReport = async () => {
+    if (!selectedPost) return;
+    if (!reportUrl || reportUrl.trim().length < 5) {
+      toast.error("Please provide a valid video URL");
+      return;
+    }
+    setReportSubmitting(true);
+    try {
+      const res = await axios.post(`/newpost/${selectedPost._id}/report`, {
+        videoUrl: reportUrl.trim(),
+      });
+      toast.success(res.data?.message || "Report submitted");
+
+      // try to refresh single post; fall back to fetch all if single-post route missing
+      try {
+        const resp = await axios.get(`/newpost/${selectedPost._id}`);
+        if (resp?.data) updatePost(resp.data);
+        setSelectedPostId(selectedPost._id);
+      } catch (err) {
+        // fallback: re-fetch all posts
+        const all = await axios.get("/all");
+        setPosts(Array.isArray(all.data) ? all.data : posts);
+      }
+
+      setShowReportModal(false);
+      setReportUrl("");
+    } catch (err) {
+      console.error("Report submit:", err);
+      toast.error(err?.response?.data?.error || "Failed to submit report");
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   // Check if current user already confirmed the trade (use tradeConfirmations array)
   const userAlreadyConfirmed = () => {
     if (!selectedPost || !userId) return false;
@@ -329,6 +369,19 @@ const AllPosts = () => {
     const id = typeof idOrObj === "string" ? idOrObj : idOrObj._id || idOrObj;
     return confirmations.some((c) =>
       typeof c === "string" ? c === id : c === id
+    );
+  };
+
+  // helper: both buyer & owner confirmed
+  const bothConfirmed = (post) => {
+    if (!post) return false;
+    if (!Array.isArray(post.tradeConfirmations)) return false;
+    const ownerId = post.owner?._id || post.owner;
+    const buyerId = post.buyer?._id || post.buyer;
+    if (!ownerId || !buyerId) return false;
+    return (
+      confirmationsInclude(post.tradeConfirmations, ownerId) &&
+      confirmationsInclude(post.tradeConfirmations, buyerId)
     );
   };
 
@@ -566,6 +619,20 @@ const AllPosts = () => {
                 </p>
               )}
 
+            {/* Report button visible when both confirmed and waiting for pending_release */}
+            {bothConfirmed(selectedPost) &&
+              selectedPost.tradeStatus === "pending_release" && (
+                <button
+                  onClick={() => {
+                    setReportUrl("");
+                    setShowReportModal(true);
+                  }}
+                  className="mt-3 w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"
+                >
+                  Report
+                </button>
+              )}
+
             {/* Buy */}
             {userId && selectedPost.owner?._id !== userId && (
               <>
@@ -600,6 +667,51 @@ const AllPosts = () => {
                   : "Send Request"}
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Report Modal (user submits video link) */}
+      {showReportModal && selectedPost && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-60">
+          <div className="bg-white dark:bg-darkCard text-black dark:text-white rounded-2xl shadow-xl w-full max-w-md p-6 relative">
+            <button
+              onClick={() => setShowReportModal(false)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 dark:hover:text-white text-xl"
+            >
+              &times;
+            </button>
+
+            <h3 className="text-lg font-semibold mb-2">Report Trade</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Please paste a video URL (evidence). An admin will review the
+              dispute.
+            </p>
+
+            <label className="block text-sm mb-1">Video URL</label>
+            <input
+              type="text"
+              value={reportUrl}
+              onChange={(e) => setReportUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full p-2 rounded border mb-3"
+            />
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowReportModal(false)}
+                className="px-3 py-2 rounded bg-gray-200 dark:bg-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitReport}
+                disabled={reportSubmitting}
+                className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white"
+              >
+                {reportSubmitting ? "Submitting..." : "Submit Report"}
+              </button>
+            </div>
           </div>
         </div>
       )}
