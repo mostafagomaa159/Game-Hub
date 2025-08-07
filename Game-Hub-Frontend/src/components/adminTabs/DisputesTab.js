@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import axios from "axios";
+import axios from "../../api/axiosInstance";
 
 const DisputesTab = () => {
   const [disputes, setDisputes] = useState([]);
