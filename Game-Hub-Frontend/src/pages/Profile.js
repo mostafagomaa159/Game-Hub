@@ -102,7 +102,7 @@ const Profile = () => {
         <p className="text-red-500 mb-4">Failed to load profile.</p>
         <button
           onClick={() => globalMutate("/users/me")}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg w-full"
         >
           Retry
         </button>
@@ -111,7 +111,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="max-w-xl mx-auto mt-10 p-6 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl shadow-lg">
+    <div className="max-w-xl mx-auto mt-6 p-4 sm:p-6 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-2xl shadow-lg">
       <h2 className="text-2xl font-bold mb-6 text-center">👤 Profile</h2>
 
       {!editing && (
@@ -126,24 +126,24 @@ const Profile = () => {
             <strong>💰 Coins:</strong> {user?.coins ?? 0}
           </p>
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <Link
               to="/deposit"
-              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition inline-block text-center"
+              className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-center"
             >
               💰 Deposit
             </Link>
 
             <Link
               to="/withdraw"
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition inline-block text-center"
+              className="w-full sm:w-auto bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-center"
             >
               💸 Withdraw
             </Link>
 
             <Link
               to="/about/rules"
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition inline-block text-center"
+              className="w-full sm:w-auto bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-center"
             >
               Info Center
             </Link>
@@ -202,19 +202,19 @@ const Profile = () => {
             </span>
           </div>
 
-          <div className="flex justify-between gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition disabled:opacity-60"
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition disabled:opacity-60"
               disabled={saving}
             >
               {saving ? "Saving..." : "Save"}
             </button>
             <button
               onClick={handleCancel}
-              className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition"
               type="button"
               disabled={saving}
+              className="w-full sm:w-auto bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition"
             >
               Cancel
             </button>
