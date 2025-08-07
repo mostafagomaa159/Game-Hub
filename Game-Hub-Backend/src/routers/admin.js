@@ -197,12 +197,11 @@ router.post("/admin/trades/:id/release", auth, adminAuth, async (req, res) => {
       return res.status(404).send({ error: "Trade not found" });
     }
 
-    if (tx.status !== "pending_release") {
+    // ALLOWED STATES: admin may release when tx is pending_release OR disputed
+    if (!["pending_release", "disputed"].includes(tx.status)) {
       await session.abortTransaction();
       session.endSession();
-      return res
-        .status(400)
-        .send({ error: "Trade not in pending_release state" });
+      return res.status(400).send({ error: "Trade not in a releasable state" });
     }
 
     // reload post and seller in session
@@ -569,6 +568,327 @@ router.delete("/admin/posts/:id", auth, adminAuth, async (req, res) => {
   } catch (err) {
     console.error("Admin delete post error:", err);
     res.status(500).send({ error: "Failed to delete post" });
+  }
+});
+// POST /trades/:id/dispute/video
+router.post("/trades/:id/dispute/video", auth, async (req, res) => {
+  try {
+    const txId = req.params.id;
+    const videoURL = req.body?.videoURL;
+
+    const tx = await TradeTransaction.findById(txId);
+    if (!tx || tx.status !== "disputed")
+      return res.status(400).send({ error: "Trade not in dispute" });
+
+    tx.dispute.videos = tx.dispute.videos || [];
+    tx.dispute.videos.push({
+      url: videoURL,
+      uploadedBy: req.user._id,
+      at: new Date(),
+    });
+
+    await tx.save();
+    return res.send({ message: "Video added", tradeTransaction: tx });
+  } catch (err) {
+    console.error("Add dispute video error:", err);
+    return res.status(500).send({ error: "Failed to add video" });
+  }
+});
+
+// POST /trades/:id/report
+router.post("/trades/:id/report", auth, async (req, res) => {
+  try {
+    const txId = req.params.id;
+    const videoURL = req.body?.videoURL;
+
+    const tx = await TradeTransaction.findById(txId);
+    if (!tx) return res.status(404).send({ error: "Trade not found" });
+
+    if (!["pending_release"].includes(tx.status))
+      return res.status(400).send({ error: "Cannot report this trade" });
+
+    tx.status = "disputed";
+    tx.dispute = {
+      reportedBy: req.user._id,
+      at: new Date(),
+      videos: videoURL
+        ? [
+            {
+              url: videoURL,
+              uploadedBy: req.user._id,
+              at: new Date(),
+            },
+          ]
+        : [],
+    };
+
+    await tx.save();
+
+    return res.send({ message: "Trade reported", tradeTransaction: tx });
+  } catch (err) {
+    console.error("Report dispute error:", err);
+    return res.status(500).send({ error: "Failed to report trade" });
+  }
+});
+// POST /admin/trades/:id/resolve
+router.post(
+  "/admin/disputes/:id/resolve",
+  auth,
+  adminAuth,
+  async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const tradeId = req.params.id;
+      const { action, note } = req.body; // action = 'refund' or 'release'
+
+      const tx = await TradeTransaction.findById(tradeId).session(session);
+      if (!tx) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).send({ error: "Trade not found" });
+      }
+
+      const post = await newPost.findById(tx.post).session(session);
+      const buyer = await User.findById(tx.buyer).session(session);
+      const seller = await User.findById(tx.seller).session(session);
+      if (!post || !buyer || !seller) {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(404).send({ error: "Data not found" });
+      }
+
+      const amount = Number(tx.amount || 0);
+
+      // Action
+      if (action === "refund") {
+        buyer.coins += amount;
+        tx.logs.push({
+          message: `Admin refunded buyer. Note: ${note}`,
+          by: req.user._id,
+          at: new Date(),
+        });
+      } else if (action === "release") {
+        seller.coins += amount;
+        tx.logs.push({
+          message: `Admin released to seller. Note: ${note}`,
+          by: req.user._id,
+          at: new Date(),
+        });
+      } else {
+        await session.abortTransaction();
+        session.endSession();
+        return res.status(400).send({ error: "Invalid action" });
+      }
+
+      tx.status = "released";
+      tx.adminHandledBy = req.user._id;
+      tx.adminHandledAt = new Date();
+
+      post.tradeStatus = "completed";
+      post.tradeCompletedAt = new Date();
+      post.releaseAt = null;
+
+      await buyer.save({ session });
+      await seller.save({ session });
+      await tx.save({ session });
+      await post.save({ session });
+
+      await session.commitTransaction();
+      session.endSession();
+
+      // ✅ Emit socket update
+      req.io.emit("admin:dispute_resolved", {
+        postId: post._id,
+        tradeId: tx._id,
+        resolvedBy: req.user._id,
+        action,
+      });
+
+      return res.send({
+        message: `Dispute resolved and funds ${
+          action === "refund" ? "refunded to buyer" : "released to seller"
+        }`,
+        tradeTransaction: tx,
+        post,
+      });
+    } catch (err) {
+      await session.abortTransaction().catch(() => {});
+      session.endSession();
+      console.error("Dispute resolution error:", err);
+      return res.status(500).send({ error: "Failed to resolve dispute" });
+    }
+  }
+);
+
+// GET /admin/disputes
+router.get("/disputes", auth, adminAuth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const search = req.query.search || "";
+    const sortField = req.query.sort || "createdAt";
+    const sortOrder = req.query.order === "asc" ? 1 : -1;
+
+    const searchRegex = new RegExp(search, "i");
+    const searchConditions = [
+      { "post.description": searchRegex },
+      { "buyer.username": searchRegex },
+      { "seller.username": searchRegex },
+    ];
+
+    // Only fetch OPEN disputes
+    const baseFilter = { status: "open" };
+
+    // Count total open disputes
+    const total = await Dispute.countDocuments(baseFilter);
+
+    // Fetch disputes with population
+    const disputes = await Dispute.find(baseFilter)
+      .populate("post", "description price tradeStatus")
+      .populate("buyer", "username email")
+      .populate("seller", "username email")
+      .then((results) => {
+        // Manual filtering for nested fields
+        return results.filter((d) =>
+          searchConditions.some((cond) =>
+            Object.keys(cond).some((key) => {
+              const [prefix, field] = key.split(".");
+              return d[prefix]?.[field]?.match?.(searchRegex);
+            })
+          )
+        );
+      });
+
+    // Sort and paginate
+    const sorted = disputes.sort((a, b) => {
+      const aValue = a[sortField];
+      const bValue = b[sortField];
+      return sortOrder === 1
+        ? aValue > bValue
+          ? 1
+          : -1
+        : aValue < bValue
+        ? 1
+        : -1;
+    });
+
+    const paginated = sorted.slice(skip, skip + limit);
+
+    res.status(200).json({
+      disputes: paginated,
+      total: disputes.length,
+      currentPage: page,
+      totalPages: Math.ceil(disputes.length / limit),
+    });
+  } catch (error) {
+    console.error("Error fetching disputes:", error);
+    res.status(500).json({ error: "Failed to fetch disputes" });
+  }
+});
+
+// PATCH /admin/disputes/:id/resolve - mark a dispute as resolved (optional, for later use)
+router.post("/disputes/:id/resolve", auth, adminAuth, async (req, res) => {
+  try {
+    const disputeId = req.params.id;
+    const { action, resolvedNote = "" } = req.body;
+
+    const dispute = await Dispute.findById(disputeId);
+    if (!dispute) {
+      return res.status(404).json({ error: "Dispute not found" });
+    }
+
+    dispute.status = "resolved";
+    dispute.resolvedNote = resolvedNote;
+    dispute.resolvedBy = req.user._id;
+    dispute.resolvedAt = new Date();
+
+    // TODO: Add logic for "action" (e.g., refund buyer or release to seller)
+
+    await dispute.save();
+
+    io.emit("admin:dispute_resolved", { disputeId });
+
+    res.status(200).json({ message: "Dispute resolved", dispute });
+  } catch (error) {
+    console.error("Error resolving dispute:", error);
+    res.status(500).json({ error: "Failed to resolve dispute" });
+  }
+});
+
+// POST /disputes - User creates a dispute
+router.post("/disputes", auth, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { postId, reason, videoUrls = [], note = "" } = req.body;
+
+    // Validate required fields
+    if (!postId || !reason) {
+      return res
+        .status(400)
+        .json({ error: "Post ID and reason are required." });
+    }
+
+    // Validate video URLs
+    if (videoUrls.length > 0) {
+      const invalid = videoUrls.filter((url) => {
+        try {
+          const parsed = new URL(url);
+          return !["http:", "https:"].includes(parsed.protocol);
+        } catch {
+          return true;
+        }
+      });
+
+      if (invalid.length > 0) {
+        return res.status(400).json({
+          error: "Invalid video URL(s). Must start with http:// or https://",
+          invalid,
+        });
+      }
+    }
+
+    // Check post exists
+    const post = await Post.findById(postId).populate("owner");
+    if (!post) {
+      return res.status(404).json({ error: "Post not found." });
+    }
+
+    // Prevent users from disputing their own post
+    if (String(post.owner._id) === String(userId)) {
+      return res
+        .status(403)
+        .json({ error: "You cannot dispute your own post." });
+    }
+
+    // Create Dispute
+    const dispute = new Dispute({
+      buyer: userId,
+      seller: post.owner._id,
+      post: post._id,
+      reason,
+      note,
+      videoUrls,
+      status: "open",
+    });
+
+    await dispute.save();
+
+    // Notify admins via Socket.IO
+    io.emit("user:dispute_opened", {
+      disputeId: dispute._id,
+      postId: post._id,
+      buyer: userId,
+      seller: post.owner._id,
+    });
+
+    res.status(201).json({ message: "Dispute created", dispute });
+  } catch (error) {
+    console.error("Error creating dispute:", error);
+    res.status(500).json({ error: "Failed to create dispute" });
   }
 });
 
