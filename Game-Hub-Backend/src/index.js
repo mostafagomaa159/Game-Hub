@@ -14,6 +14,7 @@ const { finalizeDueTrades } = require("./services/tradeFinalizer");
 const allowedOrigins = [
   "http://localhost:3000",
   "https://game-hub-git-main-game-hub2.vercel.app",
+  "https://game-4jdkbo5s3-game-hub2.vercel.app",
   "https://game-aeas1daoo-game-hub2.vercel.app",
   "https://game-hub-one-vert.vercel.app",
   "https://game-hub.vercel.app",
