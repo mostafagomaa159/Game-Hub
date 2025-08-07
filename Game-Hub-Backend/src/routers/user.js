@@ -10,18 +10,27 @@ const Trade = require("../models/Trade");
 
 // Register
 router.post("/users", async (req, res) => {
-  const user = new User(req.body);
+  const { email } = req.body;
+
   try {
+    // check manually first
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      return res.status(400).send({ error: "Account already exists" });
+    }
+
+    const user = new User(req.body);
     await user.save();
-    // sendWelcomeEmail(user.email, user.name);
+
     const token = await user.generateAuthToken();
     res.status(201).send({ user, token });
   } catch (e) {
-    res
-      .status(400)
-      .send({ error: "Registration failed. Email may already be in use." });
+    console.error("❌ Registration failed:", e);
+    res.status(400).send({ error: "Registration failed. Try another email." });
   }
 });
+
 router.get("/users", auth, async (req, res) => {
   try {
     const users = await User.find().select("name email createdAt");
