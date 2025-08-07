@@ -717,22 +717,18 @@ router.post(
   }
 );
 
-// GET /admin/disputes
-router.get("/admin/disputes", adminAuth, async (req, res) => {
+router.get("/admin/disputes", auth, adminAuth, async (req, res) => {
   try {
-    console.log("🛡️ Admin user:", req.user); // log authenticated user
+    const disputes = await Dispute.find({ status: "open" })
+      .select("reason status createdAt updatedAt buyer seller post")
+      .populate("buyer", "name email")
+      .populate("seller", "name email")
+      .populate("post", "description price server");
 
-    const disputes = await Dispute.find()
-      .populate("post", "description")
-      .populate("buyer", "username email")
-      .populate("seller", "username email")
-      .sort({ createdAt: -1 });
-
-    console.log("✅ Disputes fetched:", disputes.length);
-    res.json(disputes);
+    res.send(disputes);
   } catch (err) {
-    console.error("❌ Error in /admin/disputes:", err);
-    res.status(500).json({ error: "Server error", details: err.message });
+    console.error("Admin Disputes Fetch Error:", err);
+    res.status(500).send({ error: "Server Error" });
   }
 });
 
