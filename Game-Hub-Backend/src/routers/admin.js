@@ -725,53 +725,16 @@ router.post(
 // GET /admin/disputes
 router.get("/admin/disputes", auth, adminAuth, async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
-    const sortField = req.query.sort || "createdAt";
-    const sortOrder = req.query.order === "asc" ? 1 : -1;
-    const search = req.query.search || ""; // ✅ fix
-
-    const searchRegex = new RegExp(search, "i");
-
-    const baseFilter = { status: "open" };
-
-    // Fetch all open disputes
-    const results = await Dispute.find(baseFilter)
-      .populate("post", "description price tradeStatus")
-      .populate("buyer", "username email")
-      .populate("seller", "username email");
-
-    // Manual filtering for nested fields
-    const filtered = results.filter((d) =>
-      [d.post?.description, d.buyer?.username, d.seller?.username].some(
-        (field) => searchRegex.test(field || "")
-      )
-    );
-
-    // Sort
-    const sorted = filtered.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-      return sortOrder === 1 ? (aVal > bVal ? 1 : -1) : aVal < bVal ? 1 : -1;
-    });
-
-    // Paginate
-    const paginated = sorted.slice(skip, skip + limit);
-
-    res.status(200).json({
-      disputes: paginated,
-      total: filtered.length,
-      currentPage: page,
-      totalPages: Math.ceil(filtered.length / limit),
-    });
-  } catch (error) {
-    console.error("Error fetching disputes:", error);
-    res.status(500).json({ error: "Failed to fetch disputes" });
+    const disputes = await Dispute.find({ status: "open" })
+      .populate("buyer", "email")
+      .populate("seller", "email")
+      .populate("post", "title");
+    res.json(disputes);
+  } catch (err) {
+    console.error("Failed to fetch disputes:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
-// PATCH /admin/disputes/:id/resolve - mark a dispute as resolved (optional, for later use)
-
 // POST /disputes - User creates a dispute
 router.post("/disputes", auth, async (req, res) => {
   try {
