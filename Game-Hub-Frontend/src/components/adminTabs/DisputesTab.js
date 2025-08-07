@@ -11,10 +11,11 @@ const DisputesTab = () => {
     setLoading(true);
     try {
       const res = await axios.get("/admin/disputes");
-      setDisputes(res.data || []);
+      const data = Array.isArray(res.data) ? res.data : [];
+      setDisputes(data);
     } catch (err) {
       console.error("Failed to fetch disputes:", err);
-      setDisputes([]); // fallback to empty
+      setDisputes([]); // Fallback to empty array to avoid `.map()` crash
     }
     setLoading(false);
   }, []);
