@@ -53,7 +53,6 @@ const Register = () => {
     e.preventDefault();
     setError("");
 
-    // final client-side checks
     if (!EMAIL_REGEX.test(formData.email)) {
       setEmailError("Invalid email format");
       return;
@@ -64,14 +63,15 @@ const Register = () => {
     }
 
     setSubmitting(true);
+
     try {
+      formData.isActive = true;
       const res = await axios.post("/users", formData);
       localStorage.setItem("token", res.data.token);
       if (res.data.user)
         localStorage.setItem("user", JSON.stringify(res.data.user));
       navigate("/");
     } catch (err) {
-      // preserve your existing error style/message behaviour
       if (err.response?.data?.error) setError(err.response.data.error);
       else if (err.response?.data?.message) setError(err.response.data.message);
       else setError("Registration failed. Please try again.");
