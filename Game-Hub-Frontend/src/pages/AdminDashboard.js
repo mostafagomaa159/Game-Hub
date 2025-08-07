@@ -291,7 +291,15 @@ const AdminDashboard = () => {
                 setCurrentPage={setCurrentPage}
               />
             )}
-            {activeTab === "disputes" && <DisputesTab />}
+            {activeTab === "disputes" && (
+              <DisputesTab
+                searchTerm={searchTerm}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                currentPage={currentPage}
+                setCurrentPage={setCurrentPage}
+              />
+            )}
           </Suspense>
         )}
       </div>

@@ -723,101 +723,54 @@ router.post(
 );
 
 // GET /admin/disputes
-router.get("/disputes", auth, adminAuth, async (req, res) => {
+router.get("/admin/disputes", auth, adminAuth, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-
-    const search = req.query.search || "";
     const sortField = req.query.sort || "createdAt";
     const sortOrder = req.query.order === "asc" ? 1 : -1;
+    const search = req.query.search || ""; // ✅ fix
 
     const searchRegex = new RegExp(search, "i");
-    const searchConditions = [
-      { "post.description": searchRegex },
-      { "buyer.username": searchRegex },
-      { "seller.username": searchRegex },
-    ];
 
-    // Only fetch OPEN disputes
     const baseFilter = { status: "open" };
 
-    // Count total open disputes
-    const total = await Dispute.countDocuments(baseFilter);
-
-    // Fetch disputes with population
-    const disputes = await Dispute.find(baseFilter)
+    // Fetch all open disputes
+    const results = await Dispute.find(baseFilter)
       .populate("post", "description price tradeStatus")
       .populate("buyer", "username email")
-      .populate("seller", "username email")
-      .then((results) => {
-        // Manual filtering for nested fields
-        return results.filter((d) =>
-          searchConditions.some((cond) =>
-            Object.keys(cond).some((key) => {
-              const [prefix, field] = key.split(".");
-              return d[prefix]?.[field]?.match?.(searchRegex);
-            })
-          )
-        );
-      });
+      .populate("seller", "username email");
 
-    // Sort and paginate
-    const sorted = disputes.sort((a, b) => {
-      const aValue = a[sortField];
-      const bValue = b[sortField];
-      return sortOrder === 1
-        ? aValue > bValue
-          ? 1
-          : -1
-        : aValue < bValue
-        ? 1
-        : -1;
+    // Manual filtering for nested fields
+    const filtered = results.filter((d) =>
+      [d.post?.description, d.buyer?.username, d.seller?.username].some(
+        (field) => searchRegex.test(field || "")
+      )
+    );
+
+    // Sort
+    const sorted = filtered.sort((a, b) => {
+      const aVal = a[sortField];
+      const bVal = b[sortField];
+      return sortOrder === 1 ? (aVal > bVal ? 1 : -1) : aVal < bVal ? 1 : -1;
     });
 
+    // Paginate
     const paginated = sorted.slice(skip, skip + limit);
 
     res.status(200).json({
       disputes: paginated,
-      total: disputes.length,
+      total: filtered.length,
       currentPage: page,
-      totalPages: Math.ceil(disputes.length / limit),
+      totalPages: Math.ceil(filtered.length / limit),
     });
   } catch (error) {
     console.error("Error fetching disputes:", error);
     res.status(500).json({ error: "Failed to fetch disputes" });
   }
 });
-
 // PATCH /admin/disputes/:id/resolve - mark a dispute as resolved (optional, for later use)
-router.post("/disputes/:id/resolve", auth, adminAuth, async (req, res) => {
-  try {
-    const disputeId = req.params.id;
-    const { action, resolvedNote = "" } = req.body;
-
-    const dispute = await Dispute.findById(disputeId);
-    if (!dispute) {
-      return res.status(404).json({ error: "Dispute not found" });
-    }
-
-    dispute.status = "resolved";
-    dispute.resolvedNote = resolvedNote;
-    dispute.resolvedBy = req.user._id;
-    dispute.resolvedAt = new Date();
-
-    // TODO: Add logic for "action" (e.g., refund buyer or release to seller)
-
-    await dispute.save();
-
-    io.emit("admin:dispute_resolved", { disputeId });
-
-    res.status(200).json({ message: "Dispute resolved", dispute });
-  } catch (error) {
-    console.error("Error resolving dispute:", error);
-    res.status(500).json({ error: "Failed to resolve dispute" });
-  }
-});
 
 // POST /disputes - User creates a dispute
 router.post("/disputes", auth, async (req, res) => {
