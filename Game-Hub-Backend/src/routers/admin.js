@@ -4,11 +4,11 @@ const router = express.Router();
 const auth = require("../middleware/auth");
 const adminAuth = require("../middleware/adminAuth");
 const mongoose = require("mongoose");
-
 const Transaction = require("../models/transaction");
 const TradeTransaction = require("../models/TradeTransaction");
 const User = require("../models/user");
 const newPost = require("../models/newPost");
+const Dispute = require("../models/dispute");
 
 // service to finalize single trades (and used by force-release)
 const { finalizeTradeByPostId } = require("../services/tradeFinalizer");
@@ -118,11 +118,6 @@ router.get("/admin/trade-history", auth, adminAuth, async (req, res) => {
     console.error("Admin Trade History Error:", err);
     res.status(500).send({ error: "Server Error" });
   }
-});
-
-// Admin route test
-router.get("/admin/test", auth, adminAuth, (req, res) => {
-  res.send({ message: "✅ Admin route working", user: req.user });
 });
 
 // -----------------------------------------------------------------------------
@@ -723,18 +718,24 @@ router.post(
 );
 
 // GET /admin/disputes
-router.get("/admin/disputes", auth, adminAuth, async (req, res) => {
+router.get("/admin/disputes", adminAuth, async (req, res) => {
   try {
-    const disputes = await Dispute.find({ status: "open" })
-      .populate("buyer", "email")
-      .populate("seller", "email")
-      .populate("post", "title");
+    console.log("🛡️ Admin user:", req.user); // log authenticated user
+
+    const disputes = await Dispute.find()
+      .populate("post", "description")
+      .populate("buyer", "username email")
+      .populate("seller", "username email")
+      .sort({ createdAt: -1 });
+
+    console.log("✅ Disputes fetched:", disputes.length);
     res.json(disputes);
   } catch (err) {
-    console.error("Failed to fetch disputes:", err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("❌ Error in /admin/disputes:", err);
+    res.status(500).json({ error: "Server error", details: err.message });
   }
 });
+
 // POST /disputes - User creates a dispute
 router.post("/disputes", auth, async (req, res) => {
   try {
