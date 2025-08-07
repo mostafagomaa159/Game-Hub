@@ -133,11 +133,19 @@ const Profile = () => {
             >
               💰 Deposit
             </Link>
+
             <Link
               to="/withdraw"
               className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition inline-block text-center"
             >
               💸 Withdraw
+            </Link>
+
+            <Link
+              to="/about/rules"
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition inline-block text-center"
+            >
+              Info Center
             </Link>
           </div>
 

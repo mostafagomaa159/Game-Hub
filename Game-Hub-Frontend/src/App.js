@@ -21,6 +21,15 @@ import DepositSuccess from "./pages/DepositSuccess";
 import PostList from "./components/PostList";
 import Requests from "./pages/Requests";
 import "react-toastify/dist/ReactToastify.css";
+import RulesPage from "./pages/AboutUs/RulesPage";
+import InfoCenter from "./pages/AboutUs/InfoCenter";
+import AboutPage from "./pages/AboutUs/AboutPage";
+import HelpPage from "./pages/AboutUs/HelpPage";
+import ContactPage from "./pages/AboutUs/ContactPage";
+import PrivacyPolicyPage from "./pages/AboutUs/PrivacyPolicyPage";
+import TermsPage from "./pages/AboutUs/TermsOfUsePage";
+import DisclaimerPage from "./pages/AboutUs/DisclaimerPage";
+import DisputePolicyPage from "./pages/AboutUs/DisputePolicyPage";
 
 function App() {
   return (
@@ -108,6 +117,17 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="*" element={<NotFound />} />
+              <Route path="/rules" element={<RulesPage />} />
+              <Route path="/about" element={<InfoCenter />}>
+                <Route path="rules" element={<RulesPage />} />
+                <Route path="about" element={<AboutPage />} />
+                <Route path="help" element={<HelpPage />} />
+                <Route path="contact" element={<ContactPage />} />
+                <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
+                <Route path="terms" element={<TermsPage />} />
+                <Route path="disclaimer" element={<DisclaimerPage />} />
+                <Route path="dispute-policy" element={<DisputePolicyPage />} />
+              </Route>
             </Routes>
           </main>
         </div>

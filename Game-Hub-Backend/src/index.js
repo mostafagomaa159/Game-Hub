@@ -3,31 +3,19 @@ const express = require("express");
 const app = require("./app");
 const http = require("http");
 const socketIO = require("socket.io");
-const cors = require("cors");
 const axios = require("axios");
 const User = require("./models/user");
 const Chat = require("./models/chat");
 
 const { finalizeDueTrades } = require("./services/tradeFinalizer");
 
-// Setup CORS
+const server = http.createServer(app);
+
+// ✅ CORS for Socket.IO
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://game-hub-git-main-game-hub2.vercel.app",
   "https://game-4jdkbo5s3-game-hub2.vercel.app",
-  "https://game-aeas1daoo-game-hub2.vercel.app",
-  "https://game-hub-one-vert.vercel.app",
-  "https://game-hub.vercel.app",
 ];
-
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-  })
-);
-
-const server = http.createServer(app);
 
 const io = socketIO(server, {
   cors: {

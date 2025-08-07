@@ -176,7 +176,9 @@ const MyTransactions = () => {
                   </p>
                   <p>
                     <strong>Date:</strong>{" "}
-                    {new Date(item.updatedAt).toLocaleString()}
+                    {new Date(
+                      item.updatedAt || item.createdAt
+                    ).toLocaleString()}
                   </p>
                 </>
               ) : (

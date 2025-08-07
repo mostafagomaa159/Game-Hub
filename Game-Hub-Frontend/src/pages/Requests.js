@@ -212,10 +212,10 @@ const Requests = () => {
         </Button>
       </div>
 
-      <h1 className="text-3xl mb-4">
+      {/* className="p-4 max-w-5xl mx-auto bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-md shadow-md" */}
+      <h1 className="text-xl font-bold mb-4 p-4 max- mx-auto bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-md shadow-md">
         {view === "incoming" ? "Incoming Requests" : "My Sent Requests"}
       </h1>
-
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((_, i) => (

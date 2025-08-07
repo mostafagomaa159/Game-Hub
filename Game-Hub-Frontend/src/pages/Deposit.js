@@ -108,7 +108,7 @@ const Deposit = () => {
         min="1"
       />
 
-      <label className="block mb-1 text-gray-300">Select Method:</label>
+      <label className="block mb-1 text-gray-300">Select Payment Method:</label>
       <select
         value={method}
         onChange={(e) => setMethod(e.target.value)}

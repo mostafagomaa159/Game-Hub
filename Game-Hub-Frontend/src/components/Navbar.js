@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-
 import axios from "../api/axiosInstance";
 import {
   LogOut,
@@ -14,6 +13,8 @@ import {
   Moon,
   Sun,
   ShieldCheck,
+  Send,
+  Gamepad2,
 } from "lucide-react";
 import { useUser } from "../context/UserContext";
 
@@ -65,13 +66,13 @@ const Navbar = () => {
 
   if (user) {
     navLinks.push(
-      { to: "/dashboard", label: "Dashboard", icon: <Home size={16} /> },
-      { to: "/newpost", label: "Create Post", icon: <PlusCircle size={16} /> },
       { to: "/profile", label: "Profile", icon: <User size={16} /> },
+      { to: "/dashboard", label: "My Posts", icon: <Home size={16} /> },
+      { to: "/newpost", label: "Create Post", icon: <PlusCircle size={16} /> },
       {
         to: "/requests",
-        label: "Requests",
-        icon: <FileText size={16} />,
+        label: "Requests & Chat",
+        icon: <Send size={16} />,
       }
     );
 
@@ -107,11 +108,13 @@ const Navbar = () => {
           {/* Desktop title */}
           <Link
             to="/"
-            className="font-bold text-lg tracking-wide hidden md:block text-blue-500 hover:text-blue-600"
+            className="font-bold text-lg tracking-wide hidden md:flex items-center gap-2 text-blue-500 hover:text-blue-600"
           >
+            <Gamepad2 size={20} />
             GamesX Market
           </Link>
 
+          {/* Desktop nav links */}
           <div className="md:flex space-x-6 hidden">
             {navLinks.map(({ to, label, icon }) => (
               <Link
@@ -126,6 +129,7 @@ const Navbar = () => {
           </div>
         </div>
 
+        {/* Right section */}
         <div className="flex items-center space-x-4">
           <button
             onClick={toggleDarkMode}
@@ -139,33 +143,38 @@ const Navbar = () => {
             <span className="text-sm text-gray-500 dark:text-gray-300">
               Loading...
             </span>
-          ) : user ? (
-            <>
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-sm font-bold">
-                  {user.name?.[0]?.toUpperCase() || "U"}
-                </div>
-                <div className="text-sm">
-                  <p className="font-medium">{user.name}</p>
-                  <p className="text-xs text-yellow-500">💰 {user.coins}</p>
-                </div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded-md text-sm flex items-center space-x-1"
-              >
-                <LogOut size={16} />
-                <span>Logout</span>
-              </button>
-            </>
           ) : (
-            <Link
-              to="/login"
-              className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-md text-sm flex items-center space-x-1"
-            >
-              <LogIn size={16} />
-              <span>Login</span>
-            </Link>
+            <>
+              {user ? (
+                <>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-sm font-bold">
+                      {user.name?.[0]?.toUpperCase() || "U"}
+                    </div>
+                    <div className="text-sm">
+                      <p className="font-medium">{user.name}</p>
+                      <p className="text-xs text-yellow-500">💰 {user.coins}</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleLogout}
+                    className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded-md text-sm flex items-center space-x-1"
+                  >
+                    <LogOut size={16} />
+                    <span>Logout</span>
+                  </button>
+                </>
+              ) : (
+                <Link
+                  to="/login"
+                  className="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-md text-sm flex items-center space-x-1"
+                >
+                  <LogIn size={16} />
+                  <span>Login</span>
+                </Link>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -173,7 +182,6 @@ const Navbar = () => {
       {/* Mobile menu */}
       {isMobileMenuOpen && (
         <div className="md:hidden mt-3 space-y-2 border-t border-gray-200 dark:border-neutral-800 pt-3">
-          {/* Mobile title / home link (visible only in mobile menu) */}
           <Link
             to="/"
             onClick={() => setIsMobileMenuOpen(false)}
@@ -195,7 +203,6 @@ const Navbar = () => {
             </Link>
           ))}
 
-          {/* Guest route if not logged in */}
           {!user && (
             <Link
               to="/login"
@@ -207,7 +214,6 @@ const Navbar = () => {
             </Link>
           )}
 
-          {/* Logout button for mobile when logged in */}
           {user && (
             <button
               onClick={() => {
