@@ -61,6 +61,7 @@ const tradeTransactionSchema = new Schema(
     status: {
       type: String,
       enum: [
+        "reserved",
         "pending_release",
         "pending",
         "completed",

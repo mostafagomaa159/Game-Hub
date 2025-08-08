@@ -1,4 +1,3 @@
-// src/components/AllPosts/PostModal.js
 import React from "react";
 
 const PostModal = ({
@@ -11,7 +10,6 @@ const PostModal = ({
   handleConfirmTrade,
   handleCancelTrade,
   setShowReportModal,
-  setReportUrl,
   isOwner,
   isBuyer,
   userAlreadyConfirmed,
@@ -19,22 +17,10 @@ const PostModal = ({
   modalRef,
   hasConfirmed,
 }) => {
-  const dispute = selectedPost.dispute || {};
-  const disputeStatus = dispute.status || "none";
+  if (!selectedPost) return null;
 
-  // Determine if user can report (only buyers or sellers, and if no active dispute or if user not reported yet)
-  const userIsParticipant =
-    userId &&
-    (userId === selectedPost.buyer?._id || userId === selectedPost.seller?._id);
-
-  const userHasReported = dispute.reports?.some(
-    (r) => String(r.reporter) === String(userId)
-  );
-
-  const canReport =
-    userIsParticipant &&
-    (disputeStatus === "none" ||
-      (disputeStatus === "open" && !userHasReported));
+  const buyerId = selectedPost.buyer?._id || selectedPost.buyer;
+  const ownerId = selectedPost.owner?._id || selectedPost.owner;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -70,60 +56,16 @@ const PostModal = ({
           </p>
         )}
 
-        {/* Dispute info */}
-        {disputeStatus !== "none" && (
-          <div className="my-4 p-3 border rounded bg-yellow-100 dark:bg-yellow-900">
-            <p className="font-semibold mb-1">
-              Dispute Status:{" "}
-              <span className="capitalize">
-                {disputeStatus.replace("_", " ")}
-              </span>
-            </p>
-
-            {dispute.reports?.length > 0 && (
-              <div className="mb-2 max-h-24 overflow-y-auto text-sm">
-                <p className="font-semibold">Reports:</p>
-                <ul className="list-disc ml-5">
-                  {dispute.reports.map((report, idx) => (
-                    <li key={idx}>
-                      <strong>{report.role}:</strong> {report.reason}{" "}
-                      <a
-                        href={report.evidenceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 underline"
-                      >
-                        Evidence
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {dispute.adminDecision && (
-              <div className="mt-2 text-sm text-green-700 dark:text-green-300">
-                <p>
-                  Admin decision:{" "}
-                  <strong>{dispute.adminDecision.winner}</strong> won the
-                  dispute.
-                </p>
-                <p>Note: {dispute.adminDecision.adminNote || "No notes"}</p>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Trade Buttons */}
         {selectedPost.tradeStatus === "pending" &&
           (isOwner || isBuyer) &&
-          !userAlreadyConfirmed(selectedPost) && (
+          !userAlreadyConfirmed() && (
             <>
               <button
                 onClick={handleConfirmTrade}
-                disabled={isProcessing || disputeStatus === "open"}
+                disabled={isProcessing}
                 className={`mt-4 w-full py-2 rounded-xl text-white ${
-                  isProcessing || disputeStatus === "open"
+                  isProcessing
                     ? "bg-green-400 cursor-not-allowed"
                     : "bg-green-600 hover:bg-green-700"
                 }`}
@@ -133,9 +75,9 @@ const PostModal = ({
 
               <button
                 onClick={handleCancelTrade}
-                disabled={isProcessing || disputeStatus === "open"}
+                disabled={isProcessing}
                 className={`mt-2 w-full py-2 rounded-xl text-white ${
-                  isProcessing || disputeStatus === "open"
+                  isProcessing
                     ? "bg-red-400 cursor-not-allowed"
                     : "bg-red-600 hover:bg-red-700"
                 }`}
@@ -143,7 +85,7 @@ const PostModal = ({
                 Cancel Trade
               </button>
 
-              {hasConfirmed && canReport && (
+              {hasConfirmed && (
                 <button
                   onClick={() => setShowReportModal(true)}
                   className="mt-3 w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"
@@ -157,10 +99,8 @@ const PostModal = ({
         {/* Show confirmation status */}
         {selectedPost.tradeStatus === "pending" &&
           isOwner &&
-          selectedPost.buyer &&
-          selectedPost.tradeConfirmations?.includes(
-            selectedPost.buyer._id || selectedPost.buyer
-          ) && (
+          buyerId &&
+          selectedPost.tradeConfirmations?.includes(buyerId) && (
             <p className="mt-3 text-green-500 font-semibold">
               ✅ Buyer has confirmed the trade.
             </p>
@@ -168,22 +108,24 @@ const PostModal = ({
 
         {selectedPost.tradeStatus === "pending" &&
           isBuyer &&
-          selectedPost.owner &&
-          selectedPost.tradeConfirmations?.includes(
-            selectedPost.owner._id || selectedPost.owner
-          ) && (
+          ownerId &&
+          selectedPost.tradeConfirmations?.includes(ownerId) && (
             <p className="mt-3 text-green-500 font-semibold">
               ✅ Seller has confirmed the trade.
             </p>
           )}
 
-        {/* Report button for pending_release with both confirmed */}
-        {userId &&
-          bothConfirmed(selectedPost) &&
+        {/* Report button when both confirmed and pending_release */}
+        {bothConfirmed(selectedPost) &&
           selectedPost.tradeStatus === "pending_release" && (
             <button
               onClick={() => {
-                setReportUrl("");
+                console.log(
+                  "Selected post ID before opening modal:",
+                  selectedPost
+                );
+                setSelectedPostId(selectedPost._id);
+
                 setShowReportModal(true);
               }}
               className="mt-3 w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"
@@ -193,13 +135,13 @@ const PostModal = ({
           )}
 
         {/* Buy */}
-        {userId && selectedPost.owner?._id !== userId && (
+        {userId && ownerId !== userId && (
           <>
             {selectedPost.avaliable ? (
               <button
                 className="mt-4 w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
                 onClick={() => handleBuy(selectedPost._id)}
-                disabled={isProcessing || disputeStatus === "open"}
+                disabled={isProcessing}
               >
                 Buy Now
               </button>
@@ -215,11 +157,11 @@ const PostModal = ({
         )}
 
         {/* Request */}
-        {userId && selectedPost.owner?._id !== userId && (
+        {userId && ownerId !== userId && (
           <button
             className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
             onClick={handleToggleRequest}
-            disabled={isProcessing || disputeStatus === "open"}
+            disabled={isProcessing}
           >
             {selectedPost.requests?.includes(userId)
               ? "Cancel Request"

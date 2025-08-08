@@ -33,12 +33,10 @@ const AllPosts = () => {
   const [hasConfirmed, setHasConfirmed] = useState(false);
   const modalRef = useRef(null);
 
-  // Reset hasConfirmed whenever selected post changes
   useEffect(() => {
     setHasConfirmed(false);
   }, [selectedPostId]);
 
-  // Memoized filtered posts
   const filtered = useMemo(() => {
     let temp = [...posts];
     if (searchTerm) {
@@ -54,7 +52,6 @@ const AllPosts = () => {
     return temp;
   }, [searchTerm, serverFilter, posts]);
 
-  // Memoized pagination data
   const { currentPosts, totalPages } = useMemo(() => {
     const indexOfLast = currentPage * POSTS_PER_PAGE;
     const indexOfFirst = indexOfLast - POSTS_PER_PAGE;
@@ -64,13 +61,11 @@ const AllPosts = () => {
     };
   }, [currentPage, filtered]);
 
-  // Selected post
   const selectedPost = useMemo(
     () => posts.find((p) => p._id === selectedPostId),
     [posts, selectedPostId]
   );
 
-  // Ownership checks
   const isOwner = useMemo(
     () =>
       !!selectedPost &&
@@ -85,7 +80,6 @@ const AllPosts = () => {
     [selectedPost, userId]
   );
 
-  // Post actions hook with all required parameters
   const {
     isProcessing,
     reportSubmitting,
@@ -100,13 +94,13 @@ const AllPosts = () => {
   } = usePostActions(
     setPosts,
     userId,
+    processingIds,
     setProcessingIds,
     setShowLoginModal,
     setSelectedPostId,
     setHasConfirmed
   );
 
-  // Click outside handler
   const handleClickOutside = useCallback((e) => {
     if (modalRef.current && !modalRef.current.contains(e.target)) {
       setSelectedPostId(null);
@@ -114,18 +108,26 @@ const AllPosts = () => {
     }
   }, []);
 
-  // Effect for click outside
   useEffect(() => {
     if (selectedPost || showLoginModal) {
       document.addEventListener("mousedown", handleClickOutside);
     }
-
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [selectedPost, showLoginModal, handleClickOutside]);
 
-  // Fixed handlers for buttons
+  // Updated handlePostReport to accept post and reportData and check post existence
+  const handlePostReport = async (post, reportData) => {
+    if (!post || !post._id) {
+      console.error("handlePostReport: post or post._id is undefined");
+      return { success: false };
+    }
+    console.log("Submitting report for postId:", post._id);
+    return await submitReport(post, reportData);
+  };
+
+  // Other handlers remain unchanged
   const handlePostVote = (postId, voteType) => {
     handleVote(
       posts.find((p) => p._id === postId),
@@ -152,17 +154,6 @@ const AllPosts = () => {
   const handlePostCancelTrade = () => {
     if (selectedPost) {
       handleCancelTrade(selectedPost);
-    }
-  };
-
-  const handlePostReport = () => {
-    if (selectedPost) {
-      submitReport(selectedPost, reportUrl).then((success) => {
-        if (success) {
-          setShowReportModal(false);
-          setReportUrl("");
-        }
-      });
     }
   };
 
@@ -195,7 +186,7 @@ const AllPosts = () => {
           totalPages={totalPages}
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
-          disabled={loading} // optional disable while loading
+          disabled={loading}
         />
       )}
 
@@ -228,6 +219,7 @@ const AllPosts = () => {
           reportSubmitting={reportSubmitting}
           submitReport={handlePostReport}
           selectedPost={selectedPost}
+          selectedPostId={selectedPost ? selectedPost._id : null}
         />
       )}
 

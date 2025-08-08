@@ -1,4 +1,3 @@
-// src/hooks/usePostActions.js
 import { useState } from "react";
 import axios from "../api/axiosInstance";
 import { toast } from "react-toastify";
@@ -6,6 +5,7 @@ import { toast } from "react-toastify";
 const usePostActions = (
   setPosts,
   userId,
+  processingIds,
   setProcessingIds,
   setShowLoginModal,
   setSelectedPostId,
@@ -13,26 +13,30 @@ const usePostActions = (
 ) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
-  const [dispute, setDispute] = useState(null); // New state for dispute info
+  const [dispute, setDispute] = useState(null);
 
-  // Helper to update a post in state
   const updatePost = (updated) => {
     setPosts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
   };
 
-  // Fetch dispute details for a trade/post
-  const fetchDispute = async (tradeId) => {
-    try {
-      const res = await axios.get(`/trade/${tradeId}/dispute`);
-      setDispute(res.data);
-      return res.data;
-    } catch (err) {
-      console.error("Failed to fetch dispute:", err);
-      return null;
-    }
+  // Helper to add id to processingIds Set immutably
+  const addProcessingId = (id) => {
+    setProcessingIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
   };
 
-  // Handle voting on a post
+  // Helper to remove id from processingIds Set immutably
+  const removeProcessingId = (id) => {
+    setProcessingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
   const handleVote = async (post, voteType) => {
     if (!userId) {
       setShowLoginModal(true);
@@ -40,14 +44,10 @@ const usePostActions = (
     }
 
     const postId = post._id;
-    const isProc = Array.from(setProcessingIds).includes(postId);
-    if (isProc) return;
+    if (processingIds.has(postId)) return;
     if (post.voters?.includes(userId)) return;
 
-    const previousPost = {
-      ...post,
-      voters: [...(post.voters || [])],
-    };
+    const previousPost = { ...post, voters: [...(post.voters || [])] };
     const optimisticPost = {
       ...post,
       voters: [...(post.voters || []), userId],
@@ -56,7 +56,7 @@ const usePostActions = (
     };
 
     updatePost(optimisticPost);
-    setProcessingIds((prev) => new Set(prev).add(postId));
+    addProcessingId(postId);
 
     try {
       const res = await axios.patch(`/newpost/${postId}/vote`, {
@@ -68,15 +68,10 @@ const usePostActions = (
       updatePost(previousPost);
       toast.error(err.response?.data?.error || "Vote failed");
     } finally {
-      setProcessingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(postId);
-        return next;
-      });
+      removeProcessingId(postId);
     }
   };
 
-  // Handle toggling request on a post
   const handleToggleRequest = async (post) => {
     if (!userId) {
       setShowLoginModal(true);
@@ -84,8 +79,7 @@ const usePostActions = (
     }
 
     const postId = post._id;
-    const isProc = Array.from(setProcessingIds).includes(postId);
-    if (isProc) return;
+    if (processingIds.has(postId)) return;
 
     const requested = post.requests?.includes(userId);
     const previousPost = { ...post };
@@ -98,7 +92,7 @@ const usePostActions = (
 
     updatePost(optimisticPost);
     setSelectedPostId(postId);
-    setProcessingIds((prev) => new Set(prev).add(postId));
+    addProcessingId(postId);
 
     try {
       const url = `/newpost/${postId}/${
@@ -116,15 +110,10 @@ const usePostActions = (
       updatePost(previousPost);
       toast.error(err.response?.data?.error || "Request failed");
     } finally {
-      setProcessingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(postId);
-        return next;
-      });
+      removeProcessingId(postId);
     }
   };
 
-  // Handle buying a post
   const handleBuy = async (post) => {
     if (!userId) {
       setShowLoginModal(true);
@@ -132,10 +121,10 @@ const usePostActions = (
     }
 
     const postId = post._id;
-    const isProc = Array.from(setProcessingIds).includes(postId);
-    if (isProc) return;
+    if (processingIds.has(postId)) return;
 
-    setProcessingIds((prev) => new Set(prev).add(postId));
+    addProcessingId(postId);
+
     try {
       const res = await axios.post(`/newpost/${postId}/buy`);
       const updatedPost = res.data?.post || res.data;
@@ -148,28 +137,23 @@ const usePostActions = (
     } catch (err) {
       toast.error(err.response?.data?.error || "Purchase failed");
     } finally {
-      setProcessingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(postId);
-        return next;
-      });
+      removeProcessingId(postId);
     }
   };
 
-  // Handle confirming a trade
   const handleConfirmTrade = async (post) => {
     if (!userId) {
       setShowLoginModal(true);
       return;
     }
-
     setIsProcessing(true);
     try {
+      const token = localStorage.getItem("token");
       const res = await axios.post(
         `/newpost/${post._id}/confirm-trade`,
         {},
         {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -185,7 +169,6 @@ const usePostActions = (
     }
   };
 
-  // Handle canceling a trade
   const handleCancelTrade = async (post) => {
     if (!userId) {
       setShowLoginModal(true);
@@ -193,11 +176,10 @@ const usePostActions = (
     }
 
     const postId = post._id;
-    const isProc = Array.from(setProcessingIds).includes(postId);
-    if (isProc) return;
+    if (processingIds.has(postId)) return;
 
     setIsProcessing(true);
-    setProcessingIds((prev) => new Set(prev).add(postId));
+    addProcessingId(postId);
 
     try {
       const res = await axios.post(`/newpost/${postId}/cancel-trade`, {
@@ -213,77 +195,72 @@ const usePostActions = (
       toast.error(err.response?.data?.error || "Cancellation failed");
     } finally {
       setIsProcessing(false);
-      setProcessingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(postId);
-        return next;
-      });
+      removeProcessingId(postId);
     }
   };
 
-  // Handle submitting a dispute report
   const submitReport = async (post, reportData) => {
-    if (!reportData?.videoUrl?.trim()) {
-      toast.error("Please provide valid evidence URL");
-      return false;
+    if (!reportData?.videoUrls?.length || !reportData.videoUrls[0]?.trim()) {
+      toast.error("Please provide a valid evidence URL");
+      return { success: false };
     }
 
     setReportSubmitting(true);
     try {
+      // Prepare payload exactly like backend expects
       const payload = {
-        videoUrls: [reportData.videoUrl.trim()],
+        videoUrls: reportData.videoUrls.map((url) => url.trim()),
         reason: reportData.reason || "No reason provided",
-        urgency: reportData.urgency || "medium",
-        reporterId: userId,
-        timestamp: new Date().toISOString(),
+        urgency: ["low", "medium", "high"].includes(reportData.urgency)
+          ? reportData.urgency
+          : "medium",
       };
+
+      const token = localStorage.getItem("token"); // Ensure token is stored on login
 
       const res = await axios.post(`/newpost/${post._id}/report`, payload, {
         headers: {
           "Content-Type": "application/json",
-          "X-Report-Type": "trade-issue",
+          Authorization: `Bearer ${token}`,
+          "X-Report-Type": "trade-issue", // Optional, if backend uses it
         },
       });
 
-      console.log("Full axios response:", res);
-      console.log("Response data:", res.data);
-
-      if (res.data && res.status === 200) {
-        toast.success(res.data.message || "Report submitted successfully");
-        return true;
-      } else {
-        toast.error("Report submission failed: No response data");
-        return false;
+      if (!res.data || !res.data.success) {
+        toast.error(res.data?.error || "Report submission failed");
+        return { success: false };
       }
+
+      // Update UI if needed with returned post data
+      if (res.data.post) {
+        updatePost(res.data.post);
+      }
+
+      toast.success(res.data.message || "Report submitted successfully");
+      return { success: true };
     } catch (err) {
-      console.error("Report submission error:", err);
       toast.error(err.response?.data?.error || "Report submission failed");
-      return false;
+      console.error("submitReport error:", err);
+      return { success: false };
     } finally {
       setReportSubmitting(false);
     }
   };
 
-  // Check if current user already confirmed the trade
+  const getId = (id) => (id?._id ? id._id : id);
+
   const userAlreadyConfirmed = (post) => {
     if (!post || !userId) return false;
-    return post.tradeConfirmations?.some(
-      (id) => id === userId || id._id === userId
-    );
+    return post.tradeConfirmations?.some((id) => getId(id) === userId);
   };
 
-  // Check if both parties confirmed the trade
   const bothConfirmed = (post) => {
     if (!post) return false;
-    const ownerId = post.owner?._id || post.owner;
-    const buyerId = post.buyer?._id || post.buyer;
+    const ownerId = getId(post.owner);
+    const buyerId = getId(post.buyer);
     return (
-      post.tradeConfirmations?.some(
-        (id) => id === ownerId || id._id === ownerId
-      ) &&
-      post.tradeConfirmations?.some(
-        (id) => id === buyerId || id._id === buyerId
-      )
+      post.tradeConfirmations?.some((id) => getId(id) === ownerId) &&
+      post.tradeConfirmations?.some((id) => getId(id) === buyerId)
     );
   };
 
@@ -291,7 +268,16 @@ const usePostActions = (
     isProcessing,
     reportSubmitting,
     dispute,
-    fetchDispute,
+    fetchDispute: async (tradeId) => {
+      try {
+        const res = await axios.get(`/trade/${tradeId}/dispute`);
+        setDispute(res.data);
+        return res.data;
+      } catch (err) {
+        console.error("Failed to fetch dispute:", err);
+        return null;
+      }
+    },
     handleVote,
     handleToggleRequest,
     handleBuy,
