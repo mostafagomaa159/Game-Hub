@@ -354,8 +354,9 @@ const Requests = () => {
                           />
                         </div>
                       )}
+
                       <input
-                        className="flex-1 px-3 py-2 rounded bg-gray-700 text-white placeholder-gray-400"
+                        className="flex-1 min-w-0 px-3 py-2 rounded bg-gray-700 text-white placeholder-gray-400 text-sm sm:text-base"
                         placeholder="Type a message..."
                         value={inputMessage}
                         onChange={(e) => {
@@ -366,15 +367,17 @@ const Requests = () => {
                           });
                         }}
                       />
+
                       <button
-                        className="ml-2 text-gray-300 hover:text-white"
+                        className="ml-2 flex-shrink-0 p-2 text-gray-300 hover:text-white"
                         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                       >
-                        <Smile />
+                        <Smile className="w-5 h-5 sm:w-6 sm:h-6" />
                       </button>
+
                       <button
                         onClick={sendMessage}
-                        className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                        className="ml-2 flex-shrink-0 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded text-sm sm:text-base"
                       >
                         Send
                       </button>
