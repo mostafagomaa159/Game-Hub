@@ -19,6 +19,23 @@ const PostModal = ({
   modalRef,
   hasConfirmed,
 }) => {
+  const dispute = selectedPost.dispute || {};
+  const disputeStatus = dispute.status || "none";
+
+  // Determine if user can report (only buyers or sellers, and if no active dispute or if user not reported yet)
+  const userIsParticipant =
+    userId &&
+    (userId === selectedPost.buyer?._id || userId === selectedPost.seller?._id);
+
+  const userHasReported = dispute.reports?.some(
+    (r) => String(r.reporter) === String(userId)
+  );
+
+  const canReport =
+    userIsParticipant &&
+    (disputeStatus === "none" ||
+      (disputeStatus === "open" && !userHasReported));
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
       <div
@@ -53,16 +70,60 @@ const PostModal = ({
           </p>
         )}
 
+        {/* Dispute info */}
+        {disputeStatus !== "none" && (
+          <div className="my-4 p-3 border rounded bg-yellow-100 dark:bg-yellow-900">
+            <p className="font-semibold mb-1">
+              Dispute Status:{" "}
+              <span className="capitalize">
+                {disputeStatus.replace("_", " ")}
+              </span>
+            </p>
+
+            {dispute.reports?.length > 0 && (
+              <div className="mb-2 max-h-24 overflow-y-auto text-sm">
+                <p className="font-semibold">Reports:</p>
+                <ul className="list-disc ml-5">
+                  {dispute.reports.map((report, idx) => (
+                    <li key={idx}>
+                      <strong>{report.role}:</strong> {report.reason}{" "}
+                      <a
+                        href={report.evidenceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline"
+                      >
+                        Evidence
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {dispute.adminDecision && (
+              <div className="mt-2 text-sm text-green-700 dark:text-green-300">
+                <p>
+                  Admin decision:{" "}
+                  <strong>{dispute.adminDecision.winner}</strong> won the
+                  dispute.
+                </p>
+                <p>Note: {dispute.adminDecision.adminNote || "No notes"}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Trade Buttons */}
         {selectedPost.tradeStatus === "pending" &&
           (isOwner || isBuyer) &&
-          !userAlreadyConfirmed() && (
+          !userAlreadyConfirmed(selectedPost) && (
             <>
               <button
                 onClick={handleConfirmTrade}
-                disabled={isProcessing}
+                disabled={isProcessing || disputeStatus === "open"}
                 className={`mt-4 w-full py-2 rounded-xl text-white ${
-                  isProcessing
+                  isProcessing || disputeStatus === "open"
                     ? "bg-green-400 cursor-not-allowed"
                     : "bg-green-600 hover:bg-green-700"
                 }`}
@@ -72,9 +133,9 @@ const PostModal = ({
 
               <button
                 onClick={handleCancelTrade}
-                disabled={isProcessing}
+                disabled={isProcessing || disputeStatus === "open"}
                 className={`mt-2 w-full py-2 rounded-xl text-white ${
-                  isProcessing
+                  isProcessing || disputeStatus === "open"
                     ? "bg-red-400 cursor-not-allowed"
                     : "bg-red-600 hover:bg-red-700"
                 }`}
@@ -82,7 +143,7 @@ const PostModal = ({
                 Cancel Trade
               </button>
 
-              {hasConfirmed && (
+              {hasConfirmed && canReport && (
                 <button
                   onClick={() => setShowReportModal(true)}
                   className="mt-3 w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"
@@ -116,8 +177,9 @@ const PostModal = ({
             </p>
           )}
 
-        {/* Report button */}
-        {bothConfirmed(selectedPost) &&
+        {/* Report button for pending_release with both confirmed */}
+        {userId &&
+          bothConfirmed(selectedPost) &&
           selectedPost.tradeStatus === "pending_release" && (
             <button
               onClick={() => {
@@ -137,7 +199,7 @@ const PostModal = ({
               <button
                 className="mt-4 w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
                 onClick={() => handleBuy(selectedPost._id)}
-                disabled={isProcessing}
+                disabled={isProcessing || disputeStatus === "open"}
               >
                 Buy Now
               </button>
@@ -157,7 +219,7 @@ const PostModal = ({
           <button
             className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
             onClick={handleToggleRequest}
-            disabled={isProcessing}
+            disabled={isProcessing || disputeStatus === "open"}
           >
             {selectedPost.requests?.includes(userId)
               ? "Cancel Request"

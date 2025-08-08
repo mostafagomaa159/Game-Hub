@@ -33,6 +33,11 @@ const AllPosts = () => {
   const [hasConfirmed, setHasConfirmed] = useState(false);
   const modalRef = useRef(null);
 
+  // Reset hasConfirmed whenever selected post changes
+  useEffect(() => {
+    setHasConfirmed(false);
+  }, [selectedPostId]);
+
   // Memoized filtered posts
   const filtered = useMemo(() => {
     let temp = [...posts];
@@ -182,7 +187,7 @@ const AllPosts = () => {
         userId={userId}
         processingIds={processingIds}
         setSelectedPostId={setSelectedPostId}
-        handleVote={handlePostVote} // Updated handler
+        handleVote={handlePostVote}
       />
 
       {totalPages > 1 && (
@@ -190,6 +195,7 @@ const AllPosts = () => {
           totalPages={totalPages}
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
+          disabled={loading} // optional disable while loading
         />
       )}
 
@@ -199,10 +205,10 @@ const AllPosts = () => {
           setSelectedPostId={setSelectedPostId}
           userId={userId}
           isProcessing={isProcessing}
-          handleBuy={() => handlePostBuy(selectedPost._id)} // Updated handler
-          handleToggleRequest={handlePostToggleRequest} // Updated handler
-          handleConfirmTrade={handlePostConfirmTrade} // Updated handler
-          handleCancelTrade={handlePostCancelTrade} // Updated handler
+          handleBuy={() => handlePostBuy(selectedPost._id)}
+          handleToggleRequest={handlePostToggleRequest}
+          handleConfirmTrade={handlePostConfirmTrade}
+          handleCancelTrade={handlePostCancelTrade}
           setShowReportModal={setShowReportModal}
           setReportUrl={setReportUrl}
           isOwner={isOwner}
@@ -220,7 +226,7 @@ const AllPosts = () => {
           reportUrl={reportUrl}
           setReportUrl={setReportUrl}
           reportSubmitting={reportSubmitting}
-          submitReport={handlePostReport} // Updated handler
+          submitReport={handlePostReport}
           selectedPost={selectedPost}
         />
       )}

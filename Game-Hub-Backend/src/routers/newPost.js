@@ -564,6 +564,20 @@ router.post("/newpost/:id/request", auth, async (req, res) => {
 
     await trade.save();
 
+    // Create corresponding TradeTransaction
+    const TradeTransaction = require("../models/TradeTransaction");
+    const tradeTx = new TradeTransaction({
+      post: post._id,
+      buyer: req.user._id,
+      seller: post.owner,
+      amount: post.price,
+      status: "none",
+      dispute: {
+        status: "none",
+      },
+    });
+    await tradeTx.save();
+
     res.status(201).send({ message: "Request sent", post });
   } catch (e) {
     console.error("Send request error:", e);

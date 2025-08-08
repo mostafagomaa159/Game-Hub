@@ -13,10 +13,23 @@ const usePostActions = (
 ) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [dispute, setDispute] = useState(null); // New state for dispute info
 
   // Helper to update a post in state
   const updatePost = (updated) => {
     setPosts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
+  };
+
+  // Fetch dispute details for a trade/post
+  const fetchDispute = async (tradeId) => {
+    try {
+      const res = await axios.get(`/trade/${tradeId}/dispute`);
+      setDispute(res.data);
+      return res.data;
+    } catch (err) {
+      console.error("Failed to fetch dispute:", err);
+      return null;
+    }
   };
 
   // Handle voting on a post
@@ -27,8 +40,8 @@ const usePostActions = (
     }
 
     const postId = post._id;
-    const isProcessing = Array.from(setProcessingIds).includes(postId);
-    if (isProcessing) return;
+    const isProc = Array.from(setProcessingIds).includes(postId);
+    if (isProc) return;
     if (post.voters?.includes(userId)) return;
 
     const previousPost = {
@@ -71,8 +84,8 @@ const usePostActions = (
     }
 
     const postId = post._id;
-    const isProcessing = Array.from(setProcessingIds).includes(postId);
-    if (isProcessing) return;
+    const isProc = Array.from(setProcessingIds).includes(postId);
+    if (isProc) return;
 
     const requested = post.requests?.includes(userId);
     const previousPost = { ...post };
@@ -119,8 +132,8 @@ const usePostActions = (
     }
 
     const postId = post._id;
-    const isProcessing = Array.from(setProcessingIds).includes(postId);
-    if (isProcessing) return;
+    const isProc = Array.from(setProcessingIds).includes(postId);
+    if (isProc) return;
 
     setProcessingIds((prev) => new Set(prev).add(postId));
     try {
@@ -180,8 +193,8 @@ const usePostActions = (
     }
 
     const postId = post._id;
-    const isProcessing = Array.from(setProcessingIds).includes(postId);
-    if (isProcessing) return;
+    const isProc = Array.from(setProcessingIds).includes(postId);
+    if (isProc) return;
 
     setIsProcessing(true);
     setProcessingIds((prev) => new Set(prev).add(postId));
@@ -208,33 +221,50 @@ const usePostActions = (
     }
   };
 
-  // Handle submitting a report
-  const submitReport = async (post, videoUrl) => {
-    if (!videoUrl?.trim()) {
-      toast.error("Please provide a valid video URL");
-      return;
+  // Handle submitting a dispute report
+  const submitReport = async (post, reportData) => {
+    console.log("submitReport called", post, reportData);
+    if (!reportData?.videoUrl?.trim()) {
+      console.log("Invalid video URL");
+      toast.error("Please provide valid evidence");
+      return false;
     }
 
     setReportSubmitting(true);
     try {
-      const res = await axios.post(`/newpost/${post._id}/report`, {
-        videoUrl: videoUrl.trim(),
+      const payload = {
+        videoUrl: reportData.videoUrl.trim(),
+        reason: reportData.reason || "No reason provided",
+        reporterId: userId,
+        timestamp: new Date().toISOString(),
+      };
+
+      const res = await axios.post(`/posts/${post._id}/reports`, payload, {
+        headers: {
+          "Content-Type": "application/json",
+          "X-Report-Type": "trade-issue",
+        },
       });
-      toast.success(res.data?.message || "Report submitted");
+
+      console.log("Report submitted response:", res.data);
 
       // Refresh post data
       try {
-        const resp = await axios.get(`/newpost/${post._id}`);
-        if (resp?.data) updatePost(resp.data);
-      } catch (err) {
-        // Fallback to refresh all posts if single post fetch fails
-        const all = await axios.get("/all");
-        setPosts(Array.isArray(all.data) ? all.data : []);
+        const { data } = await axios.get(`/posts/${post._id}/status`);
+        updatePost(data);
+      } catch (refreshError) {
+        console.warn(
+          "Couldn't refresh single post, falling back to full refresh"
+        );
+        const { data } = await axios.get("/posts");
+        setPosts(data);
       }
 
+      toast.success(res.data?.message || "Report submitted successfully");
       return true;
     } catch (err) {
-      toast.error(err?.response?.data?.error || "Failed to submit report");
+      console.error("Report submission error:", err);
+      toast.error(err.response?.data?.error || "Report submission failed");
       return false;
     } finally {
       setReportSubmitting(false);
@@ -267,6 +297,8 @@ const usePostActions = (
   return {
     isProcessing,
     reportSubmitting,
+    dispute,
+    fetchDispute,
     handleVote,
     handleToggleRequest,
     handleBuy,
