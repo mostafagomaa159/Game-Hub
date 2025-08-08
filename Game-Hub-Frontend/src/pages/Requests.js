@@ -273,21 +273,25 @@ const Requests = () => {
                 <Modal
                   isOpen={chatOpenId === req._id}
                   onRequestClose={() => toggleChat(null)}
-                  className="bg-white p-4 rounded-md w-[95%] sm:w-[90%] md:w-[70%] lg:w-[50%] xl:w-[40%] max-w-[600px] mx-auto mt-20"
-                  overlayClassName="fixed inset-0 bg-black bg-opacity-70"
+                  className="bg-white rounded-md w-full sm:w-[95%] md:w-[80%] lg:w-[60%] xl:w-[50%] max-w-[800px] h-[90vh] sm:h-[80vh] mx-auto mt-4 flex flex-col"
+                  overlayClassName="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center"
                 >
-                  <div className="relative flex flex-col h-[80vh]">
+                  <div className="relative flex flex-col flex-1">
                     <button
                       onClick={() => toggleChat(null)}
-                      className="absolute top-3 right-4 text-gray-500 hover:text-red-500 text-xl"
+                      className="absolute top-3 right-4 text-gray-500 hover:text-red-500 text-xl z-50"
                       aria-label="Close chat"
                     >
                       &times;
                     </button>
+
+                    {/* Chat Header */}
                     <div className="bg-gray-900 text-white text-lg font-semibold px-4 py-2 rounded-t">
                       Chat with{" "}
                       {view === "incoming" ? req.buyer.name : req.seller.name}
                     </div>
+
+                    {/* Chat Messages */}
                     <div className="flex-1 overflow-y-auto p-3 bg-gray-800 text-white">
                       {messagesLoading ? (
                         <ChatSkeleton />
@@ -307,8 +311,7 @@ const Requests = () => {
                               <span className="block text-sm text-gray-400">
                                 {msg.senderName || msg.sender}
                               </span>
-
-                              <div className="inline-block bg-gray-700 p-2 rounded max-w-xs relative text-white">
+                              <div className="inline-block bg-gray-700 p-2 rounded max-w-[85%] sm:max-w-xs relative text-white">
                                 <span>{msg.message}</span>
                                 <div className="text-xs text-gray-400 mt-1 flex items-center gap-1 justify-end">
                                   <span>{formatTime(msg.createdAt)}</span>
@@ -341,9 +344,10 @@ const Requests = () => {
                       <div ref={messageEndRef} />
                     </div>
 
-                    <div className="flex items-center border-t border-gray-700 p-2 bg-gray-900 relative">
+                    {/* Chat Input */}
+                    <div className="flex items-center gap-2 border-t border-gray-700 p-2 bg-gray-900 relative flex-wrap">
                       {showEmojiPicker && (
-                        <div className="absolute bottom-14 left-0 z-50">
+                        <div className="absolute bottom-14 left-0 z-50 max-h-[300px] overflow-y-auto">
                           <Picker
                             data={data}
                             onEmojiSelect={(emoji) =>
@@ -355,7 +359,7 @@ const Requests = () => {
                         </div>
                       )}
                       <input
-                        className="flex-1 px-3 py-2 rounded bg-gray-700 text-white placeholder-gray-400"
+                        className="flex-1 px-3 py-2 rounded bg-gray-700 text-white placeholder-gray-400 min-w-[120px]"
                         placeholder="Type a message..."
                         value={inputMessage}
                         onChange={(e) => {
@@ -367,14 +371,14 @@ const Requests = () => {
                         }}
                       />
                       <button
-                        className="ml-2 text-gray-300 hover:text-white"
+                        className="text-gray-300 hover:text-white flex-shrink-0"
                         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                       >
-                        <Smile />
+                        <Smile size={22} />
                       </button>
                       <button
                         onClick={sendMessage}
-                        className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded flex-shrink-0"
                       >
                         Send
                       </button>
