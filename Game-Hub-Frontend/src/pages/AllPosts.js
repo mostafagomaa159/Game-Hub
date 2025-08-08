@@ -103,7 +103,7 @@ const AllPosts = () => {
 
   const handleClickOutside = useCallback((e) => {
     if (modalRef.current && !modalRef.current.contains(e.target)) {
-      setSelectedPostId(null);
+      //    setSelectedPostId(null);
       setShowLoginModal(false);
     }
   }, []);
@@ -219,7 +219,6 @@ const AllPosts = () => {
           reportSubmitting={reportSubmitting}
           submitReport={handlePostReport}
           selectedPost={selectedPost}
-          selectedPostId={selectedPost ? selectedPost._id : null}
         />
       )}
 

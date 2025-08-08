@@ -121,7 +121,7 @@ const PostModal = ({
             <button
               onClick={() => {
                 console.log(
-                  "Selected post ID before opening modal:",
+                  "Selected post ID before opening modallll:",
                   selectedPost
                 );
                 setSelectedPostId(selectedPost._id);

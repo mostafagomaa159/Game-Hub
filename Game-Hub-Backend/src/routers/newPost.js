@@ -691,7 +691,7 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
       post,
     });
   } catch (error) {
-    console.error("Error submitting trade dispute:", error);
+    console.error("Error submitting trade dispute:", error.stack || error);
     res.status(500).send({ error: "Internal server error" });
   }
 });
