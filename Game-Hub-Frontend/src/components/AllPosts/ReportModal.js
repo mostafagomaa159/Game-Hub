@@ -5,7 +5,7 @@ const ReportModal = ({
   setShowReportModal,
   submitReport,
   selectedPost,
-  reportSubmitting, // new prop to show loading state
+  reportSubmitting, // loading state
 }) => {
   const [reportData, setReportData] = useState({
     videoUrl: "",
@@ -15,9 +15,18 @@ const ReportModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submitting report with data:", reportData);
-    const success = await submitReport(selectedPost, reportData);
+
+    // Prepare payload with videoUrls array as backend expects
+    const dataToSubmit = {
+      videoUrls: [reportData.videoUrl.trim()],
+      reason: reportData.reason.trim() || "No reason provided",
+      urgency: reportData.urgency,
+    };
+
+    console.log("Submitting report with data:", dataToSubmit);
+    const success = await submitReport(selectedPost, dataToSubmit);
     console.log("Report submission success:", success);
+
     if (success) {
       setShowReportModal(false);
       setReportData({ videoUrl: "", reason: "", urgency: "medium" });
@@ -53,7 +62,7 @@ const ReportModal = ({
                 setReportData({ ...reportData, reason: e.target.value })
               }
               className="w-full p-2 border rounded"
-              rows="3"
+              rows={3}
               disabled={reportSubmitting}
             />
           </div>

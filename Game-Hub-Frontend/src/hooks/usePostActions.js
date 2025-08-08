@@ -223,45 +223,38 @@ const usePostActions = (
 
   // Handle submitting a dispute report
   const submitReport = async (post, reportData) => {
-    console.log("submitReport called", post, reportData);
     if (!reportData?.videoUrl?.trim()) {
-      console.log("Invalid video URL");
-      toast.error("Please provide valid evidence");
+      toast.error("Please provide valid evidence URL");
       return false;
     }
 
     setReportSubmitting(true);
     try {
       const payload = {
-        videoUrl: reportData.videoUrl.trim(),
+        videoUrls: [reportData.videoUrl.trim()],
         reason: reportData.reason || "No reason provided",
+        urgency: reportData.urgency || "medium",
         reporterId: userId,
         timestamp: new Date().toISOString(),
       };
 
-      const res = await axios.post(`/posts/${post._id}/reports`, payload, {
+      const res = await axios.post(`/newpost/${post._id}/report`, payload, {
         headers: {
           "Content-Type": "application/json",
           "X-Report-Type": "trade-issue",
         },
       });
 
-      console.log("Report submitted response:", res.data);
+      console.log("Full axios response:", res);
+      console.log("Response data:", res.data);
 
-      // Refresh post data
-      try {
-        const { data } = await axios.get(`/posts/${post._id}/status`);
-        updatePost(data);
-      } catch (refreshError) {
-        console.warn(
-          "Couldn't refresh single post, falling back to full refresh"
-        );
-        const { data } = await axios.get("/posts");
-        setPosts(data);
+      if (res.data && res.status === 200) {
+        toast.success(res.data.message || "Report submitted successfully");
+        return true;
+      } else {
+        toast.error("Report submission failed: No response data");
+        return false;
       }
-
-      toast.success(res.data?.message || "Report submitted successfully");
-      return true;
     } catch (err) {
       console.error("Report submission error:", err);
       toast.error(err.response?.data?.error || "Report submission failed");
