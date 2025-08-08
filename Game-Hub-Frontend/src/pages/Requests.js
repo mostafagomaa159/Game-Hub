@@ -1,10 +1,10 @@
-// Requests.js (Scroll-to-bottom fixed)
+// FULL UPDATED Requests.js WITH RESPONSIVE CHAT + EMOJI PICKER
 import axios from "../api/axiosInstance";
 import { MessageCircle, Smile } from "lucide-react";
 import Modal from "react-modal";
 import socket from "../utils/socket";
 
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 
@@ -59,9 +59,7 @@ const Requests = () => {
   const messageEndRef = useRef(null);
 
   const scrollToBottom = () => {
-    if (messageEndRef.current) {
-      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const formatTime = (isoDate) => {
@@ -108,10 +106,9 @@ const Requests = () => {
     };
   }, [view]);
 
-  // ✅ Scroll to bottom after messages change (useLayoutEffect ensures DOM is ready)
-  useLayoutEffect(() => {
+  useEffect(() => {
     scrollToBottom();
-  }, [messages, chatOpenId]);
+  }, [messages]);
 
   const toggleChat = async (id) => {
     if (chatOpenId === id || !id) {
@@ -199,7 +196,7 @@ const Requests = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 bg-blue-1000 min-h-screen text-white">
+    <div className="p-6 bg-blue-1000 min-h-screen text-white">
       <div className="flex gap-4 mb-6">
         <Button
           className={`${view === "incoming" ? "bg-green-600" : "bg-gray-700"}`}
@@ -215,10 +212,10 @@ const Requests = () => {
         </Button>
       </div>
 
-      <h1 className="text-xl font-bold mb-4 p-4 bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-md shadow-md">
+      {/* className="p-4 max-w-5xl mx-auto bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-md shadow-md" */}
+      <h1 className="text-xl font-bold mb-4 p-4 max- mx-auto bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-md shadow-md">
         {view === "incoming" ? "Incoming Requests" : "My Sent Requests"}
       </h1>
-
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((_, i) => (
@@ -273,30 +270,25 @@ const Requests = () => {
                   </div>
                 )}
 
-                {/* Chat Modal */}
                 <Modal
                   isOpen={chatOpenId === req._id}
                   onRequestClose={() => toggleChat(null)}
-                  className="bg-white rounded-md w-full sm:w-[95%] md:w-[80%] lg:w-[60%] xl:w-[50%] max-w-[800px] h-[90vh] sm:h-[80vh] mx-auto mt-4 flex flex-col"
-                  overlayClassName="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center"
+                  className="bg-white p-4 rounded-md w-[95%] sm:w-[90%] md:w-[70%] lg:w-[50%] xl:w-[40%] max-w-[600px] mx-auto mt-20"
+                  overlayClassName="fixed inset-0 bg-black bg-opacity-70"
                 >
-                  <div className="relative flex flex-col flex-1">
+                  <div className="relative flex flex-col h-[80vh]">
                     <button
                       onClick={() => toggleChat(null)}
-                      className="absolute top-3 right-4 text-gray-500 hover:text-red-500 text-xl z-50"
+                      className="absolute top-3 right-4 text-gray-500 hover:text-red-500 text-xl"
                       aria-label="Close chat"
                     >
                       &times;
                     </button>
-
-                    {/* Chat Header */}
                     <div className="bg-gray-900 text-white text-lg font-semibold px-4 py-2 rounded-t">
                       Chat with{" "}
                       {view === "incoming" ? req.buyer.name : req.seller.name}
                     </div>
-
-                    {/* Chat Messages */}
-                    <div className="flex-1 overflow-y-auto p-3 bg-gray-800 text-white relative">
+                    <div className="flex-1 overflow-y-auto p-3 bg-gray-800 text-white">
                       {messagesLoading ? (
                         <ChatSkeleton />
                       ) : (
@@ -315,7 +307,8 @@ const Requests = () => {
                               <span className="block text-sm text-gray-400">
                                 {msg.senderName || msg.sender}
                               </span>
-                              <div className="inline-block bg-gray-700 p-2 rounded max-w-[85%] sm:max-w-xs relative text-white">
+
+                              <div className="inline-block bg-gray-700 p-2 rounded max-w-xs relative text-white">
                                 <span>{msg.message}</span>
                                 <div className="text-xs text-gray-400 mt-1 flex items-center gap-1 justify-end">
                                   <span>{formatTime(msg.createdAt)}</span>
@@ -348,10 +341,9 @@ const Requests = () => {
                       <div ref={messageEndRef} />
                     </div>
 
-                    {/* Chat Input */}
-                    <div className="flex items-center gap-2 border-t border-gray-700 p-2 bg-gray-900 sticky bottom-0 z-10">
+                    <div className="flex items-center border-t border-gray-700 p-2 bg-gray-900 relative">
                       {showEmojiPicker && (
-                        <div className="absolute bottom-14 left-2 z-50 max-h-[300px] overflow-y-auto">
+                        <div className="absolute bottom-14 left-0 z-50">
                           <Picker
                             data={data}
                             onEmojiSelect={(emoji) =>
@@ -363,7 +355,7 @@ const Requests = () => {
                         </div>
                       )}
                       <input
-                        className="flex-1 px-3 py-2 rounded bg-gray-700 text-white placeholder-gray-400 min-w-[120px]"
+                        className="flex-1 px-3 py-2 rounded bg-gray-700 text-white placeholder-gray-400"
                         placeholder="Type a message..."
                         value={inputMessage}
                         onChange={(e) => {
@@ -375,14 +367,14 @@ const Requests = () => {
                         }}
                       />
                       <button
-                        className="text-gray-300 hover:text-white flex-shrink-0"
+                        className="ml-2 text-gray-300 hover:text-white"
                         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                       >
-                        <Smile size={22} />
+                        <Smile />
                       </button>
                       <button
                         onClick={sendMessage}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded flex-shrink-0"
+                        className="ml-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
                       >
                         Send
                       </button>
