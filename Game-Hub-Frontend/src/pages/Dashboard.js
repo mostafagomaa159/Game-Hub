@@ -19,6 +19,7 @@ const Dashboard = () => {
 
   const postsPerPage = 5;
 
+  // Fetch posts (uses res.data.posts when available)
   const fetchPosts = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -33,7 +34,9 @@ const Dashboard = () => {
           priceMin,
           availableOnly,
         },
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       const dataPosts = res.data?.posts ?? res.data;
@@ -52,6 +55,7 @@ const Dashboard = () => {
   }, [fetchPosts]);
 
   const handleEdit = (post) => setEditData({ ...post });
+
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -66,8 +70,10 @@ const Dashboard = () => {
       });
       toast.success("Post updated successfully!");
       setEditData(null);
+      // refresh
       await fetchPosts();
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to update post.");
     } finally {
       setIsSaving(false);
@@ -80,7 +86,8 @@ const Dashboard = () => {
       await axios.delete(`/newpost/${id}`);
       setPosts((prev) => prev.filter((p) => p._id !== id));
       toast.success("Post deleted.");
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to delete post.");
     }
   };
@@ -103,8 +110,11 @@ const Dashboard = () => {
     1,
     Math.ceil(filteredPosts.length / postsPerPage)
   );
+
+  // Number of skeleton rows to show; match postsPerPage but cap on very small screens
   const skeletonCount = postsPerPage;
 
+  // Small spinner component (used in pagination and Save button)
   const SmallSpinner = ({ className = "inline-block w-4 h-4 mr-2" }) => (
     <svg
       className={`${className} animate-spin`}
@@ -128,21 +138,35 @@ const Dashboard = () => {
     </svg>
   );
 
+  // Table-shaped skeleton row
   const TableSkeletonRow = ({ keyIndex }) => (
     <tr key={`sk-${keyIndex}`} className="animate-pulse">
-      {[...Array(5)].map((_, idx) => (
-        <td key={idx} className="p-4">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
-        </td>
-      ))}
+      <td className="p-4">
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+      </td>
+      <td className="p-4">
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-6" />
+      </td>
+      <td className="p-4">
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-12" />
+      </td>
+      <td className="p-4">
+        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20" />
+      </td>
+      <td className="p-4">
+        <div className="flex gap-2">
+          <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded" />
+          <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded" />
+        </div>
+      </td>
     </tr>
   );
 
   return (
-    <div className="min-h-screen bg-white dark:bg-darkBackground text-gray-800 dark:text-gray-200 p-4 sm:p-6">
+    <div className="min-h-screen bg-white dark:bg-darkBackground text-gray-800 dark:text-gray-200 p-6">
       <div className="max-w-6xl mx-auto">
         <ToastContainer />
-        <h2 className="text-2xl sm:text-3xl font-bold mb-6">Your Posts</h2>
+        <h2 className="text-3xl font-bold mb-6">My Posts</h2>
 
         {/* Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -154,21 +178,21 @@ const Dashboard = () => {
               setSearch(e.target.value);
               setCurrentPage(1);
             }}
-            className="p-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 dark:bg-darkCard dark:text-white"
+            className="p-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-darkCard dark:text-white"
           />
           <input
             type="number"
             placeholder="Min Price"
             value={priceMin}
             onChange={(e) => setPriceMin(e.target.value)}
-            className="p-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 dark:bg-darkCard dark:text-white"
+            className="p-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-darkCard dark:text-white"
           />
           <input
             type="number"
             placeholder="Max Price"
             value={priceMax}
             onChange={(e) => setPriceMax(e.target.value)}
-            className="p-2 border rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 dark:bg-darkCard dark:text-white"
+            className="p-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-darkCard dark:text-white"
           />
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -181,10 +205,10 @@ const Dashboard = () => {
           </label>
         </div>
 
-        {/* Table wrapper - scroll on mobile */}
+        {/* Table / Skeleton */}
         <div className="overflow-x-auto bg-white dark:bg-darkCard shadow-md rounded-lg">
-          <table className="w-full table-auto text-sm sm:text-base">
-            <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">
+          <table className="w-full table-auto">
+            <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm">
               <tr>
                 <th className="p-4 text-left">Description</th>
                 <th className="p-4 text-left">Available</th>
@@ -193,11 +217,15 @@ const Dashboard = () => {
                 <th className="p-4 text-left">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+
+            <tbody className="text-sm divide-y">
               {loading ? (
-                Array.from({ length: skeletonCount }).map((_, i) => (
-                  <TableSkeletonRow keyIndex={i} key={i} />
-                ))
+                // render skeleton rows equal to postsPerPage
+                <>
+                  {Array.from({ length: skeletonCount }).map((_, i) => (
+                    <TableSkeletonRow keyIndex={i} key={`skeleton-${i}`} />
+                  ))}
+                </>
               ) : error ? (
                 <tr>
                   <td colSpan={5} className="p-6 text-red-600">
@@ -241,11 +269,12 @@ const Dashboard = () => {
           </table>
         </div>
 
-        {/* Pagination */}
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+        {/* Pagination with small spinner when loading */}
+        <div className="mt-6 flex items-center justify-center space-x-2">
           {loading && (
-            <div className="flex items-center text-sm text-gray-500">
-              <SmallSpinner /> loading...
+            <div className="flex items-center text-sm text-gray-500 mr-2">
+              <SmallSpinner className="inline-block w-4 h-4 mr-2" />
+              loading...
             </div>
           )}
           {Array.from({ length: totalPages }, (_, i) => (
@@ -255,7 +284,7 @@ const Dashboard = () => {
               className={`px-3 py-1 rounded-md border transition ${
                 currentPage === i + 1
                   ? "bg-blue-600 text-white shadow"
-                  : "bg-white dark:bg-gray-800 dark:text-white hover:bg-blue-50 dark:hover:bg-gray-700"
+                  : "bg-white dark:bg-gray-800 dark:text-white text-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700"
               }`}
             >
               {i + 1}
@@ -265,8 +294,8 @@ const Dashboard = () => {
 
         {/* Edit Modal */}
         {editData && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-darkCard w-full max-w-lg p-6 rounded-xl shadow-lg overflow-y-auto max-h-[90vh]">
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center px-4">
+            <div className="bg-white dark:bg-darkCard w-full max-w-lg p-6 rounded-xl shadow-lg">
               <h3 className="text-xl font-semibold mb-4">Edit Post</h3>
               <form onSubmit={handleEditSubmit} className="space-y-4">
                 <input
@@ -276,6 +305,7 @@ const Dashboard = () => {
                     setEditData({ ...editData, description: e.target.value })
                   }
                   className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white"
+                  placeholder="Description"
                   required
                 />
                 <input
@@ -285,6 +315,7 @@ const Dashboard = () => {
                     setEditData({ ...editData, price: e.target.value })
                   }
                   className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white"
+                  placeholder="Price"
                   required
                 />
                 <input
@@ -294,6 +325,7 @@ const Dashboard = () => {
                     setEditData({ ...editData, server: e.target.value })
                   }
                   className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white"
+                  placeholder="Server"
                   required
                 />
                 <input
@@ -303,6 +335,7 @@ const Dashboard = () => {
                     setEditData({ ...editData, discord: e.target.value })
                   }
                   className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white"
+                  placeholder="Discord (optional)"
                 />
                 <label className="flex items-center gap-2">
                   <input
@@ -314,20 +347,23 @@ const Dashboard = () => {
                   />
                   Available
                 </label>
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className={`flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 ${
+                    className={`flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition ${
                       isSaving ? "opacity-80 cursor-not-allowed" : ""
                     }`}
                   >
-                    {isSaving && <SmallSpinner />} Save
+                    {isSaving && (
+                      <SmallSpinner className="inline-block w-4 h-4" />
+                    )}
+                    Save
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditData(null)}
-                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
                   >
                     Cancel
                   </button>
