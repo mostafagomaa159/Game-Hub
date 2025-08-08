@@ -292,7 +292,8 @@ const Requests = () => {
                     </div>
 
                     {/* Chat Messages */}
-                    <div className="flex-1 overflow-y-auto p-3 bg-gray-800 text-white">
+                    {/* Chat Messages */}
+                    <div className="flex-1 overflow-y-auto p-3 bg-gray-800 text-white relative">
                       {messagesLoading ? (
                         <ChatSkeleton />
                       ) : (
@@ -344,10 +345,10 @@ const Requests = () => {
                       <div ref={messageEndRef} />
                     </div>
 
-                    {/* Chat Input */}
-                    <div className="flex items-center gap-2 border-t border-gray-700 p-2 bg-gray-900 relative flex-wrap">
+                    {/* Chat Input (Fixed) */}
+                    <div className="flex items-center gap-2 border-t border-gray-700 p-2 bg-gray-900 sticky bottom-0 z-10">
                       {showEmojiPicker && (
-                        <div className="absolute bottom-14 left-0 z-50 max-h-[300px] overflow-y-auto">
+                        <div className="absolute bottom-14 left-2 z-50 max-h-[300px] overflow-y-auto">
                           <Picker
                             data={data}
                             onEmojiSelect={(emoji) =>
