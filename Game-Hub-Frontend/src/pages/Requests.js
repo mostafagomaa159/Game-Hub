@@ -1,10 +1,10 @@
-// FULL UPDATED Requests.js WITH RESPONSIVE CHAT + EMOJI PICKER
+// Requests.js (Scroll-to-bottom fixed)
 import axios from "../api/axiosInstance";
 import { MessageCircle, Smile } from "lucide-react";
 import Modal from "react-modal";
 import socket from "../utils/socket";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 
@@ -59,7 +59,9 @@ const Requests = () => {
   const messageEndRef = useRef(null);
 
   const scrollToBottom = () => {
-    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messageEndRef.current) {
+      messageEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   const formatTime = (isoDate) => {
@@ -106,9 +108,10 @@ const Requests = () => {
     };
   }, [view]);
 
-  useEffect(() => {
+  // ✅ Scroll to bottom after messages change (useLayoutEffect ensures DOM is ready)
+  useLayoutEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, chatOpenId]);
 
   const toggleChat = async (id) => {
     if (chatOpenId === id || !id) {
@@ -196,7 +199,7 @@ const Requests = () => {
   };
 
   return (
-    <div className="p-6 bg-blue-1000 min-h-screen text-white">
+    <div className="p-4 sm:p-6 bg-blue-1000 min-h-screen text-white">
       <div className="flex gap-4 mb-6">
         <Button
           className={`${view === "incoming" ? "bg-green-600" : "bg-gray-700"}`}
@@ -212,10 +215,10 @@ const Requests = () => {
         </Button>
       </div>
 
-      {/* className="p-4 max-w-5xl mx-auto bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-md shadow-md" */}
-      <h1 className="text-xl font-bold mb-4 p-4 max- mx-auto bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-md shadow-md">
+      <h1 className="text-xl font-bold mb-4 p-4 bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-md shadow-md">
         {view === "incoming" ? "Incoming Requests" : "My Sent Requests"}
       </h1>
+
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((_, i) => (
@@ -270,6 +273,7 @@ const Requests = () => {
                   </div>
                 )}
 
+                {/* Chat Modal */}
                 <Modal
                   isOpen={chatOpenId === req._id}
                   onRequestClose={() => toggleChat(null)}
@@ -291,7 +295,6 @@ const Requests = () => {
                       {view === "incoming" ? req.buyer.name : req.seller.name}
                     </div>
 
-                    {/* Chat Messages */}
                     {/* Chat Messages */}
                     <div className="flex-1 overflow-y-auto p-3 bg-gray-800 text-white relative">
                       {messagesLoading ? (
@@ -345,7 +348,7 @@ const Requests = () => {
                       <div ref={messageEndRef} />
                     </div>
 
-                    {/* Chat Input (Fixed) */}
+                    {/* Chat Input */}
                     <div className="flex items-center gap-2 border-t border-gray-700 p-2 bg-gray-900 sticky bottom-0 z-10">
                       {showEmojiPicker && (
                         <div className="absolute bottom-14 left-2 z-50 max-h-[300px] overflow-y-auto">
