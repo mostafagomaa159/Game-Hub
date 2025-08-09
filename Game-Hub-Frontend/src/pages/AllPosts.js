@@ -7,7 +7,7 @@ import React, {
   useCallback,
 } from "react";
 import usePosts from "../hooks/usePosts";
-import useUser from "../hooks/useUser";
+import { useUser } from "../context/UserContext"; // <-- updated import
 import usePostActions from "../hooks/usePostActions";
 import Filters from "../components/AllPosts/Filters";
 import PostGrid from "../components/AllPosts/PostGrid";
@@ -21,7 +21,8 @@ const POSTS_PER_PAGE = 12;
 const AllPosts = () => {
   // State declarations
   const { posts, loading, error, setPosts } = usePosts();
-  const { userId } = useUser();
+  const { user } = useUser(); // get full user object
+  const userId = user?._id || null; // safely get userId
   const [searchTerm, setSearchTerm] = useState("");
   const [serverFilter, setServerFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
@@ -103,7 +104,6 @@ const AllPosts = () => {
 
   const handleClickOutside = useCallback((e) => {
     if (modalRef.current && !modalRef.current.contains(e.target)) {
-      //    setSelectedPostId(null);
       setShowLoginModal(false);
     }
   }, []);
@@ -117,17 +117,14 @@ const AllPosts = () => {
     };
   }, [selectedPost, showLoginModal, handleClickOutside]);
 
-  // Updated handlePostReport to accept post and reportData and check post existence
   const handlePostReport = async (post, reportData) => {
     if (!post || !post._id) {
       console.error("handlePostReport: post or post._id is undefined");
       return { success: false };
     }
-    console.log("Submitting report for postId:", post._id);
     return await submitReport(post, reportData);
   };
 
-  // Other handlers remain unchanged
   const handlePostVote = (postId, voteType) => {
     handleVote(
       posts.find((p) => p._id === postId),

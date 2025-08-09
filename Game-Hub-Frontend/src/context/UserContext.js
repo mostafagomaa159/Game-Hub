@@ -1,5 +1,10 @@
-// context/UserContext.js
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from "react";
 import axios from "../api/axiosInstance";
 
 const UserContext = createContext();
@@ -10,20 +15,16 @@ export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
         setUser(null);
-        setLoadingUser(false); // ✅ Don't forget this!
-        return; // ✅ STOP here if no token
+        setLoadingUser(false);
+        return;
       }
 
-      const response = await axios.get("/users/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get("/users/me");
 
       const userData = response.data;
 
@@ -40,11 +41,11 @@ export const UserProvider = ({ children }) => {
     } finally {
       setLoadingUser(false);
     }
-  };
+  }, []); // no dependencies, stable reference
 
   useEffect(() => {
     fetchUser();
-  }, []);
+  }, [fetchUser]);
 
   return (
     <UserContext.Provider value={{ user, loadingUser, fetchUser, setUser }}>

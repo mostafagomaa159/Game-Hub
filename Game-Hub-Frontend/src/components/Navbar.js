@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "../api/axiosInstance";
 import {
   LogOut,
@@ -23,7 +23,7 @@ const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
+  // const location = useLocation();
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
@@ -60,7 +60,7 @@ const Navbar = () => {
 
   useEffect(() => {
     fetchUser();
-  }, [location.pathname, fetchUser]);
+  }, [fetchUser]);
 
   const navLinks = [];
 

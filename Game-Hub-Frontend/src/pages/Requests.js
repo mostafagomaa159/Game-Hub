@@ -74,13 +74,20 @@ const Requests = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
+        // Fetch current user info
         const userRes = await axios.get("/users/me", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
         setUser(userRes.data);
 
+        // Determine route based on view state
         const route = view === "incoming" ? "/my-requests" : "/me/sent-trades";
-        const res = await axios.get(route);
+
+        // Fetch trade transactions (incoming or sent)
+        const res = await axios.get(route, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+
         setRequests(res.data);
       } catch (err) {
         console.error("Fetch error", err);
@@ -181,7 +188,7 @@ const Requests = () => {
       const res = await axios.patch(`/${id}/confirm`);
       alert("Request confirmed");
       setRequests((prev) =>
-        prev.map((r) => (r._id === id ? { ...r, ...res.data } : r))
+        prev.map((r) => (r.post._id === id ? { ...r, ...res.data } : r))
       );
     } catch (err) {
       console.error("Confirm error", err);
@@ -190,9 +197,9 @@ const Requests = () => {
 
   const handleCancel = async (itemId) => {
     try {
-      await axios.post(`/newpost/${itemId}/cancel-trade`);
+      await axios.delete(`/newpost/${itemId}/request`);
       alert("Request cancelled");
-      setRequests((prev) => prev.filter((r) => r.item._id !== itemId));
+      setRequests((prev) => prev.filter((r) => r.post._id !== itemId));
     } catch (err) {
       console.error("Cancel error", err);
     }
@@ -255,13 +262,14 @@ const Requests = () => {
                   />
                 </div>
                 <p className="mt-2">
-                  <strong>Description:</strong> {req.item.description}
+                  <strong>Description:</strong>{" "}
+                  {req.post?.description || "No description"}
                 </p>
                 <p>
                   <strong>Price:</strong> {req.price} coins
                 </p>
                 <p>
-                  <strong>Server:</strong> {req.item.server}
+                  <strong>Server:</strong> {req.post?.server || "No Server"}
                 </p>
 
                 {view === "incoming" && (
@@ -274,7 +282,7 @@ const Requests = () => {
                     </Button>
                     <Button
                       className="bg-red-600 hover:bg-red-700 text-white"
-                      onClick={() => handleCancel(req.item._id)}
+                      onClick={() => handleCancel(req.post?._id || "No ID")}
                     >
                       Cancel
                     </Button>

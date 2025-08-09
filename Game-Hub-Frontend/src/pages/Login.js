@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import axios from "../api/axiosInstance";
 import { useNavigate, Link } from "react-router-dom";
 import SkeletonCard from "../components/common/SkeletonCard"; // adjust path if needed
+import { useUser } from "../context/UserContext";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -12,7 +13,7 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
+  const { setUser } = useUser();
   // field-level validation errors
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -97,8 +98,10 @@ function Login() {
 
       // Store token and user and navigate
       localStorage.setItem("token", token);
-      if (returnedUser)
+      if (returnedUser) {
         localStorage.setItem("user", JSON.stringify(returnedUser));
+        setUser(returnedUser); // <-- Add this line!
+      }
 
       navigate("/all-posts");
     } catch (err) {

@@ -1,21 +1,20 @@
-// routers/newpost.js
 const express = require("express");
 const mongoose = require("mongoose");
-const Post = require("../models/newPost"); // use clear name Post
+const newPost = require("../models/newPost");
 const auth = require("../middleware/auth");
 const User = require("../models/user");
-const TradeTransaction = require("../models/TradeTransaction"); // new model
 const router = new express.Router();
-const Trade = require("../models/Trade");
+const TradeTransaction = require("../models/TradeTransaction");
 
 // Create new post
 router.post("/newpost", auth, async (req, res) => {
-  const newpost = new Post({
+  const newpost = new newPost({
     ...req.body,
     owner: req.user._id,
   });
   try {
     await newpost.save();
+
     res.status(201).send(newpost);
   } catch (e) {
     res.status(400).send(e);
@@ -28,21 +27,22 @@ router.get("/newpost", auth, async (req, res) => {
     const { page = 1, limit = 10, title, status } = req.query;
     const userId = req.user._id;
 
-    const filter = { owner: userId };
+    const filter = { owner: userId }; // base filter to only get user’s posts
 
     if (title) {
-      filter.title = { $regex: title, $options: "i" };
+      filter.title = { $regex: title, $options: "i" }; // case-insensitive search
     }
 
     if (status) {
-      filter.status = status;
+      filter.status = status; // e.g., "active", "sold", etc.
     }
 
-    const total = await Post.countDocuments(filter);
-    const posts = await Post.find(filter)
+    const total = await newPost.countDocuments(filter); // total count
+    const posts = await newPost
+      .find(filter)
       .skip((page - 1) * limit)
       .limit(Number(limit))
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 }); // optional sort by latest
 
     res.send({
       total,
@@ -56,12 +56,13 @@ router.get("/newpost", auth, async (req, res) => {
   }
 });
 
-// Get all posts (public)
+// Get all posts
 router.get("/all", async (req, res) => {
   try {
-    const posts = await Post.find({}).populate("owner", "name email").sort({
-      createdAt: -1,
-    });
+    const posts = await newPost
+      .find({})
+      .populate("owner", "name email")
+      .sort({ createdAt: -1 });
 
     res.status(200).json(posts);
   } catch (e) {
@@ -73,7 +74,7 @@ router.get("/all", async (req, res) => {
 // Get single post (by owner)
 router.get("/newpost/:id", auth, async (req, res) => {
   try {
-    const newpost = await Post.findOne({
+    const newpost = await newPost.findOne({
       _id: req.params.id,
       owner: req.user._id,
     });
@@ -104,7 +105,7 @@ router.patch("/newpost/:id", auth, async (req, res) => {
   }
 
   try {
-    const post = await Post.findOne({
+    const post = await newPost.findOne({
       _id: req.params.id,
       owner: req.user._id,
     });
@@ -128,7 +129,7 @@ router.patch("/newpost/:id/vote", auth, async (req, res) => {
   }
 
   try {
-    const post = await Post.findById(req.params.id);
+    const post = await newPost.findById(req.params.id);
     if (!post) return res.status(404).send({ error: "Post not found" });
 
     if (post.voters.includes(userId)) {
@@ -150,10 +151,11 @@ router.patch("/newpost/:id/vote", auth, async (req, res) => {
 // Delete post
 router.delete("/newpost/:id", auth, async (req, res) => {
   try {
-    const deleted = await Post.findOneAndDelete({
+    const deleted = await newPost.findOneAndDelete({
       _id: req.params.id,
       owner: req.user._id,
     });
+
     if (!deleted) return res.status(404).send();
     res.send(deleted);
   } catch (e) {
@@ -161,105 +163,74 @@ router.delete("/newpost/:id", auth, async (req, res) => {
   }
 });
 
-/* -------------------
-   Transaction-safe buy
-   ------------------- */
+// Buy post
 router.post("/newpost/:id/buy", auth, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
-    const postId = req.params.id;
-    const buyerId = req.user._id;
+    const post = await newPost.findById(req.params.id);
+    if (!post) {
+      return res.status(404).send({ error: "Item not found" });
+    }
 
-    // reload models inside session
-    const buyer = await User.findById(buyerId).session(session);
-    if (!buyer) throw new Error("Buyer not found");
-
-    const post = await Post.findById(postId).session(session);
-    if (!post) throw new Error("Post not found");
-
-    if (post.owner.toString() === buyerId.toString()) {
+    if (post.owner.toString() === req.user._id.toString()) {
       return res.status(400).send({ error: "You cannot buy your own item" });
     }
 
+    // ✅ Check both availability fields
     if (!post.avaliable || post.tradeStatus !== "available") {
       return res.status(400).send({ error: "Item is not available to buy" });
     }
 
-    const price = Number(post.price || 0);
-    if (buyer.coins < price) {
+    if (req.user.coins < post.price) {
       return res.status(400).send({ error: "Insufficient coins" });
     }
 
-    // atomically reserve the post
-    const reservedPost = await Post.findOneAndUpdate(
-      { _id: postId, tradeStatus: "available", avaliable: true },
+    // ✅ Atomically reserve the post
+    const reservedPost = await newPost.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        tradeStatus: "available",
+        avaliable: true,
+      },
       {
         $set: {
-          buyer: buyerId,
+          buyer: req.user._id,
           tradeStatus: "pending",
-          avaliable: false,
-          purchaseAt: new Date(),
         },
       },
-      { new: true, session }
+      { new: true }
     );
 
     if (!reservedPost) {
-      await session.abortTransaction();
-      session.endSession();
       return res
         .status(400)
         .send({ error: "Item has already been reserved by someone else" });
     }
 
-    // deduct buyer coins
-    buyer.coins -= price;
-    await buyer.save({ session });
+    // ✅ Deduct coins
+    req.user.coins -= reservedPost.price;
+    await req.user.save();
 
-    // create trade transaction (escrow record)
-    const tx = new TradeTransaction({
-      post: postId,
-      buyer: buyerId,
-      seller: post.owner,
-      amount: price,
-      status: "reserved",
-      releaseAt: null,
-      logs: [{ message: "Reserved by buyer", by: buyerId }],
-    });
-    await tx.save({ session });
-
-    await session.commitTransaction();
-    session.endSession();
-
-    const populated = await Post.findById(postId).populate("owner buyer");
-    return res.send({
+    res.send({
       message: "Item reserved. Awaiting trade confirmation",
-      post: populated,
-      tradeTransaction: tx,
-      buyer: { _id: buyer._id, coins: buyer.coins },
+      post: reservedPost,
     });
   } catch (e) {
-    await session.abortTransaction().catch(() => {});
-    session.endSession();
     console.error("Buy error:", e);
-    return res
-      .status(500)
-      .send({ error: e.message || "Failed to process purchase" });
+    res.status(500).send({ error: "Failed to process purchase" });
   }
 });
 
-/* -------------------------
-   Transaction-safe confirm
-   ------------------------- */
+// Confirm trade
 router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
+
   try {
     const postId = req.params.id;
     const userId = req.user._id.toString();
 
-    const post = await Post.findById(postId)
+    const post = await newPost
+      .findById(postId)
       .session(session)
       .populate("owner buyer");
     if (!post || !post.buyer) {
@@ -276,11 +247,11 @@ router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
       return res.status(403).send({ error: "You are not part of this trade" });
     }
 
-    // ensure tradeConfirmations are string ids
     post.tradeConfirmations = (post.tradeConfirmations || []).map(String);
 
     if (post.tradeConfirmations.includes(userId)) {
-      const fresh = await Post.findById(postId)
+      const fresh = await newPost
+        .findById(postId)
         .populate("owner buyer")
         .session(session);
       await session.commitTransaction();
@@ -294,13 +265,12 @@ router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
     const confirmedByBuyer = post.tradeConfirmations.includes(buyerId);
 
     if (confirmedByOwner && confirmedByBuyer) {
-      // schedule a 1-minute hold (pending_release)
-      const releaseAt = new Date(Date.now() + 5 * 60 * 1000); // 1 minute
+      const releaseAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes hold
 
       post.tradeStatus = "pending_release";
       post.releaseAt = releaseAt;
 
-      // update or create TradeTransaction -> pending_release
+      // Find or create TradeTransaction
       let tx = await TradeTransaction.findOne({ post: postId }).session(
         session
       );
@@ -333,7 +303,7 @@ router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    const updated = await Post.findById(postId).populate("owner buyer");
+    const updated = await newPost.findById(postId).populate("owner buyer");
     return res.send(updated);
   } catch (err) {
     await session.abortTransaction().catch(() => {});
@@ -344,44 +314,60 @@ router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
       .send({ error: err.message || "Trade confirmation failed" });
   }
 });
-
-/* -------------------------
-   Transaction-safe cancel trade
-   ------------------------- */
+// Cancel trade
 router.post("/newpost/:id/cancel-trade", auth, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
-  try {
-    const postId = req.params.id;
-    const userId = req.user._id.toString();
 
-    const post = await Post.findById(postId)
-      .session(session)
-      .populate("buyer owner");
+  try {
+    const post = await newPost
+      .findById(req.params.id)
+      .populate("buyer owner")
+      .session(session);
+
     if (!post) {
       await session.abortTransaction();
       session.endSession();
       return res.status(404).send({ error: "Post not found" });
     }
 
-    const isOwner = post.owner && post.owner._id.toString() === userId;
+    const userId = req.user._id.toString();
+    const isOwner = post.owner._id.toString() === userId;
     const isBuyer = post.buyer && post.buyer._id.toString() === userId;
 
-    if (post.tradeStatus !== "pending" || (!isOwner && !isBuyer)) {
+    // Prevent cancel if user is neither buyer nor owner
+    if (!isOwner && !isBuyer) {
       await session.abortTransaction();
       session.endSession();
-      return res.status(403).send({ error: "Not authorized to cancel" });
+      return res
+        .status(403)
+        .send({ error: "Not authorized to cancel this trade" });
     }
 
+    // Check tradeConfirmations - disallow cancel if both confirmed
+    const confirmations = (post.tradeConfirmations || []).map(String);
+    const confirmedByBuyer =
+      post.buyer && confirmations.includes(post.buyer._id.toString());
+    const confirmedByOwner = confirmations.includes(post.owner._id.toString());
+
+    if (confirmedByBuyer && confirmedByOwner) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(403).send({
+        error: "Cannot cancel trade, both buyer and seller have confirmed.",
+      });
+    }
+
+    // Refund coins if there's a buyer and the canceller is authorized
     if (post.buyer) {
       const buyer = await User.findById(post.buyer._id).session(session);
       if (buyer) {
-        const price = Number(post.price || 0);
-        buyer.coins += price;
+        buyer.coins += post.price;
         await buyer.save({ session });
       }
     }
 
+    // Reset post fields accordingly
     post.tradeStatus = "available";
     post.avaliable = true;
     post.buyer = null;
@@ -394,21 +380,15 @@ router.post("/newpost/:id/cancel-trade", auth, async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    const updated = await Post.findById(postId).populate("owner buyer");
-    return res.send({
-      message: "Trade cancelled, coins refunded",
-      post: updated,
-    });
+    res.send({ message: "Trade cancelled, coins refunded", post });
   } catch (err) {
-    await session.abortTransaction();
+    await session.abortTransaction().catch(() => {});
     session.endSession();
     console.error("Cancel trade error:", err);
-    return res
-      .status(500)
-      .send({ error: err.message || "Failed to cancel trade" });
+    return res.status(500).send({ error: "Failed to cancel trade" });
   }
 });
-// Run this periodically (e.g. every 10 mins) or call manually by admin
+
 router.post("/newpost/finalize-trades", auth, async (req, res) => {
   // optional: require admin
   // if (!req.user?.isAdmin) return res.status(403).send({ error: "Admin required" });
@@ -535,48 +515,42 @@ router.post("/newpost/finalize-trades", auth, async (req, res) => {
   }
 });
 
-/* -------------------------
-   Request / Cancel-request
-   ------------------------- */
 // Send request to buy (without reserving)
 router.post("/newpost/:id/request", auth, async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    const post = await newPost.findById(req.params.id);
     if (!post) return res.status(404).send({ error: "Post not found" });
 
+    // Prevent self-request
     if (post.owner.toString() === req.user._id.toString()) {
       return res.status(400).send({ error: "You can't request your own post" });
     }
 
+    // Prevent duplicate request
     if (post.requests.includes(req.user._id)) {
       return res.status(400).send({ error: "Already requested" });
     }
 
+    // Add to post.requests array
     post.requests.push(req.user._id);
     await post.save();
 
-    const trade = new Trade({
-      item: post._id,
-      buyer: req.user._id,
-      seller: post.owner,
-      price: post.price,
-    });
-
-    await trade.save();
-
-    // Create corresponding TradeTransaction
-    const TradeTransaction = require("../models/TradeTransaction");
-    const tradeTx = new TradeTransaction({
+    // Create new TradeTransaction document
+    const tradeTransaction = new TradeTransaction({
       post: post._id,
       buyer: req.user._id,
       seller: post.owner,
       amount: post.price,
-      status: "none",
-      dispute: {
-        status: "none",
-      },
+      status: "pending", // or "reserved" depending on your flow
+      logs: [
+        {
+          message: "Trade request created",
+          by: req.user._id,
+        },
+      ],
     });
-    await tradeTx.save();
+
+    await tradeTransaction.save();
 
     res.status(201).send({ message: "Request sent", post });
   } catch (e) {
@@ -584,21 +558,22 @@ router.post("/newpost/:id/request", auth, async (req, res) => {
     res.status(500).send({ error: "Failed to send request" });
   }
 });
-
 // Cancel request
 router.post("/newpost/:id/cancel-request", auth, async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
+    const post = await newPost.findById(req.params.id);
     if (!post) return res.status(404).send({ error: "Post not found" });
 
+    // Remove user from post.requests array
     post.requests = post.requests.filter(
       (id) => id.toString() !== req.user._id.toString()
     );
     await post.save();
 
-    await Trade.findOneAndDelete({
+    // Remove the corresponding TradeTransaction document
+    await TradeTransaction.findOneAndDelete({
       buyer: req.user._id,
-      item: post._id,
+      post: post._id,
     });
 
     res.send({ message: "Request cancelled", post });
@@ -607,67 +582,124 @@ router.post("/newpost/:id/cancel-request", auth, async (req, res) => {
     res.status(500).send({ error: "Failed to cancel request" });
   }
 });
-router.post("/newpost/:id/report", auth, async (req, res) => {
-  console.log("Received report:");
+//Delete request
+router.delete("/newpost/:id/request", auth, async (req, res) => {
+  const userId = req.user._id.toString();
+  const postId = req.params.id;
 
   try {
-    const userId = req.user._id;
+    const post = await newPost.findById(postId);
+    if (!post) return res.status(404).send({ error: "Post not found" });
+
+    if (post.owner.toString() !== userId) {
+      return res.status(403).send({ error: "Not authorized" });
+    }
+
+    // Remove all buyers (or you can remove just one if needed)
+    post.requests = []; // clears all requests
+    await post.save();
+
+    // Delete all TradeTransaction for this post and seller
+    const deleteResult = await TradeTransaction.deleteMany({
+      post: postId,
+      seller: userId,
+    });
+
+    if (deleteResult.deletedCount === 0) {
+      return res
+        .status(404)
+        .send({ error: "No matching trade requests to delete" });
+    }
+
+    res.send({ message: "All requests cancelled by seller", post });
+  } catch (err) {
+    console.error("Seller cancel request error:", err);
+    res.status(500).send({ error: "Failed to cancel request" });
+  }
+});
+
+router.post("/newpost/:id/report", auth, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const userId = req.user._id.toString();
     const postId = req.params.id;
     const { videoUrls, reason, urgency } = req.body;
 
-    // Validate videoUrls is an array with exactly one URL
+    // Validate videoUrls is an array with exactly one non-empty string
     if (
       !Array.isArray(videoUrls) ||
       videoUrls.length !== 1 ||
+      typeof videoUrls[0] !== "string" ||
       !videoUrls[0].trim()
     ) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).send({ error: "One valid video URL is required" });
     }
 
-    const post = await newPost.findById(postId);
+    // Validate urgency enum
+    const validUrgencies = ["low", "medium", "high"];
+    const safeUrgency = validUrgencies.includes(urgency) ? urgency : "medium";
+
+    const post = await newPost.findById(postId).session(session);
     if (!post) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).send({ error: "Post not found" });
     }
 
-    if (
-      String(post.owner) !== String(userId) &&
-      String(post.buyer) !== String(userId)
-    ) {
+    // Normalize owner and buyer ids to string for comparison
+    const ownerId = post.owner.toString();
+    const buyerId = post.buyer ? post.buyer.toString() : null;
+
+    if (userId !== ownerId && userId !== buyerId) {
+      await session.abortTransaction();
+      session.endSession();
       return res
         .status(403)
         .send({ error: "Not authorized to report this trade" });
     }
 
-    let tx = await TradeTransaction.findOne({ post: postId });
+    let tx = await TradeTransaction.findOne({ post: postId }).session(session);
+
     if (!tx) {
       tx = new TradeTransaction({
         post: postId,
         buyer: post.buyer,
         seller: post.owner,
-        amount: 0, // adjust as needed
+        amount: 0,
+        dispute: {}, // initialize dispute object
       });
     }
 
+    if (!tx.dispute) tx.dispute = {};
+
     const now = new Date();
 
-    // Assign report to sellerReport or buyerReport depending on reporter role
-    if (String(userId) === String(tx.seller)) {
+    if (userId === tx.seller.toString()) {
       tx.dispute.sellerReport = {
         reason: reason || "No reason provided",
-        urgency: urgency || "medium",
+        urgency: safeUrgency,
         evidenceUrl: videoUrls[0].trim(),
         reportedAt: now,
       };
-    } else if (String(userId) === String(tx.buyer)) {
+    } else if (userId === tx.buyer?.toString()) {
       tx.dispute.buyerReport = {
         reason: reason || "No reason provided",
-        urgency: urgency || "medium",
+        urgency: safeUrgency,
         evidenceUrl: videoUrls[0].trim(),
         reportedAt: now,
       };
+    } else {
+      await session.abortTransaction();
+      session.endSession();
+      return res
+        .status(403)
+        .send({ error: "User not authorized for this dispute" });
     }
 
-    // Update dispute status
     if (tx.dispute.sellerReport && tx.dispute.buyerReport) {
       tx.dispute.status = "both_reported";
     } else if (tx.dispute.sellerReport) {
@@ -678,21 +710,35 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
       tx.dispute.status = "none";
     }
 
-    await tx.save();
+    // Set releaseAt to null and tradeStatus to "pending" on both documents
+    tx.releaseAt = null;
+    tx.status = "pending";
 
+    post.releaseAt = null;
     post.tradeStatus = "pending";
-    await post.save();
 
-    // TODO: emit socket events if needed here
+    // Save both documents within the session
+    await tx.save({ session });
+    await post.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.send({
-      message: "Trade dispute submitted",
+      success: true,
+      message: "Trade dispute submitted, trade pending",
       tradeTransaction: tx,
       post,
     });
   } catch (error) {
-    console.error("Error submitting trade dispute:", error.stack || error);
-    res.status(500).send({ error: "Internal server error" });
+    await session.abortTransaction().catch(() => {});
+    session.endSession();
+    console.error("Error submitting trade dispute:", error);
+    res.status(500).send({
+      error: "Internal server error",
+      message: error.message,
+      stack: error.stack,
+    });
   }
 });
 

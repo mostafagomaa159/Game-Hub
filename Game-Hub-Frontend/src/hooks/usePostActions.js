@@ -19,7 +19,7 @@ const usePostActions = (
     setPosts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
   };
 
-  // Helper to add id to processingIds Set immutably
+  // Add id to processingIds immutably
   const addProcessingId = (id) => {
     setProcessingIds((prev) => {
       const next = new Set(prev);
@@ -28,7 +28,7 @@ const usePostActions = (
     });
   };
 
-  // Helper to remove id from processingIds Set immutably
+  // Remove id from processingIds immutably
   const removeProcessingId = (id) => {
     setProcessingIds((prev) => {
       const next = new Set(prev);
@@ -42,7 +42,6 @@ const usePostActions = (
       setShowLoginModal(true);
       return;
     }
-
     const postId = post._id;
     if (processingIds.has(postId)) return;
     if (post.voters?.includes(userId)) return;
@@ -148,14 +147,7 @@ const usePostActions = (
     }
     setIsProcessing(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await axios.post(
-        `/newpost/${post._id}/confirm-trade`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await axios.post(`/newpost/${post._id}/confirm-trade`);
 
       if (res.data) {
         updatePost(res.data);
@@ -182,9 +174,7 @@ const usePostActions = (
     addProcessingId(postId);
 
     try {
-      const res = await axios.post(`/newpost/${postId}/cancel-trade`, {
-        note: "Cancelled by user",
-      });
+      const res = await axios.post(`/newpost/${post._id}/cancel-trade`, {});
 
       if (res.data?.post) {
         updatePost(res.data.post);
@@ -207,7 +197,6 @@ const usePostActions = (
 
     setReportSubmitting(true);
     try {
-      // Prepare payload exactly like backend expects
       const payload = {
         videoUrls: reportData.videoUrls.map((url) => url.trim()),
         reason: reportData.reason || "No reason provided",
@@ -216,22 +205,14 @@ const usePostActions = (
           : "medium",
       };
 
-      const token = localStorage.getItem("token"); // Ensure token is stored on login
+      const res = await axios.post(`/newpost/${post._id}/report`, payload);
 
-      const res = await axios.post(`/newpost/${post._id}/report`, payload, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          "X-Report-Type": "trade-issue", // Optional, if backend uses it
-        },
-      });
-
-      if (!res.data || !res.data.success) {
+      // Your backend returns an object with message and possibly post/tradeTransaction
+      if (!res.data || !res.data.message) {
         toast.error(res.data?.error || "Report submission failed");
         return { success: false };
       }
 
-      // Update UI if needed with returned post data
       if (res.data.post) {
         updatePost(res.data.post);
       }

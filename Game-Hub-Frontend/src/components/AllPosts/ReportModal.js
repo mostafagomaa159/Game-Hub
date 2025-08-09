@@ -55,7 +55,7 @@ const ReportModal = ({
       reason: reportData.reason.trim() || "No reason provided",
       urgency: reportData.urgency,
     };
-    console.log("Data to submit: ", dataToSubmit);
+    console.log("Dataaaaaaaa to submit: ", dataToSubmit);
     console.log("Selected post in ReportModal:", selectedPost);
     try {
       const result = await submitReport(selectedPost, dataToSubmit);

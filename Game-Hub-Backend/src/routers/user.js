@@ -3,10 +3,10 @@ const User = require("../models/user");
 const sharp = require("sharp");
 const auth = require("../middleware/auth");
 const Transaction = require("../models/transaction");
+const TradeTransaction = require("../models/TradeTransaction");
 const multer = require("multer");
 const newPost = require("../models/newPost");
 const router = new express.Router();
-const Trade = require("../models/Trade");
 
 // Register
 router.post("/users", async (req, res) => {
@@ -235,14 +235,31 @@ router.get("/me/sent-trade-requests", auth, async (req, res) => {
     res.status(500).send({ error: "Failed to load sent requests" });
   }
 });
+// Sent trades - where user is buyer
 router.get("/me/sent-trades", auth, async (req, res) => {
   try {
-    const trades = await Trade.find({ buyer: req.user._id })
+    const trades = await TradeTransaction.find({ buyer: req.user._id })
       .populate("seller", "name email")
-      .populate("item");
+      .populate("post"); // post replaces item
+
     res.send(trades);
   } catch (e) {
+    console.error("Failed to load sent trades:", e);
     res.status(500).send({ error: "Failed to load sent trades" });
+  }
+});
+
+// Incoming requests - where user is seller
+router.get("/my-requests", auth, async (req, res) => {
+  try {
+    const trades = await TradeTransaction.find({ seller: req.user._id })
+      .populate("buyer", "name email")
+      .populate("post");
+
+    res.send(trades);
+  } catch (e) {
+    console.error("Failed to load incoming requests:", e);
+    res.status(500).send({ error: "Failed to load incoming requests" });
   }
 });
 router.get("/trade/:id", auth, async (req, res) => {
