@@ -13,6 +13,12 @@ const chatRouter = require("./routers/chat");
 
 const app = express();
 
+// ✅ Socket.IO placeholder
+let ioInstance;
+const setSocketIO = (io) => {
+  ioInstance = io;
+};
+
 // ✅ Allowed frontend domains
 const allowedOrigins = [
   "http://localhost:3000",
@@ -43,6 +49,12 @@ app.use(
   })
 );
 
+// ✅ Attach Socket.IO instance to all requests
+app.use((req, res, next) => {
+  req.io = ioInstance;
+  next();
+});
+
 // ✅ Enable JSON body parsing
 app.use(express.json());
 
@@ -61,4 +73,4 @@ app.get("/", (req, res) => {
   res.send("GameHub Backend is running ✅");
 });
 
-module.exports = app;
+module.exports = { app, setSocketIO };

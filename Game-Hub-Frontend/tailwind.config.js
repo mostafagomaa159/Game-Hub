@@ -23,6 +23,15 @@ module.exports = {
         darkCard: "#1e293b", // Dark card bg
         accent: "#3b82f6", // Blue-500
       },
+      keyframes: {
+        fadeIn: {
+          "0%": { opacity: 0, transform: "translateY(10px)" },
+          "100%": { opacity: 1, transform: "translateY(0)" },
+        },
+      },
+      animation: {
+        fadeIn: "fadeIn 0.4s ease-in-out",
+      },
       boxShadow: {
         card: "0 4px 12px rgba(0, 0, 0, 0.1)",
         cardHover: "0 6px 20px rgba(0, 0, 0, 0.15)",

@@ -268,6 +268,7 @@ router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
       const releaseAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes hold
 
       post.tradeStatus = "pending_release";
+      post.avaliable = false;
       post.releaseAt = releaseAt;
 
       // Find or create TradeTransaction
@@ -741,5 +742,6 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
     });
   }
 });
+// GET all active disputes for admin review
 
 module.exports = router;

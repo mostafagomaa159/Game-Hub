@@ -1,7 +1,15 @@
 // src/pages/Dashboard.js
 import React, { useCallback, useEffect, useState } from "react";
 import axios from "../api/axiosInstance";
-import { Edit2, Trash2 } from "lucide-react";
+import {
+  FiEdit2,
+  FiTrash2,
+  FiCheckCircle,
+  FiSearch,
+  FiDollarSign,
+  FiServer,
+} from "react-icons/fi";
+import { FaDiscord } from "react-icons/fa";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -19,7 +27,6 @@ const Dashboard = () => {
 
   const postsPerPage = 5;
 
-  // Fetch posts (uses res.data.posts when available)
   const fetchPosts = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -70,7 +77,6 @@ const Dashboard = () => {
       });
       toast.success("Post updated successfully!");
       setEditData(null);
-      // refresh
       await fetchPosts();
     } catch (err) {
       console.error(err);
@@ -111,10 +117,6 @@ const Dashboard = () => {
     Math.ceil(filteredPosts.length / postsPerPage)
   );
 
-  // Number of skeleton rows to show; match postsPerPage but cap on very small screens
-  const skeletonCount = postsPerPage;
-
-  // Small spinner component (used in pagination and Save button)
   const SmallSpinner = ({ className = "inline-block w-4 h-4 mr-2" }) => (
     <svg
       className={`${className} animate-spin`}
@@ -138,7 +140,6 @@ const Dashboard = () => {
     </svg>
   );
 
-  // Table-shaped skeleton row
   const TableSkeletonRow = ({ keyIndex }) => (
     <tr key={`sk-${keyIndex}`} className="animate-pulse">
       <td className="p-4">
@@ -163,38 +164,75 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="min-h-screen bg-white dark:bg-darkBackground text-gray-800 dark:text-gray-200 p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-darkBackground text-gray-900 dark:text-gray-100 p-6 transition-colors duration-300">
       <div className="max-w-6xl mx-auto">
-        <ToastContainer />
-        <h2 className="text-3xl font-bold mb-6">My Posts</h2>
+        <ToastContainer
+          position="top-center"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="dark"
+        />
+
+        <h2 className="text-3xl font-extrabold mb-6 text-center md:text-left">
+          My Posts
+        </h2>
 
         {/* Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <input
-            type="text"
-            placeholder="Search description..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="p-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-darkCard dark:text-white"
-          />
-          <input
-            type="number"
-            placeholder="Min Price"
-            value={priceMin}
-            onChange={(e) => setPriceMin(e.target.value)}
-            className="p-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-darkCard dark:text-white"
-          />
-          <input
-            type="number"
-            placeholder="Max Price"
-            value={priceMax}
-            onChange={(e) => setPriceMax(e.target.value)}
-            className="p-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-darkCard dark:text-white"
-          />
-          <label className="flex items-center gap-2 text-sm">
+          <div className="relative">
+            <FiSearch
+              className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400 dark:text-gray-500"
+              size={20}
+            />
+            <input
+              type="text"
+              placeholder="Search description..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-10 p-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-darkCard dark:text-white"
+            />
+          </div>
+
+          <div className="relative">
+            <FiDollarSign
+              className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400 dark:text-gray-500"
+              size={20}
+            />
+            <input
+              type="number"
+              placeholder="Min Price"
+              value={priceMin}
+              onChange={(e) => setPriceMin(e.target.value)}
+              className="pl-10 p-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-darkCard dark:text-white"
+              min="0"
+            />
+          </div>
+
+          <div className="relative">
+            <FiDollarSign
+              className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400 dark:text-gray-500"
+              size={20}
+            />
+            <input
+              type="number"
+              placeholder="Max Price"
+              value={priceMax}
+              onChange={(e) => setPriceMax(e.target.value)}
+              className="pl-10 p-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-darkCard dark:text-white"
+              min="0"
+            />
+          </div>
+
+          <label className="flex items-center gap-2 text-sm select-none cursor-pointer">
             <input
               type="checkbox"
               checked={availableOnly}
@@ -205,9 +243,9 @@ const Dashboard = () => {
           </label>
         </div>
 
-        {/* Table / Skeleton */}
+        {/* Table or Skeleton */}
         <div className="overflow-x-auto bg-white dark:bg-darkCard shadow-md rounded-lg">
-          <table className="w-full table-auto">
+          <table className="w-full table-auto border-collapse">
             <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm">
               <tr>
                 <th className="p-4 text-left">Description</th>
@@ -220,21 +258,23 @@ const Dashboard = () => {
 
             <tbody className="text-sm divide-y">
               {loading ? (
-                // render skeleton rows equal to postsPerPage
                 <>
-                  {Array.from({ length: skeletonCount }).map((_, i) => (
+                  {Array.from({ length: postsPerPage }).map((_, i) => (
                     <TableSkeletonRow keyIndex={i} key={`skeleton-${i}`} />
                   ))}
                 </>
               ) : error ? (
                 <tr>
-                  <td colSpan={5} className="p-6 text-red-600">
+                  <td colSpan={5} className="p-6 text-red-600 text-center">
                     {error}
                   </td>
                 </tr>
               ) : filteredPosts.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-6">
+                  <td
+                    colSpan={5}
+                    className="p-6 text-center text-gray-600 dark:text-gray-400"
+                  >
                     No posts found.
                   </td>
                 </tr>
@@ -244,22 +284,40 @@ const Dashboard = () => {
                     key={post._id}
                     className="hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                   >
-                    <td className="p-4">{post.description}</td>
-                    <td className="p-4">{post.avaliable ? "Yes" : "No"}</td>
-                    <td className="p-4">{post.price}</td>
-                    <td className="p-4">{post.server}</td>
+                    <td className="p-2">{post.description}</td>
+                    <td className="p-4 flex items-center gap-1">
+                      {post.avaliable ? (
+                        <>
+                          <FiCheckCircle className="text-green-500" />
+                          Yes
+                        </>
+                      ) : (
+                        <>No</>
+                      )}
+                    </td>
+                    <td className="p-3">💰{post.price}</td>
+                    <td className="p-4 flex items-center gap-2">
+                      <FaDiscord
+                        className="text-indigo-600 dark:text-indigo-400"
+                        size={18}
+                      />
+                      {post.server}
+                    </td>
+
                     <td className="p-4 space-x-2">
                       <button
                         onClick={() => handleEdit(post)}
                         className="text-blue-600 hover:text-blue-800 transition"
+                        aria-label="Edit post"
                       >
-                        <Edit2 className="inline w-5 h-5" />
+                        <FiEdit2 className="inline w-5 h-5" />
                       </button>
                       <button
                         onClick={() => handleDelete(post._id)}
                         className="text-red-600 hover:text-red-800 transition"
+                        aria-label="Delete post"
                       >
-                        <Trash2 className="inline w-5 h-5" />
+                        <FiTrash2 className="inline w-5 h-5" />
                       </button>
                     </td>
                   </tr>
@@ -269,8 +327,8 @@ const Dashboard = () => {
           </table>
         </div>
 
-        {/* Pagination with small spinner when loading */}
-        <div className="mt-6 flex items-center justify-center space-x-2">
+        {/* Pagination */}
+        <div className="mt-6 flex items-center justify-center space-x-2 flex-wrap">
           {loading && (
             <div className="flex items-center text-sm text-gray-500 mr-2">
               <SmallSpinner className="inline-block w-4 h-4 mr-2" />
@@ -281,11 +339,12 @@ const Dashboard = () => {
             <button
               key={i}
               onClick={() => setCurrentPage(i + 1)}
-              className={`px-3 py-1 rounded-md border transition ${
+              className={`px-3 py-1 rounded-md border transition mb-2 ${
                 currentPage === i + 1
                   ? "bg-blue-600 text-white shadow"
                   : "bg-white dark:bg-gray-800 dark:text-white text-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700"
               }`}
+              aria-label={`Go to page ${i + 1}`}
             >
               {i + 1}
             </button>
@@ -295,65 +354,92 @@ const Dashboard = () => {
         {/* Edit Modal */}
         {editData && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center px-4">
-            <div className="bg-white dark:bg-darkCard w-full max-w-lg p-6 rounded-xl shadow-lg">
-              <h3 className="text-xl font-semibold mb-4">Edit Post</h3>
+            <div className="bg-white dark:bg-darkCard w-full max-w-lg p-6 rounded-xl shadow-lg transition-transform transform scale-100">
+              <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                Edit Post
+              </h3>
               <form onSubmit={handleEditSubmit} className="space-y-4">
-                <input
-                  type="text"
-                  value={editData.description}
-                  onChange={(e) =>
-                    setEditData({ ...editData, description: e.target.value })
-                  }
-                  className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white"
-                  placeholder="Description"
-                  required
-                />
-                <input
-                  type="number"
-                  value={editData.price}
-                  onChange={(e) =>
-                    setEditData({ ...editData, price: e.target.value })
-                  }
-                  className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white"
-                  placeholder="Price"
-                  required
-                />
-                <input
-                  type="text"
-                  value={editData.server}
-                  onChange={(e) =>
-                    setEditData({ ...editData, server: e.target.value })
-                  }
-                  className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white"
-                  placeholder="Server"
-                  required
-                />
-                <input
-                  type="text"
-                  value={editData.discord}
-                  onChange={(e) =>
-                    setEditData({ ...editData, discord: e.target.value })
-                  }
-                  className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white"
-                  placeholder="Discord (optional)"
-                />
-                <label className="flex items-center gap-2">
+                <div className="relative">
+                  <FiEdit2
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                    size={20}
+                  />
+                  <input
+                    type="text"
+                    value={editData.description}
+                    onChange={(e) =>
+                      setEditData({ ...editData, description: e.target.value })
+                    }
+                    className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    placeholder="Description"
+                    required
+                  />
+                </div>
+                <div className="relative">
+                  <FiDollarSign
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                    size={20}
+                  />
+                  <input
+                    type="number"
+                    value={editData.price}
+                    onChange={(e) =>
+                      setEditData({ ...editData, price: e.target.value })
+                    }
+                    className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    placeholder="Price"
+                    required
+                  />
+                </div>
+                <div className="relative">
+                  <FiServer
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                    size={20}
+                  />
+                  <input
+                    type="text"
+                    value={editData.server}
+                    onChange={(e) =>
+                      setEditData({ ...editData, server: e.target.value })
+                    }
+                    className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    placeholder="Server"
+                    required
+                  />
+                </div>
+                <div className="relative">
+                  <FaDiscord
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                    size={20}
+                  />
+                  <input
+                    type="text"
+                    value={editData.discord}
+                    onChange={(e) =>
+                      setEditData({ ...editData, discord: e.target.value })
+                    }
+                    className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    placeholder="Discord (optional)"
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 select-none cursor-pointer">
                   <input
                     type="checkbox"
                     checked={editData.avaliable}
                     onChange={(e) =>
                       setEditData({ ...editData, avaliable: e.target.checked })
                     }
+                    className="accent-blue-600"
                   />
                   Available
                 </label>
+
                 <div className="flex justify-end gap-2 pt-2">
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className={`flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition ${
-                      isSaving ? "opacity-80 cursor-not-allowed" : ""
-                    }`}
+                    className={`flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition disabled:opacity-70 disabled:cursor-not-allowed`}
                   >
                     {isSaving && (
                       <SmallSpinner className="inline-block w-4 h-4" />

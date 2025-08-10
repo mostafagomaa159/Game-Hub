@@ -14,7 +14,7 @@ import Withdraw from "./pages/Withdraw";
 import TransactionHistory from "./components/TransactionHistory";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminDepositDashboard from "./pages/AdminDashboard";
-import { ToastContainer } from "react-toastify";
+import { ToastContainer, Slide } from "react-toastify";
 import { UserProvider } from "./context/UserContext";
 import MyTransactions from "./pages/MyTransactions";
 import DepositSuccess from "./pages/DepositSuccess";
@@ -37,7 +37,30 @@ function App() {
       <BrowserRouter>
         <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
           <Navbar />
-          <ToastContainer position="top-center" theme="dark" autoClose={3000} />
+
+          {/* Toast notifications container with pro styling and animation */}
+          <ToastContainer
+            position="top-center"
+            autoClose={1000}
+            hideProgressBar={false}
+            newestOnTop={true}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="dark"
+            transition={Slide}
+            toastStyle={{
+              borderRadius: "12px",
+              boxShadow: "0 4px 15px rgba(0, 0, 0, 0.15)",
+              fontWeight: "600",
+              fontSize: "14px",
+              padding: "12px 20px",
+              maxWidth: "380px",
+            }}
+          />
+
           <main className="flex-1 container mx-auto px-4 py-6">
             <Routes>
               {/* Redirect / to /all-posts */}

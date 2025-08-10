@@ -1,8 +1,7 @@
-// index.js
 const express = require("express");
-const app = require("./app");
 const http = require("http");
 const socketIO = require("socket.io");
+const { app, setSocketIO } = require("./app");
 const axios = require("axios");
 const User = require("./models/user");
 const Chat = require("./models/chat");
@@ -25,11 +24,8 @@ const io = socketIO(server, {
   },
 });
 
-// Inject io into req
-app.use((req, res, next) => {
-  req.io = io;
-  next();
-});
+// ✅ Give app.js access to io
+setSocketIO(io);
 
 // Socket.IO handlers
 io.on("connection", (socket) => {

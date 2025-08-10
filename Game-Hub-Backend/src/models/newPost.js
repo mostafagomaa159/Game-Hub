@@ -63,7 +63,7 @@ const newPostSchema = new mongoose.Schema(
         "completed",
         "cancelled",
         "pending_release",
-      ], // ✅ Added "available"
+      ],
       default: "available", // ✅ Changed from null to "available"
     },
     tradeConfirmations: {

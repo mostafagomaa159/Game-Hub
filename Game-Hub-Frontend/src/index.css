@@ -2,3 +2,51 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* Custom toast styling */
+.custom-toast {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-radius: 12px !important;
+  color: white !important;
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.6);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Customize body inside toast */
+.custom-toast-body {
+  font-size: 1rem;
+  padding: 0.75rem 1rem;
+}
+
+/* Animate toast entry */
+.Toastify__toast--enter {
+  animation: slideInFromTop 0.5s ease forwards;
+}
+
+/* Animate toast exit */
+.Toastify__toast--exit {
+  animation: slideOutToTop 0.5s ease forwards;
+}
+
+/* Keyframes */
+@keyframes slideInFromTop {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideOutToTop {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+}

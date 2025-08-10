@@ -68,6 +68,7 @@ const tradeTransactionSchema = new Schema(
         "cancelled",
         "disputed",
         "resolved",
+        "released",
       ],
       default: "pending_release",
     },

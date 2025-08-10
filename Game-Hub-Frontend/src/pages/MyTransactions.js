@@ -1,6 +1,66 @@
 import React, { useEffect, useState } from "react";
 import axios from "../api/axiosInstance";
 import SkeletonCard from "../components/common/SkeletonCard";
+import { FaThList, FaArrowDown, FaArrowUp, FaHistory } from "react-icons/fa";
+
+const FILTERS = [
+  { key: "all", label: "All", icon: <FaThList size={18} /> },
+  { key: "deposit", label: "Deposits", icon: <FaArrowDown size={18} /> },
+  { key: "withdraw", label: "Withdrawals", icon: <FaArrowUp size={18} /> },
+  { key: "history", label: "Trade History", icon: <FaHistory size={18} /> },
+];
+
+const FilterTabs = ({ filterType, setFilterType }) => {
+  const [underlineStyle, setUnderlineStyle] = useState({});
+  const tabRefs = React.useRef({});
+
+  useEffect(() => {
+    const activeTab = tabRefs.current[filterType];
+    if (activeTab) {
+      setUnderlineStyle({
+        left: activeTab.offsetLeft,
+        width: activeTab.clientWidth,
+      });
+    }
+  }, [filterType]);
+
+  return (
+    <div className="relative border-b border-gray-300 dark:border-gray-700 mb-6 select-none overflow-x-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800">
+      <div className="flex min-w-max gap-1 md:gap-3">
+        {FILTERS.map(({ key, label, icon }) => (
+          <button
+            key={key}
+            ref={(el) => (tabRefs.current[key] = el)}
+            onClick={() => setFilterType(key)}
+            className={`flex items-center gap-1 md:gap-2 whitespace-nowrap
+              py-3 px-4 md:px-6 text-sm md:text-base font-semibold
+              transition-colors duration-300 focus:outline-none
+              ${
+                filterType === key
+                  ? "text-blue-600 dark:text-blue-400"
+                  : "text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+              }`}
+            style={{ minWidth: 80 }}
+            aria-pressed={filterType === key}
+            type="button"
+          >
+            {icon}
+            <span>{label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Underline */}
+      <span
+        className="absolute bottom-0 h-1 bg-blue-600 dark:bg-blue-400 rounded transition-all duration-300"
+        style={{
+          left: underlineStyle.left || 0,
+          width: underlineStyle.width || 0,
+        }}
+      />
+    </div>
+  );
+};
 
 const MyTransactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -76,7 +136,12 @@ const MyTransactions = () => {
 
   const filtered = () => {
     if (filterType === "history") return tradeHistory;
-    if (filterType === "all") return transactions;
+    if (filterType === "all") {
+      const combined = [...transactions, ...tradeHistory];
+      return combined.sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+    }
     return transactions.filter((tx) => tx.type === filterType);
   };
 
@@ -87,23 +152,7 @@ const MyTransactions = () => {
       <div className="p-4 max-w-5xl mx-auto bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-md shadow-md">
         <h2 className="text-2xl font-bold mb-4">My Transactions</h2>
 
-        <div className="mb-4">
-          <label htmlFor="filter" className="mr-2 font-medium">
-            Filter by:
-          </label>
-          <select
-            id="filter"
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="p-2 rounded border border-gray-300 bg-white text-gray-900 cursor-not-allowed dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-            disabled
-          >
-            <option value="all">All</option>
-            <option value="deposit">Deposits</option>
-            <option value="withdraw">Withdrawals</option>
-            <option value="history">Trade History</option>
-          </select>
-        </div>
+        <FilterTabs filterType={filterType} setFilterType={setFilterType} />
 
         <div className="grid gap-4">
           {Array.from({ length: SKELETON_COUNT }).map((_, idx) => (
@@ -120,22 +169,7 @@ const MyTransactions = () => {
     <div className="p-4 max-w-5xl mx-auto bg-white text-gray-900 dark:bg-gray-900 dark:text-white rounded-md shadow-md">
       <h2 className="text-2xl font-bold mb-4">My Transactions</h2>
 
-      <div className="mb-4 flex items-center gap-3">
-        <label htmlFor="filter" className="mr-2 font-medium">
-          Filter by:
-        </label>
-        <select
-          id="filter"
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="p-2 rounded border border-gray-300 bg-white text-gray-900 dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-        >
-          <option value="all">All</option>
-          <option value="deposit">Deposits</option>
-          <option value="withdraw">Withdrawals</option>
-          <option value="history">Trade History</option>
-        </select>
-      </div>
+      <FilterTabs filterType={filterType} setFilterType={setFilterType} />
 
       {list.length === 0 ? (
         <div className="text-center text-gray-500 dark:text-gray-400 text-lg mt-10">
@@ -150,7 +184,7 @@ const MyTransactions = () => {
               key={item._id}
               className="bg-gray-100 text-gray-900 rounded shadow-md p-4 dark:bg-gray-800 dark:text-white"
             >
-              {filterType === "history" ? (
+              {"description" in item ? (
                 <>
                   <p>
                     <strong>Item:</strong> {item.description}

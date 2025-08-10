@@ -1,3 +1,4 @@
+// src/components/AllPosts/PostModal.js
 import React from "react";
 
 const PostModal = ({
@@ -18,11 +19,24 @@ const PostModal = ({
 }) => {
   if (!selectedPost) return null;
 
+  // normalized ids (could be populated objects or plain ids)
   const buyerId = selectedPost.buyer?._id || selectedPost.buyer;
   const ownerId = selectedPost.owner?._id || selectedPost.owner;
 
-  // Determine if current user is the buyer (explicitly)
-  const currentUserIsBuyer = userId && buyerId === userId;
+  // booleans used in rendering decisions
+  const currentUserIsBuyer = Boolean(
+    userId && buyerId && String(buyerId) === String(userId)
+  );
+  const currentUserIsOwner = Boolean(
+    userId && ownerId && String(ownerId) === String(userId)
+  );
+  const bothConfirmedFlag = Boolean(
+    typeof bothConfirmed === "function" && bothConfirmed(selectedPost)
+  );
+  const isPending = selectedPost.tradeStatus === "pending";
+  const isPendingOrPendingRelease =
+    selectedPost.tradeStatus === "pending" ||
+    selectedPost.tradeStatus === "pending_release";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -38,30 +52,34 @@ const PostModal = ({
         </button>
 
         <h2 className="text-2xl font-bold mb-2">{selectedPost.description}</h2>
-        <p className="mb-2 text-sm text-gray-500 dark:text-gray-300">
+
+        <p className="mb-2 text-sm font-semibold text-gray-600 dark:text-gray-300">
           Server: {selectedPost.server}
         </p>
+
         <p className="mb-2 text-yellow-500 font-semibold">
-          {selectedPost.price} Coins
+          Price: {selectedPost.price}{" "}
+          {selectedPost.price === 1 ? "Coin" : "Coins"}
         </p>
+
         <p
           className={`text-sm font-semibold ${
             selectedPost.avaliable ? "text-green-600" : "text-red-500"
           }`}
         >
-          {selectedPost.avaliable ? "✔️ Available" : "❌ Not Available"}
+          {selectedPost.avaliable ? "Available ✔️" : "Not Available ❌"}
         </p>
 
         {selectedPost.owner && (
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-400">
             Seller: {selectedPost.owner.name || "Unknown"}
           </p>
         )}
 
-        {/* Trade Buttons */}
+        {/* ===== Trade action buttons ===== */}
 
-        {/* If user is the buyer, show Confirm and Cancel buttons */}
-        {currentUserIsBuyer && (
+        {/* 1) If the current user is the buyer: show Confirm/Cancel (unless both confirmed) */}
+        {currentUserIsBuyer && !bothConfirmedFlag && (
           <>
             <button
               onClick={handleConfirmTrade}
@@ -89,11 +107,12 @@ const PostModal = ({
           </>
         )}
 
-        {/* Show Confirm and Cancel buttons only if tradeStatus is pending, user is owner or buyer, and user has not confirmed yet */}
+        {/* 2) If not explicitly the buyer and trade is pending, participant (owner or buyer) can confirm/cancel if they haven't confirmed yet, and not bothConfirmed */}
         {!currentUserIsBuyer &&
-          selectedPost.tradeStatus === "pending" &&
+          isPending &&
           (isOwner || isBuyer) &&
-          !userAlreadyConfirmed() && (
+          !userAlreadyConfirmed() &&
+          !bothConfirmedFlag && (
             <>
               <button
                 onClick={handleConfirmTrade}
@@ -121,8 +140,8 @@ const PostModal = ({
             </>
           )}
 
-        {/* Show confirmation status messages */}
-        {selectedPost.tradeStatus === "pending" &&
+        {/* Confirmation status messages (unchanged) */}
+        {isPending &&
           isOwner &&
           buyerId &&
           selectedPost.tradeConfirmations?.includes(buyerId) && (
@@ -131,7 +150,7 @@ const PostModal = ({
             </p>
           )}
 
-        {selectedPost.tradeStatus === "pending" &&
+        {isPending &&
           isBuyer &&
           ownerId &&
           selectedPost.tradeConfirmations?.includes(ownerId) && (
@@ -140,20 +159,33 @@ const PostModal = ({
             </p>
           )}
 
-        {/* Show Report button ONLY if both buyer and seller confirmed, and tradeStatus is pending or pending_release */}
-        {bothConfirmed(selectedPost) &&
-          (selectedPost.tradeStatus === "pending" ||
-            selectedPost.tradeStatus === "pending_release") && (
+        {/* ===== When both confirmed: show Report (and optionally Send Request for non-owner) ===== */}
+        {bothConfirmedFlag && isPendingOrPendingRelease && (
+          <>
             <button
               onClick={() => setShowReportModal(true)}
               className="mt-3 w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"
             >
               Report
             </button>
-          )}
 
-        {/* Buy button: show only if user is NOT the buyer, is not owner, and post is available */}
-        {!currentUserIsBuyer &&
+            {/* Send Request should still be visible to non-owners when bothConfirmed */}
+            {userId && !currentUserIsOwner && (
+              <button
+                className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
+                onClick={() => handleToggleRequest(selectedPost)}
+                disabled={isProcessing}
+              >
+                {selectedPost.requests?.includes(userId)
+                  ? "Cancel Request"
+                  : "Send Request"}
+              </button>
+            )}
+          </>
+        )}
+
+        {/* ===== Buy button: only when not bothConfirmed and not the buyer and available ===== */}
+        {!bothConfirmedFlag &&
           userId &&
           ownerId !== userId &&
           selectedPost.avaliable && (
@@ -166,8 +198,8 @@ const PostModal = ({
             </button>
           )}
 
-        {/* Send / Cancel Request button: always show for logged-in users who are not owner */}
-        {userId && ownerId !== userId && (
+        {/* If not in bothConfirmed mode, still show Send/Cancel Request to non-owner (keeps original behavior) */}
+        {!bothConfirmedFlag && userId && ownerId !== userId && (
           <button
             className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
             onClick={() => handleToggleRequest(selectedPost)}

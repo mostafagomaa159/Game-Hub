@@ -8,7 +8,6 @@ const Transaction = require("../models/transaction");
 const TradeTransaction = require("../models/TradeTransaction");
 const User = require("../models/user");
 const newPost = require("../models/newPost");
-const Dispute = require("../models/dispute");
 
 // service to finalize single trades (and used by force-release)
 const { finalizeTradeByPostId } = require("../services/tradeFinalizer");
@@ -625,7 +624,30 @@ router.post("/trades/:id/report", auth, async (req, res) => {
     return res.status(500).send({ error: "Failed to report trade" });
   }
 });
-// POST /admin/trades/:id/resolve
+
+//NEW Routes
+router.get("/admin/disputes", auth, adminAuth, async (req, res) => {
+  try {
+    const disputes = await TradeTransaction.find({
+      "dispute.status": { $in: ["both_reported", "open"] },
+    })
+      .select("buyer seller post amount status dispute createdAt updatedAt")
+      .populate("buyer", "name email")
+      .populate("seller", "name email")
+      .populate("post", "description price server");
+
+    // Emit updated disputes to all admins if you want (optional)
+    if (req.io) {
+      req.io.emit("admin:disputes_updated", disputes);
+    }
+
+    res.send(disputes);
+  } catch (err) {
+    console.error("Admin Disputes Fetch Error:", err);
+    res.status(500).send({ error: "Server Error" });
+  }
+});
+
 router.post(
   "/admin/disputes/:id/resolve",
   auth,
@@ -638,34 +660,32 @@ router.post(
       const tradeId = req.params.id;
       const { action, note } = req.body; // action = 'refund' or 'release'
 
-      const tx = await TradeTransaction.findById(tradeId).session(session);
+      // Load trade transaction with embedded dispute and related refs
+      const tx = await TradeTransaction.findById(tradeId)
+        .populate("buyer")
+        .populate("seller")
+        .populate("post")
+        .session(session);
+
       if (!tx) {
         await session.abortTransaction();
         session.endSession();
         return res.status(404).send({ error: "Trade not found" });
       }
 
-      const post = await newPost.findById(tx.post).session(session);
-      const buyer = await User.findById(tx.buyer).session(session);
-      const seller = await User.findById(tx.seller).session(session);
-      if (!post || !buyer || !seller) {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(404).send({ error: "Data not found" });
-      }
-
       const amount = Number(tx.amount || 0);
 
-      // Action
       if (action === "refund") {
-        buyer.coins += amount;
+        tx.buyer.coins += amount;
+        tx.logs = tx.logs || [];
         tx.logs.push({
           message: `Admin refunded buyer. Note: ${note}`,
           by: req.user._id,
           at: new Date(),
         });
       } else if (action === "release") {
-        seller.coins += amount;
+        tx.seller.coins += amount;
+        tx.logs = tx.logs || [];
         tx.logs.push({
           message: `Admin released to seller. Note: ${note}`,
           by: req.user._id,
@@ -680,129 +700,62 @@ router.post(
       tx.status = "released";
       tx.adminHandledBy = req.user._id;
       tx.adminHandledAt = new Date();
+      tx.dispute.status = "resolved";
 
-      post.tradeStatus = "completed";
-      post.tradeCompletedAt = new Date();
-      post.releaseAt = null;
+      tx.post.tradeStatus = "completed";
+      tx.post.tradeCompletedAt = new Date();
+      tx.post.releaseAt = null;
 
-      await buyer.save({ session });
-      await seller.save({ session });
+      await tx.buyer.save({ session });
+      await tx.seller.save({ session });
       await tx.save({ session });
-      await post.save({ session });
+      await tx.post.save({ session });
 
       await session.commitTransaction();
       session.endSession();
 
-      // ✅ Emit socket update
-      req.io.emit("admin:dispute_resolved", {
-        postId: post._id,
-        tradeId: tx._id,
-        resolvedBy: req.user._id,
-        action,
-      });
+      // Emit socket events to update clients
+      if (req.io) {
+        req.io.emit("admin:dispute_resolved", {
+          postId: tx.post._id,
+          tradeId: tx._id,
+          resolvedBy: req.user._id,
+          action,
+          note,
+        });
 
-      return res.send({
-        message: `Dispute resolved and funds ${
+        req.io.to(tx.buyer._id.toString()).emit("trade:update", {
+          tradeId: tx._id,
+          status: "completed",
+          message:
+            action === "refund"
+              ? "Admin refunded you."
+              : "Admin released funds to seller.",
+        });
+
+        req.io.to(tx.seller._id.toString()).emit("trade:update", {
+          tradeId: tx._id,
+          status: "completed",
+          message:
+            action === "refund"
+              ? "Admin refunded buyer."
+              : "Admin released funds to you.",
+        });
+      }
+
+      res.send({
+        message: `Funds ${
           action === "refund" ? "refunded to buyer" : "released to seller"
         }`,
         tradeTransaction: tx,
-        post,
       });
     } catch (err) {
       await session.abortTransaction().catch(() => {});
       session.endSession();
       console.error("Dispute resolution error:", err);
-      return res.status(500).send({ error: "Failed to resolve dispute" });
+      res.status(500).send({ error: "Failed to resolve dispute" });
     }
   }
 );
-
-router.get("/admin/disputes", auth, adminAuth, async (req, res) => {
-  try {
-    const disputes = await Dispute.find({ status: "open" })
-      .select("reason status createdAt updatedAt buyer seller post")
-      .populate("buyer", "name email")
-      .populate("seller", "name email")
-      .populate("post", "description price server");
-
-    res.send(disputes);
-  } catch (err) {
-    console.error("Admin Disputes Fetch Error:", err);
-    res.status(500).send({ error: "Server Error" });
-  }
-});
-
-// POST /disputes - User creates a dispute
-router.post("/disputes", auth, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { postId, reason, videoUrls = [], note = "" } = req.body;
-
-    // Validate required fields
-    if (!postId || !reason) {
-      return res
-        .status(400)
-        .json({ error: "Post ID and reason are required." });
-    }
-
-    // Validate video URLs
-    if (videoUrls.length > 0) {
-      const invalid = videoUrls.filter((url) => {
-        try {
-          const parsed = new URL(url);
-          return !["http:", "https:"].includes(parsed.protocol);
-        } catch {
-          return true;
-        }
-      });
-
-      if (invalid.length > 0) {
-        return res.status(400).json({
-          error: "Invalid video URL(s). Must start with http:// or https://",
-          invalid,
-        });
-      }
-    }
-
-    // Check post exists
-    const post = await Post.findById(postId).populate("owner");
-    if (!post) {
-      return res.status(404).json({ error: "Post not found." });
-    }
-
-    // Prevent users from disputing their own post
-    if (String(post.owner._id) === String(userId)) {
-      return res
-        .status(403)
-        .json({ error: "You cannot dispute your own post." });
-    }
-
-    // Create Dispute
-    const dispute = new Dispute({
-      buyer: userId,
-      seller: post.owner._id,
-      post: post._id,
-      reason,
-      note,
-      videoUrls,
-      status: "open",
-    });
-
-    await dispute.save();
-
-    // Notify admins via Socket.IO
-    io.emit("user:dispute_opened", {
-      disputeId: dispute._id,
-      postId: post._id,
-      buyer: userId,
-      seller: post.owner._id,
-    });
-
-    res.status(201).json({ message: "Dispute created", dispute });
-  } catch (error) {
-    console.error("Error creating dispute:", error);
-    res.status(500).json({ error: "Failed to create dispute" });
-  }
-});
 
 module.exports = router;

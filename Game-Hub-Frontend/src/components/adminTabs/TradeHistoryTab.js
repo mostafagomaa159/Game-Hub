@@ -1,10 +1,9 @@
-// src/components/adminTabs/TradeHistoryTab.js
 import React, { useEffect, useState } from "react";
 import axios from "../../api/axiosInstance";
 import SkeletonCard from "../common/SkeletonCard";
 
 const ITEMS_PER_PAGE = 5;
-const SKELETON_COUNT = 6; // number of skeleton cards to render while loading
+const SKELETON_COUNT = 6;
 
 const TradeHistoryTab = ({
   searchTerm = "",
@@ -51,7 +50,7 @@ const TradeHistoryTab = ({
     };
   }, []);
 
-  // Filtering by search & cancelled flag
+  // Filtering and sorting
   const term = (searchTerm || "").toLowerCase();
   const filtered = history
     .filter((item) => {
@@ -59,11 +58,7 @@ const TradeHistoryTab = ({
       const owner = (item.owner?.name || item.owner?.email || "").toLowerCase();
       const buyer = (item.buyer?.name || item.buyer?.email || "").toLowerCase();
       if (!term) return true;
-      return (
-        owner.includes(term) ||
-        buyer.includes(term) ||
-        (item.owner?.email || "").toLowerCase().includes(term)
-      );
+      return owner.includes(term) || buyer.includes(term);
     })
     .sort((a, b) => {
       if (sortBy === "amount" || sortBy === "price") {
@@ -77,7 +72,6 @@ const TradeHistoryTab = ({
       }
     });
 
-  // Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
@@ -86,9 +80,9 @@ const TradeHistoryTab = ({
 
   useEffect(() => {
     if (currentPage > totalPages && setCurrentPage) setCurrentPage(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalPages]);
+  }, [totalPages, currentPage, setCurrentPage]);
 
+  // Export CSV function unchanged
   const exportToCSV = () => {
     const rows = [
       ["Seller", "Buyer", "Price", "Status", "Server", "Available", "Date"],
@@ -113,7 +107,7 @@ const TradeHistoryTab = ({
     URL.revokeObjectURL(a.href);
   };
 
-  // --- UI branches: loading / error / empty / normal
+  // Loading UI
   if (loading) {
     return (
       <div className="py-6">
@@ -126,13 +120,14 @@ const TradeHistoryTab = ({
     );
   }
 
+  // Error UI
   if (error) {
     return (
       <div className="py-8">
         <div className="max-w-2xl mx-auto text-center px-3">
-          <div className="text-red-600 dark:text-red-400 font-semibold mb-3">
+          <p className="text-red-600 dark:text-red-400 font-semibold mb-3">
             {error}
-          </div>
+          </p>
           <button
             onClick={async () => {
               setError("");
@@ -151,7 +146,7 @@ const TradeHistoryTab = ({
                 setLoading(false);
               }
             }}
-            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 transition"
+            className="px-5 py-2 rounded bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold transition-shadow shadow-sm hover:shadow-md"
           >
             Retry
           </button>
@@ -160,33 +155,36 @@ const TradeHistoryTab = ({
     );
   }
 
+  // Empty results UI
   if (paginated.length === 0) {
     return (
       <div className="py-8">
         <div className="max-w-2xl mx-auto text-center px-4">
-          <div className="text-4xl animate-bounce mb-2">📭</div>
-          <div className="text-gray-600 dark:text-gray-300 text-lg">
+          <div className="text-5xl animate-bounce mb-3 select-none">📭</div>
+          <p className="text-gray-700 dark:text-gray-300 text-lg font-medium mb-6">
             No trade history results.
-          </div>
+          </p>
 
-          <div className="mt-6 flex items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <button
               onClick={exportToCSV}
               disabled={filtered.length === 0}
-              className={`px-4 py-2 rounded transition ${
-                filtered.length === 0
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
-                  : "bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-              }`}
+              className={`px-5 py-2 rounded font-semibold transition
+                ${
+                  filtered.length === 0
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
+                    : "bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+                }`}
             >
               Export CSV
             </button>
 
-            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={showCancelledOnly}
                 onChange={(e) => setShowCancelledOnly(e.target.checked)}
+                className="cursor-pointer"
               />
               Show only Cancelled
             </label>
@@ -198,84 +196,104 @@ const TradeHistoryTab = ({
 
   // Normal render
   return (
-    <div className="py-4">
-      <div className="max-w-6xl mx-auto px-3">
-        <div className="flex items-center gap-4 mb-4">
+    <div className="py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Controls */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
           <button
             onClick={exportToCSV}
             disabled={filtered.length === 0}
-            className={`px-4 py-2 rounded transition ${
-              filtered.length === 0
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
-                : "bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-            }`}
+            className={`px-5 py-2 rounded font-semibold transition-shadow shadow-sm hover:shadow-md
+              ${
+                filtered.length === 0
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
+                  : "bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+              }`}
           >
             Export CSV
           </button>
-          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={showCancelledOnly}
               onChange={(e) => setShowCancelledOnly(e.target.checked)}
+              className="cursor-pointer"
             />
             Show only Cancelled
           </label>
         </div>
 
-        <div className="space-y-4">
+        {/* Cards */}
+        <div className="space-y-5">
           {paginated.map((item) => (
-            <div
+            <article
               key={item._id}
-              className="p-4 rounded-lg shadow-md bg-white text-gray-900 border border-gray-100 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
+              className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow"
+              tabIndex={0}
+              aria-label={`Trade between ${
+                item.owner?.name || item.owner?.email || "unknown seller"
+              } and ${
+                item.buyer?.name || item.buyer?.email || "unknown buyer"
+              } on ${new Date(
+                item.updatedAt || item.createdAt
+              ).toLocaleDateString()}`}
             >
-              <div className="flex flex-col md:flex-row md:justify-between gap-3">
-                <div>
-                  <p className="text-sm">
-                    <strong className="mr-2">Seller:</strong>
-                    <span className="font-medium">
-                      {item.owner?.name || item.owner?.email || "N/A"}
-                    </span>
+              <div className="flex flex-col md:flex-row md:justify-between gap-6">
+                <div className="flex flex-col space-y-2">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-semibold text-gray-800 dark:text-gray-100">
+                      Seller:
+                    </span>{" "}
+                    {item.owner?.name || item.owner?.email || "N/A"}
                   </p>
-                  <p className="text-sm mt-1">
-                    <strong className="mr-2">Buyer:</strong>
-                    <span className="font-medium">
-                      {item.buyer?.name || item.buyer?.email || "N/A"}
-                    </span>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="font-semibold text-gray-800 dark:text-gray-100">
+                      Buyer:
+                    </span>{" "}
+                    {item.buyer?.name || item.buyer?.email || "N/A"}
                   </p>
                 </div>
 
-                <div className="text-sm text-right">
+                <div className="text-sm text-right space-y-2 min-w-[130px]">
                   <p>
-                    <strong className="mr-2">💰:</strong>
+                    <span className="font-semibold text-gray-800 dark:text-gray-100">
+                      💰 Price:
+                    </span>{" "}
                     <span className="font-medium">
                       {item.price ?? item.amount ?? "-"}
                     </span>
                   </p>
 
-                  <p className="flex items-center gap-2 mt-1">
-                    <strong>Status:</strong>
+                  <p className="flex items-center justify-end gap-2">
+                    <span className="font-semibold text-gray-800 dark:text-gray-100">
+                      Status:
+                    </span>
                     {item.tradeStatus === "completed" ? (
-                      <span className="text-green-600 dark:text-green-400 font-medium">
+                      <span className="px-3 py-0.5 rounded-full text-green-700 bg-green-100 dark:bg-green-800 dark:text-green-300 font-semibold select-none">
                         Completed
                       </span>
                     ) : item.tradeStatus === "cancelled" ? (
-                      <span className="text-red-600 dark:text-red-400 font-medium">
+                      <span className="px-3 py-0.5 rounded-full text-red-700 bg-red-100 dark:bg-red-800 dark:text-red-300 font-semibold select-none">
                         Cancelled
                       </span>
                     ) : (
-                      <span className="text-gray-500 dark:text-gray-400">
+                      <span className="px-3 py-0.5 rounded-full text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 font-semibold select-none">
                         {item.tradeStatus ?? "Unknown"}
                       </span>
                     )}
                   </p>
 
-                  <p className="mt-1">
-                    <strong className="mr-2">Server:</strong>
+                  <p>
+                    <span className="font-semibold text-gray-800 dark:text-gray-100">
+                      Server:
+                    </span>{" "}
                     <span className="font-medium">{item.server || "N/A"}</span>
                   </p>
 
-                  <p className="mt-1">
-                    <strong className="mr-2">Date:</strong>
+                  <p>
+                    <span className="font-semibold text-gray-800 dark:text-gray-100">
+                      Date:
+                    </span>{" "}
                     <span className="font-medium">
                       {new Date(
                         item.updatedAt || item.createdAt
@@ -284,26 +302,33 @@ const TradeHistoryTab = ({
                   </p>
                 </div>
               </div>
-            </div>
+            </article>
           ))}
         </div>
 
+        {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-center mt-6 gap-2">
+          <nav
+            aria-label="Pagination"
+            className="flex justify-center mt-8 space-x-2"
+          >
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
               <button
                 key={pg}
                 onClick={() => setCurrentPage?.(pg)}
-                className={`px-3 py-1 rounded transition ${
-                  pg === currentPage
-                    ? "bg-blue-600 text-white dark:bg-blue-500"
-                    : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
-                }`}
+                className={`px-4 py-2 rounded-md font-medium transition
+                  ${
+                    pg === currentPage
+                      ? "bg-blue-600 text-white shadow-md dark:bg-blue-500"
+                      : "bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                  }`}
+                aria-current={pg === currentPage ? "page" : undefined}
+                aria-label={`Go to page ${pg}`}
               >
                 {pg}
               </button>
             ))}
-          </div>
+          </nav>
         )}
       </div>
     </div>
