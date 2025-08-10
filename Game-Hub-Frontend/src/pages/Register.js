@@ -3,11 +3,13 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "../api/axiosInstance";
 import SkeletonCard from "../components/common/SkeletonCard"; // adjust path if needed
+import { useUser } from "../context/UserContext";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const Register = () => {
   const navigate = useNavigate();
+  const { user } = useUser(); // get user from context
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -21,10 +23,12 @@ const Register = () => {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
+  // Redirect only if user is logged in (authenticated)
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) navigate("/");
-  }, [navigate]);
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     // live validation for email

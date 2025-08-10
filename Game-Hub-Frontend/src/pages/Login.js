@@ -283,21 +283,10 @@ function Login() {
           )}
 
           <p className="text-sm text-center text-gray-600 dark:text-gray-400 mt-5">
-            Don't have an account?{" "}
+            Don’t have an account?{" "}
             <Link
               to="/register"
               className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
-              style={{
-                position: "relative",
-                zIndex: 1,
-                display: "inline-block",
-                padding: "4px 0",
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                navigate("/register");
-              }}
             >
               Register here
             </Link>
