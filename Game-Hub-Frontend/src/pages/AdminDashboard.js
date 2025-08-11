@@ -139,7 +139,7 @@ const icons = {
   ),
 };
 
-function Tabs({ activeTab, setActiveTab, pendingCounts, processedCount }) {
+function Tabs({ activeTab, setActiveTab, counts }) {
   const tabRefs = useRef({});
   const [underlineStyle, setUnderlineStyle] = useState({ left: 0, width: 0 });
 
@@ -153,15 +153,21 @@ function Tabs({ activeTab, setActiveTab, pendingCounts, processedCount }) {
     }
   }, [activeTab]);
 
+  // Map tab keys to count properties
+  const countMap = {
+    deposits: counts?.deposits,
+    withdrawals: counts?.withdrawals,
+    processed: counts?.processed,
+    users: counts?.activeUsers,
+    disputes: counts?.disputes,
+    history: counts?.tradeHistory,
+  };
+
   return (
     <div className="relative border-b border-gray-300 dark:border-gray-700 mb-4 select-none overflow-x-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800">
       <div className="flex min-w-max gap-1 md:gap-3">
         {TAB_LIST.map(({ key, label }) => {
-          let countDisplay = null;
-          if (key === "deposits") countDisplay = pendingCounts.deposits;
-          else if (key === "withdrawals")
-            countDisplay = pendingCounts.withdrawals;
-          else if (key === "processed") countDisplay = processedCount;
+          const countDisplay = countMap[key];
 
           // Determine active or not for color classes
           const isActive = activeTab === key;
@@ -186,7 +192,9 @@ function Tabs({ activeTab, setActiveTab, pendingCounts, processedCount }) {
               aria-pressed={isActive}
               type="button"
               aria-label={`${label}${
-                countDisplay !== null ? ` (${countDisplay})` : ""
+                countDisplay !== null && countDisplay !== undefined
+                  ? ` (${countDisplay})`
+                  : ""
               }`}
             >
               <span className={`${iconColorClass} flex items-center`}>
@@ -196,7 +204,7 @@ function Tabs({ activeTab, setActiveTab, pendingCounts, processedCount }) {
                 })}
               </span>
               <span>{label}</span>
-              {countDisplay !== null && (
+              {countDisplay !== null && countDisplay !== undefined && (
                 <span className="inline-block bg-blue-600 dark:bg-blue-400 text-white rounded-full px-2 py-0.5 text-xs font-bold select-none">
                   {countDisplay}
                 </span>
@@ -228,11 +236,14 @@ const AdminDashboard = () => {
 
   // app state
   const [loading, setLoading] = useState(true); // initial auth + counts load
-  const [pendingCounts, setPendingCounts] = useState({
+  const [counts, setCounts] = useState({
     deposits: 0,
     withdrawals: 0,
+    processed: 0,
+    activeUsers: 0,
+    disputes: 0,
+    tradeHistory: 0,
   });
-  const [processedCount, setProcessedCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -243,6 +254,7 @@ const AdminDashboard = () => {
         const token = localStorage.getItem("token");
         const headers = { Authorization: `Bearer ${token}` };
 
+        // First verify admin status
         const userRes = await axios.get("/users/me", { headers });
         if (!userRes.data?.isAdmin) {
           alert("Unauthorized access.");
@@ -250,20 +262,21 @@ const AdminDashboard = () => {
           return;
         }
 
-        const [pendingDepositsRes, pendingWithdrawalsRes, processedRes] =
-          await Promise.all([
-            axios.get("/transactions/pending-deposits", { headers }),
-            axios.get("/transactions/pending-withdrawals", { headers }),
-            axios.get("/transactions/processed", { headers }),
-          ]);
+        // Then fetch all counts in one request
+        const summaryRes = await axios.get("/transactions/summary", {
+          headers,
+        });
 
         if (!isMounted) return;
 
-        setPendingCounts({
-          deposits: pendingDepositsRes.data?.length ?? 0,
-          withdrawals: pendingWithdrawalsRes.data?.length ?? 0,
+        setCounts({
+          deposits: summaryRes.data?.deposits ?? 0,
+          withdrawals: summaryRes.data?.withdrawals ?? 0,
+          processed: summaryRes.data?.processed ?? 0,
+          activeUsers: summaryRes.data?.activeUsers ?? 0,
+          disputes: summaryRes.data?.disputes ?? 0,
+          tradeHistory: summaryRes.data?.tradeHistory ?? 0,
         });
-        setProcessedCount(processedRes.data?.length ?? 0);
       } catch (err) {
         console.error("Admin auth/counts failed", err);
         alert("Error loading dashboard.");
@@ -308,26 +321,26 @@ const AdminDashboard = () => {
 
         <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">
           <span className="mr-4">
-            Deposits:{" "}
-            <span className="font-medium">{pendingCounts.deposits}</span>
+            Deposits: <span className="font-medium">{counts.deposits}</span>
           </span>
           <span className="mr-4">
             Withdrawals:{" "}
-            <span className="font-medium">{pendingCounts.withdrawals}</span>
+            <span className="font-medium">{counts.withdrawals}</span>
+          </span>
+          <span className="mr-4">
+            Processed: <span className="font-medium">{counts.processed}</span>
+          </span>
+          <span className="mr-4">
+            Users: <span className="font-medium">{counts.activeUsers}</span>
           </span>
           <span>
-            Processed: <span className="font-medium">{processedCount}</span>
+            Disputes: <span className="font-medium">{counts.disputes}</span>
           </span>
         </div>
       </div>
 
       {/* Tabs */}
-      <Tabs
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        pendingCounts={pendingCounts}
-        processedCount={processedCount}
-      />
+      <Tabs activeTab={activeTab} setActiveTab={setActiveTab} counts={counts} />
 
       {/* Search & sort controls */}
       <div className="flex flex-col md:flex-row gap-3 mb-6">
@@ -374,7 +387,7 @@ const AdminDashboard = () => {
               sortOrder={sortOrder}
               currentPage={currentPage}
               setCurrentPage={setCurrentPage}
-              setPendingCounts={setPendingCounts}
+              setCounts={setCounts}
             />
           )}
 
@@ -385,7 +398,7 @@ const AdminDashboard = () => {
               sortOrder={sortOrder}
               currentPage={currentPage}
               setCurrentPage={setCurrentPage}
-              setPendingCounts={setPendingCounts}
+              setCounts={setCounts}
             />
           )}
 
@@ -396,7 +409,7 @@ const AdminDashboard = () => {
               sortOrder={sortOrder}
               currentPage={currentPage}
               setCurrentPage={setCurrentPage}
-              setProcessedCount={setProcessedCount}
+              setCounts={setCounts}
             />
           )}
 
@@ -407,6 +420,7 @@ const AdminDashboard = () => {
               sortOrder={sortOrder}
               currentPage={currentPage}
               setCurrentPage={setCurrentPage}
+              setCounts={setCounts}
             />
           )}
 
@@ -417,6 +431,7 @@ const AdminDashboard = () => {
               sortOrder={sortOrder}
               currentPage={currentPage}
               setCurrentPage={setCurrentPage}
+              setCounts={setCounts}
             />
           )}
 
@@ -427,6 +442,7 @@ const AdminDashboard = () => {
               sortOrder={sortOrder}
               currentPage={currentPage}
               setCurrentPage={setCurrentPage}
+              setCounts={setCounts}
             />
           )}
         </Suspense>

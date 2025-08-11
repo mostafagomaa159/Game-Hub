@@ -1,5 +1,4 @@
-// src/components/AllPosts/PostModal.js
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 const PostModal = ({
   selectedPost,
@@ -13,17 +12,29 @@ const PostModal = ({
   setShowReportModal,
   isOwner,
   isBuyer,
+  processingIds,
   userAlreadyConfirmed,
   bothConfirmed,
   modalRef,
+  hasConfirmed,
 }) => {
+  const [showBuyMessage, setShowBuyMessage] = useState(false);
+  const [confirmDisabled, setConfirmDisabled] = useState(false); // toggle disable state
+
+  useEffect(() => {
+    if (!selectedPost) {
+      setShowBuyMessage(false);
+      setConfirmDisabled(false); // reset when modal closes or post changes
+    }
+  }, [selectedPost]);
+
   if (!selectedPost) return null;
 
-  // normalized ids (could be populated objects or plain ids)
+  // Normalize IDs (could be populated objects or plain IDs)
   const buyerId = selectedPost.buyer?._id || selectedPost.buyer;
   const ownerId = selectedPost.owner?._id || selectedPost.owner;
 
-  // booleans used in rendering decisions
+  // Derived booleans for rendering logic
   const currentUserIsBuyer = Boolean(
     userId && buyerId && String(buyerId) === String(userId)
   );
@@ -35,8 +46,49 @@ const PostModal = ({
   );
   const isPending = selectedPost.tradeStatus === "pending";
   const isPendingOrPendingRelease =
-    selectedPost.tradeStatus === "pending" ||
-    selectedPost.tradeStatus === "pending_release";
+    isPending || selectedPost.tradeStatus === "pending_release";
+  const alreadyConfirmed = Boolean(
+    typeof userAlreadyConfirmed === "function" && userAlreadyConfirmed()
+  );
+  const isAvailable = Boolean(selectedPost.avaliable);
+
+  // Button visibility flags
+  const showBuyButton =
+    userId &&
+    !currentUserIsOwner &&
+    isAvailable &&
+    !bothConfirmedFlag &&
+    !currentUserIsBuyer;
+
+  const showConfirmCancelButtons =
+    isPending &&
+    (currentUserIsOwner || currentUserIsBuyer) &&
+    !alreadyConfirmed &&
+    !bothConfirmedFlag;
+
+  const showReportButton =
+    userId && bothConfirmedFlag && isPendingOrPendingRelease;
+
+  const showRequestButton =
+    userId && !currentUserIsOwner && (!bothConfirmedFlag || showReportButton);
+
+  // Updated Buy button click handler to show message inside modal
+  const onBuyClick = () => {
+    handleBuy(selectedPost._id);
+    setShowBuyMessage(true);
+  };
+
+  // Confirm button click: disable confirm button after clicking
+  const onConfirmClick = () => {
+    setConfirmDisabled(true);
+    handleConfirmTrade(selectedPost);
+  };
+
+  // Cancel button click: enable confirm button again
+  const onCancelClick = () => {
+    setConfirmDisabled(false);
+    handleCancelTrade(selectedPost);
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -47,6 +99,7 @@ const PostModal = ({
         <button
           onClick={() => setSelectedPostId(null)}
           className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 dark:hover:text-white text-xl"
+          aria-label="Close modal"
         >
           &times;
         </button>
@@ -64,10 +117,10 @@ const PostModal = ({
 
         <p
           className={`text-sm font-semibold ${
-            selectedPost.avaliable ? "text-green-600" : "text-red-500"
+            isAvailable ? "text-green-600" : "text-red-500"
           }`}
         >
-          {selectedPost.avaliable ? "Available ✔️" : "Not Available ❌"}
+          {isAvailable ? "Available ✔️" : "Not Available ❌"}
         </p>
 
         {selectedPost.owner && (
@@ -76,50 +129,67 @@ const PostModal = ({
           </p>
         )}
 
-        {/* ===== Trade action buttons ===== */}
-
-        {/* 1) If the current user is the buyer: show Confirm/Cancel (unless both confirmed) */}
-        {currentUserIsBuyer && !bothConfirmedFlag && (
+        {/* Confirmation status messages */}
+        {isPendingOrPendingRelease && (
           <>
-            <button
-              onClick={handleConfirmTrade}
-              disabled={isProcessing}
-              className={`mt-4 w-full py-2 rounded-xl text-white ${
-                isProcessing
-                  ? "bg-green-400 cursor-not-allowed"
-                  : "bg-green-600 hover:bg-green-700"
-              }`}
-            >
-              Confirm Trade
-            </button>
+            {currentUserIsOwner &&
+              buyerId &&
+              selectedPost.tradeConfirmations?.includes(buyerId) &&
+              !bothConfirmedFlag && (
+                <p className="mt-3 text-red-500 font-semibold">
+                  ✅ Buyer has confirmed the trade, Chat with him before you
+                  Confirm Trade
+                </p>
+              )}
 
-            <button
-              onClick={handleCancelTrade}
-              disabled={isProcessing}
-              className={`mt-2 w-full py-2 rounded-xl text-white ${
-                isProcessing
-                  ? "bg-red-400 cursor-not-allowed"
-                  : "bg-red-600 hover:bg-red-700"
-              }`}
-            >
-              Cancel Trade
-            </button>
+            {currentUserIsBuyer &&
+              ownerId &&
+              selectedPost.tradeConfirmations?.includes(ownerId) &&
+              !bothConfirmedFlag && (
+                <p className="mt-3 text-red-500 font-semibold">
+                  ✅ Seller has confirmed the trade, Make Sure to Send Request
+                  to Him before you Confirm Trade!
+                </p>
+              )}
+
+            {bothConfirmedFlag &&
+              (currentUserIsBuyer || currentUserIsOwner) && (
+                <p className="mt-3 text-blue-600 font-semibold">
+                  🎉 Trade Successful! Feel free to report if there is a
+                  problem.
+                </p>
+              )}
           </>
         )}
 
-        {/* 2) If not explicitly the buyer and trade is pending, participant (owner or buyer) can confirm/cancel if they haven't confirmed yet, and not bothConfirmed */}
-        {!currentUserIsBuyer &&
-          isPending &&
-          (isOwner || isBuyer) &&
-          !userAlreadyConfirmed() &&
-          !bothConfirmedFlag && (
+        {/* Show buy message inside modal after clicking Buy */}
+        {showBuyMessage && (
+          <p className="mt-3 text-red-600 font-semibold">
+            ⚠️ Please Don't confirm till you chat with seller and meet with him
+            in-game.
+          </p>
+        )}
+
+        {/* ===== Buttons Section ===== */}
+        <div className="mt-4 space-y-2">
+          {showBuyButton && (
+            <button
+              className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={onBuyClick}
+              disabled={isProcessing}
+            >
+              Buy Now
+            </button>
+          )}
+
+          {showConfirmCancelButtons && (
             <>
               <button
-                onClick={handleConfirmTrade}
-                disabled={isProcessing}
-                className={`mt-4 w-full py-2 rounded-xl text-white ${
-                  isProcessing
-                    ? "bg-green-400 cursor-not-allowed"
+                onClick={onConfirmClick}
+                disabled={isProcessing || confirmDisabled} // toggle disable
+                className={`w-full py-2 rounded-xl text-white ${
+                  isProcessing || confirmDisabled
+                    ? "bg-green-400"
                     : "bg-green-600 hover:bg-green-700"
                 }`}
               >
@@ -127,12 +197,10 @@ const PostModal = ({
               </button>
 
               <button
-                onClick={handleCancelTrade}
+                onClick={onCancelClick}
                 disabled={isProcessing}
-                className={`mt-2 w-full py-2 rounded-xl text-white ${
-                  isProcessing
-                    ? "bg-red-400 cursor-not-allowed"
-                    : "bg-red-600 hover:bg-red-700"
+                className={`w-full py-2 rounded-xl text-white ${
+                  isProcessing ? "bg-red-400" : "bg-red-600 hover:bg-red-700"
                 }`}
               >
                 Cancel Trade
@@ -140,76 +208,27 @@ const PostModal = ({
             </>
           )}
 
-        {/* Confirmation status messages (unchanged) */}
-        {isPending &&
-          isOwner &&
-          buyerId &&
-          selectedPost.tradeConfirmations?.includes(buyerId) && (
-            <p className="mt-3 text-green-500 font-semibold">
-              ✅ Buyer has confirmed the trade.
-            </p>
-          )}
-
-        {isPending &&
-          isBuyer &&
-          ownerId &&
-          selectedPost.tradeConfirmations?.includes(ownerId) && (
-            <p className="mt-3 text-green-500 font-semibold">
-              ✅ Seller has confirmed the trade.
-            </p>
-          )}
-
-        {/* ===== When both confirmed: show Report (and optionally Send Request for non-owner) ===== */}
-        {bothConfirmedFlag && isPendingOrPendingRelease && (
-          <>
+          {showReportButton && (
             <button
               onClick={() => setShowReportModal(true)}
-              className="mt-3 w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"
+              className="w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"
             >
               Report
             </button>
-
-            {/* Send Request should still be visible to non-owners when bothConfirmed */}
-            {userId && !currentUserIsOwner && (
-              <button
-                className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
-                onClick={() => handleToggleRequest(selectedPost)}
-                disabled={isProcessing}
-              >
-                {selectedPost.requests?.includes(userId)
-                  ? "Cancel Request"
-                  : "Send Request"}
-              </button>
-            )}
-          </>
-        )}
-
-        {/* ===== Buy button: only when not bothConfirmed and not the buyer and available ===== */}
-        {!bothConfirmedFlag &&
-          userId &&
-          ownerId !== userId &&
-          selectedPost.avaliable && (
-            <button
-              className="mt-4 w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={() => handleBuy(selectedPost._id)}
-              disabled={isProcessing}
-            >
-              Buy Now
-            </button>
           )}
 
-        {/* If not in bothConfirmed mode, still show Send/Cancel Request to non-owner (keeps original behavior) */}
-        {!bothConfirmedFlag && userId && ownerId !== userId && (
-          <button
-            className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
-            onClick={() => handleToggleRequest(selectedPost)}
-            disabled={isProcessing}
-          >
-            {selectedPost.requests?.includes(userId)
-              ? "Cancel Request"
-              : "Send Request"}
-          </button>
-        )}
+          {showRequestButton && (
+            <button
+              className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
+              onClick={() => handleToggleRequest(selectedPost)}
+              disabled={isProcessing}
+            >
+              {selectedPost.requests?.includes(userId)
+                ? "Cancel Chat Request"
+                : "Send Chat Request"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

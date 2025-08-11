@@ -7,6 +7,7 @@ const User = require("../models/user");
 const { client } = require("../utils/paypalClient");
 const sendPaypalPayout = require("../utils/sendPaypalPayout");
 const axios = require("axios");
+const TradeTransaction = require("../models/TradeTransaction");
 
 // Email validation helper
 const isValidEmail = (email) => {
@@ -135,6 +136,7 @@ router.get(
     }
   }
 );
+
 // ✅ Admin: Approve/Reject Bank Deposit
 router.patch(
   "/transactions/:id/approve-deposit",
@@ -614,19 +616,6 @@ router.get("/transactions/pending", auth, adminAuth, async (req, res) => {
     res.status(500).send({ error: "Internal server error" });
   }
 });
-// 👮 Admin: Get processed (approved/rejected) withdrawals
-router.get("/transactions/processed", auth, adminAuth, async (req, res) => {
-  try {
-    const transactions = await Transaction.find({
-      status: { $in: ["approved", "rejected"] },
-    }).populate("userId", "name email");
-
-    res.send(transactions);
-  } catch (err) {
-    console.error("Error fetching processed transactions", err);
-    res.status(500).send({ error: "Failed to load processed transactions" });
-  }
-});
 
 router.patch("/transactions/:id/note", auth, adminAuth, async (req, res) => {
   try {
@@ -641,6 +630,68 @@ router.patch("/transactions/:id/note", auth, adminAuth, async (req, res) => {
   } catch (err) {
     console.error("Failed to update note:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+router.get("/transactions/summary", auth, adminAuth, async (req, res) => {
+  console.log("Incoming request to /transactions/summary");
+  try {
+    const depositsCount = await Transaction.countDocuments({
+      type: "deposit",
+      status: "pending",
+    });
+
+    const withdrawalsCount = await Transaction.countDocuments({
+      type: "withdraw",
+      status: "pending",
+    });
+
+    const processedCount = await Transaction.countDocuments({
+      status: { $in: ["approved", "rejected"] },
+    });
+
+    const activeUsersCount = await User.countDocuments({ isActive: true });
+
+    const disputesCount = await TradeTransaction.countDocuments({
+      "dispute.status": { $ne: "none" },
+    });
+
+    const tradeHistoryCount = await TradeTransaction.countDocuments({
+      status: { $in: ["completed", "released", "resolved"] },
+    });
+
+    console.log("Summary counts:", {
+      depositsCount,
+      withdrawalsCount,
+      processedCount,
+      activeUsersCount,
+      disputesCount,
+      tradeHistoryCount,
+    });
+
+    res.send({
+      deposits: depositsCount,
+      withdrawals: withdrawalsCount,
+      processed: processedCount,
+      activeUsers: activeUsersCount,
+      disputes: disputesCount,
+      tradeHistory: tradeHistoryCount,
+    });
+  } catch (error) {
+    console.error("Error fetching transaction summary", error);
+    res.status(500).send({ error: "Failed to fetch transaction summary" });
+  }
+});
+
+router.get("/transactions/processed", auth, adminAuth, async (req, res) => {
+  try {
+    const transactions = await Transaction.find({
+      status: { $in: ["approved", "rejected"] },
+    }).populate("userId", "name email");
+
+    res.send(transactions);
+  } catch (err) {
+    console.error("Error fetching processed transactions", err);
+    res.status(500).send({ error: "Failed to load processed transactions" });
   }
 });
 

@@ -15,7 +15,7 @@ import PostModal from "../components/AllPosts/PostModal";
 import ReportModal from "../components/AllPosts/ReportModal";
 import LoginModal from "../components/AllPosts/LoginModal";
 import Pagination from "../components/AllPosts/Pagination";
-
+import socket from "../utils/socket";
 const POSTS_PER_PAGE = 12;
 
 const AllPosts = () => {
@@ -37,6 +37,31 @@ const AllPosts = () => {
   useEffect(() => {
     setHasConfirmed(false);
   }, [selectedPostId]);
+  useEffect(() => {
+    if (!posts.length) return;
+
+    // Join all post rooms once
+    posts.forEach((post) => {
+      socket.emit("joinRoom", { roomId: `post:${post._id}` });
+    });
+  }, [posts]); // only join rooms when posts change
+
+  useEffect(() => {
+    // Listen for post updates only once
+    const handlePostUpdated = (updatedData) => {
+      setPosts((prevPosts) =>
+        prevPosts.map((p) =>
+          p._id === updatedData._id ? { ...p, ...updatedData } : p
+        )
+      );
+    };
+
+    socket.on("postUpdated", handlePostUpdated);
+
+    return () => {
+      socket.off("postUpdated", handlePostUpdated);
+    };
+  }, [setPosts]); // don't re-run on posts change
 
   const filtered = useMemo(() => {
     let temp = [...posts];
@@ -133,7 +158,12 @@ const AllPosts = () => {
   };
 
   const handlePostBuy = (postId) => {
-    handleBuy(posts.find((p) => p._id === postId));
+    const post = posts.find((p) => p._id === postId);
+    if (!post) {
+      console.error("Post not found for id", postId);
+      return;
+    }
+    handleBuy(post);
   };
 
   const handlePostToggleRequest = () => {
@@ -153,6 +183,26 @@ const AllPosts = () => {
       handleCancelTrade(selectedPost);
     }
   };
+  useEffect(() => {
+    const handlePostUpdated = (updatedData) => {
+      setPosts((prevPosts) =>
+        prevPosts.map((p) =>
+          p._id === updatedData._id ? { ...p, ...updatedData } : p
+        )
+      );
+
+      if (selectedPostId === updatedData._id) {
+        // Update selectedPostId to trigger modal re-render with new data
+        setSelectedPostId(updatedData._id);
+      }
+    };
+
+    socket.on("postUpdated", handlePostUpdated);
+
+    return () => {
+      socket.off("postUpdated", handlePostUpdated);
+    };
+  }, [selectedPostId, setPosts, setSelectedPostId]);
 
   return (
     <div className="bg-background dark:bg-darkBackground text-black dark:text-white min-h-screen py-8 px-4">
@@ -193,7 +243,7 @@ const AllPosts = () => {
           setSelectedPostId={setSelectedPostId}
           userId={userId}
           isProcessing={isProcessing}
-          handleBuy={() => handlePostBuy(selectedPost._id)}
+          handleBuy={handlePostBuy}
           handleToggleRequest={handlePostToggleRequest}
           handleConfirmTrade={handlePostConfirmTrade}
           handleCancelTrade={handlePostCancelTrade}
@@ -204,6 +254,7 @@ const AllPosts = () => {
           userAlreadyConfirmed={userAlreadyConfirmed}
           bothConfirmed={bothConfirmed}
           modalRef={modalRef}
+          processingIds={processingIds}
           hasConfirmed={hasConfirmed}
         />
       )}

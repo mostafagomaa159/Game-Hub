@@ -23,6 +23,7 @@ router.post("/chat/:roomId/mark-seen", auth, async (req, res) => {
     const userId = req.user._id; // authenticated user ID
     const { roomId } = req.params;
 
+    // Update DB: mark all messages in the room as seen except current user's
     await Chat.updateMany(
       {
         roomId,
@@ -33,6 +34,11 @@ router.post("/chat/:roomId/mark-seen", auth, async (req, res) => {
         $set: { status: "seen" },
       }
     );
+
+    // Emit socket event to notify all clients in the room that messages are seen
+    if (req.io) {
+      req.io.to(roomId).emit("messagesSeen", { roomId });
+    }
 
     res.send({ success: true });
   } catch (err) {

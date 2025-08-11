@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "../api/axiosInstance";
 import { toast } from "react-toastify";
-
+import socket from "../utils/socket";
 const usePostActions = (
   setPosts,
   userId,
@@ -70,7 +70,6 @@ const usePostActions = (
       removeProcessingId(postId);
     }
   };
-
   const handleToggleRequest = async (post) => {
     if (!userId) {
       setShowLoginModal(true);
@@ -104,7 +103,15 @@ const usePostActions = (
         updatePost(updatedPost);
         setSelectedPostId(updatedPost._id);
       }
-      toast.success(requested ? "Request cancelled" : "Request sent");
+
+      // === Notify seller via socket if sending a new request ===
+      if (!requested && post.owner && post.owner._id) {
+        socket.emit("notify-request", {
+          toUserId: post.owner._id,
+          message: `A Buyer sent you a chat request for item: ${post.description}`,
+          postId: post._id,
+        });
+      }
     } catch (err) {
       updatePost(previousPost);
       toast.error(err.response?.data?.error || "Request failed");
@@ -114,13 +121,22 @@ const usePostActions = (
   };
 
   const handleBuy = async (post) => {
+    if (!post) {
+      console.error("handleBuy received undefined post!");
+      return;
+    }
+
     if (!userId) {
       setShowLoginModal(true);
       return;
     }
 
     const postId = post._id;
-    if (processingIds.has(postId)) return;
+
+    if (processingIds.has(postId)) {
+      console.log("Already processing this postId:", postId);
+      return;
+    }
 
     addProcessingId(postId);
 
@@ -132,7 +148,6 @@ const usePostActions = (
         updatePost(updatedPost);
         setSelectedPostId(updatedPost._id);
       }
-      toast.success(res.data?.message || "Item reserved");
     } catch (err) {
       toast.error(err.response?.data?.error || "Purchase failed");
     } finally {
@@ -179,7 +194,6 @@ const usePostActions = (
       if (res.data?.post) {
         updatePost(res.data.post);
         setSelectedPostId(res.data.post._id);
-        toast.success("Trade cancelled");
       }
     } catch (err) {
       toast.error(err.response?.data?.error || "Cancellation failed");

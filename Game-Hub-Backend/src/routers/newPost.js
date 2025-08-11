@@ -210,6 +210,16 @@ router.post("/newpost/:id/buy", auth, async (req, res) => {
     req.user.coins -= reservedPost.price;
     await req.user.save();
 
+    // Emit update to clients watching this post room
+    if (req.io) {
+      req.io.to(`post:${reservedPost._id}`).emit("postUpdated", {
+        _id: reservedPost._id,
+        tradeStatus: reservedPost.tradeStatus,
+        avaliable: reservedPost.avaliable,
+        buyer: reservedPost.buyer,
+      });
+    }
+
     res.send({
       message: "Item reserved. Awaiting trade confirmation",
       post: reservedPost,
@@ -302,6 +312,20 @@ router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
     await post.save({ session });
 
     await session.commitTransaction();
+
+    // Emit update to clients
+    if (req.io) {
+      req.io.to(`post:${post._id}`).emit("postUpdated", {
+        _id: post._id,
+        tradeStatus: post.tradeStatus,
+        avaliable: post.avaliable,
+        tradeConfirmations: post.tradeConfirmations,
+        releaseAt: post.releaseAt,
+        buyer: post.buyer,
+        owner: post.owner,
+      });
+    }
+
     session.endSession();
 
     const updated = await newPost.findById(postId).populate("owner buyer");
@@ -315,6 +339,7 @@ router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
       .send({ error: err.message || "Trade confirmation failed" });
   }
 });
+
 // Cancel trade
 router.post("/newpost/:id/cancel-trade", auth, async (req, res) => {
   const session = await mongoose.startSession();
@@ -379,6 +404,19 @@ router.post("/newpost/:id/cancel-trade", auth, async (req, res) => {
     await post.save({ session });
 
     await session.commitTransaction();
+
+    // Emit updated post info
+    if (req.io) {
+      req.io.to(`post:${post._id}`).emit("postUpdated", {
+        _id: post._id,
+        tradeStatus: post.tradeStatus,
+        avaliable: post.avaliable,
+        buyer: post.buyer,
+        tradeConfirmations: post.tradeConfirmations,
+        cancellationNote: post.cancellationNote,
+      });
+    }
+
     session.endSession();
 
     res.send({ message: "Trade cancelled, coins refunded", post });

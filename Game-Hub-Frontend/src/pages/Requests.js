@@ -183,19 +183,19 @@ const Requests = () => {
     setInputMessage("");
   };
 
-  const handleConfirm = async (id) => {
-    try {
-      const res = await axios.patch(`/${id}/confirm`);
-      alert("Request confirmed");
-      setRequests((prev) =>
-        prev.map((r) => (r.post._id === id ? { ...r, ...res.data } : r))
-      );
-    } catch (err) {
-      console.error("Confirm error", err);
-    }
-  };
-
-  const handleCancel = async (itemId) => {
+  // const handleConfirm = async (id) => {
+  //   try {
+  //     const res = await axios.patch(`/${id}/confirm`);
+  //     alert("Request confirmed");
+  //     setRequests((prev) =>
+  //       prev.map((r) => (r.post._id === id ? { ...r, ...res.data } : r))
+  //     );
+  //   } catch (err) {
+  //     console.error("Confirm error", err);
+  //   }
+  // };
+  //Delete Request at Request Page
+  const handleDelete = async (itemId) => {
     try {
       await axios.delete(`/newpost/${itemId}/request`);
       alert("Request cancelled");
@@ -274,15 +274,15 @@ const Requests = () => {
 
                 {view === "incoming" && (
                   <div className="flex gap-2 mt-4">
-                    <Button
+                    {/* <Button
                       className="bg-green-600 hover:bg-green-700 text-white"
                       onClick={() => handleConfirm(req._id)}
                     >
                       Confirm
-                    </Button>
+                    </Button> */}
                     <Button
                       className="bg-red-600 hover:bg-red-700 text-white"
-                      onClick={() => handleCancel(req.post?._id || "No ID")}
+                      onClick={() => handleDelete(req.post?._id || "No ID")}
                     >
                       Cancel
                     </Button>
