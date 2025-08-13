@@ -7,7 +7,7 @@ const PostModal = ({
   selectedPost,
   setSelectedPostId,
   userId,
-  isProcessing,
+  processingIds, // <- use Set to track processing
   handleBuy,
   handleToggleRequest,
   handleCancelBuyer,
@@ -15,7 +15,6 @@ const PostModal = ({
   handleConfirmTrade,
   handleCancelTrade,
   setShowReportModal,
-  processingIds,
   userAlreadyConfirmed,
   bothConfirmed,
   modalRef,
@@ -30,7 +29,7 @@ const PostModal = ({
     if (!selectedPost) return;
     const buyersWithStatus = (selectedPost.buyers || []).map((b) => ({
       ...b,
-      status: b.status || "pending",
+      status: "pending",
     }));
     setBuyersState(buyersWithStatus);
     setShowBuyMessage(false);
@@ -45,7 +44,7 @@ const PostModal = ({
       if (updatedData._id === selectedPost._id) {
         const updatedBuyers = (updatedData.buyers || []).map((b) => {
           const existing = buyersState.find((e) => e._id === b._id);
-          return existing ? { ...b } : { ...b, status: b.status || "pending" };
+          return existing ? { ...existing } : { ...b, status: "pending" };
         });
         setBuyersState(updatedBuyers);
       }
@@ -73,23 +72,17 @@ const PostModal = ({
     isPending || selectedPost.tradeStatus === "pending_release";
   const isAvailable = Boolean(selectedPost.avaliable);
 
-  // Find current buyer's status
-  const currentBuyerStatus = buyersState.find(
-    (b) => String(b._id) === String(userId)
-  )?.status;
-
-  // Show Buy Now button only if user is not owner, not active buyer, not accepted buyer
+  // Show Buy Now button only if user is not owner and not active buyer
   const showBuyButton =
     userId &&
     !currentUserIsOwner &&
     !currentUserIsActiveBuyer &&
     isAvailable &&
-    !bothConfirmedFlag &&
-    currentBuyerStatus !== "accepted";
+    !bothConfirmedFlag;
 
-  // Show Confirm/Cancel buttons for owner or accepted active buyer
+  // Show Confirm/Cancel buttons only to active buyer or owner
   const showConfirmCancelButtons =
-    (currentBuyerStatus === "accepted" || isPending) &&
+    isPending &&
     !bothConfirmedFlag &&
     (currentUserIsOwner || currentUserIsActiveBuyer) &&
     !alreadyConfirmed;
@@ -122,21 +115,6 @@ const PostModal = ({
     }
     setSelectedPostId(null);
     navigate(`/profile/${profileId}`);
-  };
-
-  // Local status updates
-  const onAcceptBuyer = async (post, buyerId) => {
-    await handleAcceptBuyer(post, buyerId);
-    setBuyersState((prev) =>
-      prev.map((b) => (b._id === buyerId ? { ...b, status: "accepted" } : b))
-    );
-  };
-
-  const onCancelBuyerLocal = async (post, buyerId) => {
-    await handleCancelBuyer(post, buyerId);
-    setBuyersState((prev) =>
-      prev.map((b) => (b._id === buyerId ? { ...b, status: "pending" } : b))
-    );
   };
 
   return (
@@ -205,14 +183,14 @@ const PostModal = ({
                   {currentUserIsOwner && b.status === "pending" && (
                     <div className="space-x-2">
                       <button
-                        onClick={() => onAcceptBuyer(selectedPost, b._id)}
+                        onClick={() => handleAcceptBuyer(selectedPost, b._id)}
                         className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded"
                         disabled={processingIds.has(selectedPost._id)}
                       >
                         Accept
                       </button>
                       <button
-                        onClick={() => onCancelBuyerLocal(selectedPost, b._id)}
+                        onClick={() => handleCancelBuyer(selectedPost, b._id)}
                         className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded"
                         disabled={processingIds.has(selectedPost._id)}
                       >
@@ -284,7 +262,7 @@ const PostModal = ({
             <button
               className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
               onClick={onBuyClick}
-              disabled={isProcessing(selectedPost._id)}
+              disabled={processingIds.has(selectedPost._id)}
             >
               Buy Now
             </button>
@@ -294,9 +272,11 @@ const PostModal = ({
             <>
               <button
                 onClick={onConfirmClick}
-                disabled={isProcessing(selectedPost._id) || confirmDisabled}
+                disabled={
+                  processingIds.has(selectedPost._id) || confirmDisabled
+                }
                 className={`w-full py-2 rounded-xl text-white ${
-                  isProcessing(selectedPost._id) || confirmDisabled
+                  processingIds.has(selectedPost._id) || confirmDisabled
                     ? "bg-green-400"
                     : "bg-green-600 hover:bg-green-700"
                 }`}
@@ -306,28 +286,15 @@ const PostModal = ({
 
               <button
                 onClick={onCancelClick}
-                disabled={isProcessing(selectedPost._id)}
+                disabled={processingIds.has(selectedPost._id)}
                 className={`w-full py-2 rounded-xl text-white ${
-                  isProcessing(selectedPost._id)
+                  processingIds.has(selectedPost._id)
                     ? "bg-red-400"
                     : "bg-red-600 hover:bg-red-700"
                 }`}
               >
                 Cancel Trade
               </button>
-
-              {/* Chat Request for accepted buyer */}
-              {currentBuyerStatus === "accepted" && (
-                <button
-                  className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
-                  onClick={() => handleToggleRequest(selectedPost)}
-                  disabled={isProcessing(selectedPost._id)}
-                >
-                  {selectedPost.requests?.includes(userId)
-                    ? "Cancel Chat Request"
-                    : "Send Chat Request"}
-                </button>
-              )}
             </>
           )}
 
@@ -340,19 +307,17 @@ const PostModal = ({
             </button>
           )}
 
-          {showRequestButton &&
-            currentBuyerStatus !== "accepted" &&
-            !showBuyButton && (
-              <button
-                className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
-                onClick={() => handleToggleRequest(selectedPost)}
-                disabled={isProcessing(selectedPost._id)}
-              >
-                {selectedPost.requests?.includes(userId)
-                  ? "Cancel Chat Request"
-                  : "Send Chat Request"}
-              </button>
-            )}
+          {showRequestButton && (
+            <button
+              className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
+              onClick={() => handleToggleRequest(selectedPost)}
+              disabled={processingIds.has(selectedPost._id)}
+            >
+              {selectedPost.requests?.includes(userId)
+                ? "Cancel Chat Request"
+                : "Send Chat Request"}
+            </button>
+          )}
         </div>
       </div>
     </div>
