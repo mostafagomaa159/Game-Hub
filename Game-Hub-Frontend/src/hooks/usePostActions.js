@@ -2,6 +2,7 @@ import { useState } from "react";
 import axios from "../api/axiosInstance";
 import { toast } from "react-toastify";
 import socket from "../utils/socket";
+
 const usePostActions = (
   setPosts,
   userId,
@@ -19,7 +20,6 @@ const usePostActions = (
     setPosts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
   };
 
-  // Add id to processingIds immutably
   const addProcessingId = (id) => {
     setProcessingIds((prev) => {
       const next = new Set(prev);
@@ -28,7 +28,6 @@ const usePostActions = (
     });
   };
 
-  // Remove id from processingIds immutably
   const removeProcessingId = (id) => {
     setProcessingIds((prev) => {
       const next = new Set(prev);
@@ -37,6 +36,39 @@ const usePostActions = (
     });
   };
 
+  /** =========================
+   *  Handle posting a reply
+   *  ========================= */
+  const handleReply = async (commentId, replyText) => {
+    if (!userId) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    if (!replyText.trim()) {
+      toast.error("Reply cannot be empty");
+      return;
+    }
+
+    try {
+      const res = await axios.post(`/comments/${commentId}/reply`, {
+        text: replyText.trim(),
+      });
+
+      if (res.data?.updatedPost) {
+        updatePost(res.data.updatedPost);
+      } else {
+        // fallback: refresh manually
+        toast.success("Reply posted");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to post reply");
+    }
+  };
+
+  /** =========================
+   *  Voting
+   *  ========================= */
   const handleVote = async (post, voteType) => {
     if (!userId) {
       setShowLoginModal(true);
@@ -70,6 +102,7 @@ const usePostActions = (
       removeProcessingId(postId);
     }
   };
+
   const handleToggleRequest = async (post) => {
     if (!userId) {
       setShowLoginModal(true);
@@ -104,7 +137,6 @@ const usePostActions = (
         setSelectedPostId(updatedPost._id);
       }
 
-      // === Notify seller via socket if sending a new request ===
       if (!requested && post.owner && post.owner._id) {
         socket.emit("notify-request", {
           toUserId: post.owner._id,
@@ -132,11 +164,7 @@ const usePostActions = (
     }
 
     const postId = post._id;
-
-    if (processingIds.has(postId)) {
-      console.log("Already processing this postId:", postId);
-      return;
-    }
+    if (processingIds.has(postId)) return;
 
     addProcessingId(postId);
 
@@ -145,11 +173,37 @@ const usePostActions = (
       const updatedPost = res.data?.post || res.data;
 
       if (updatedPost) {
-        updatePost(updatedPost);
+        updatePost(updatedPost); // already has populated owner, requests, buyer
         setSelectedPostId(updatedPost._id);
       }
     } catch (err) {
       toast.error(err.response?.data?.error || "Purchase failed");
+    } finally {
+      removeProcessingId(postId);
+    }
+  };
+
+  const handleChooseBuyer = async (buyerId, postId) => {
+    if (!postId || !buyerId) return;
+
+    if (processingIds.has(postId)) return;
+    addProcessingId(postId);
+
+    try {
+      const res = await axios.patch(`/newpost/${postId}/chooseBuyer`, {
+        chosenBuyerId: buyerId,
+      });
+
+      const updatedPost = res.data?.post || res.data;
+      if (updatedPost) {
+        // Update post in your global state (if you use it)
+        updatePost(updatedPost);
+
+        // Also refresh the modal so the buyer list disappears
+        setSelectedPostId(updatedPost._id);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to choose buyer");
     } finally {
       removeProcessingId(postId);
     }
@@ -163,7 +217,6 @@ const usePostActions = (
     setIsProcessing(true);
     try {
       const res = await axios.post(`/newpost/${post._id}/confirm-trade`);
-
       if (res.data) {
         updatePost(res.data);
         setSelectedPostId(res.data._id);
@@ -190,7 +243,6 @@ const usePostActions = (
 
     try {
       const res = await axios.post(`/newpost/${post._id}/cancel-trade`, {});
-
       if (res.data?.post) {
         updatePost(res.data.post);
         setSelectedPostId(res.data.post._id);
@@ -220,8 +272,6 @@ const usePostActions = (
       };
 
       const res = await axios.post(`/newpost/${post._id}/report`, payload);
-
-      // Your backend returns an object with message and possibly post/tradeTransaction
       if (!res.data || !res.data.message) {
         toast.error(res.data?.error || "Report submission failed");
         return { success: false };
@@ -276,8 +326,11 @@ const usePostActions = (
     handleVote,
     handleToggleRequest,
     handleBuy,
+    handleChooseBuyer,
     handleConfirmTrade,
     handleCancelTrade,
+    handleReply, // <--- now reusable everywhere
+
     submitReport,
     userAlreadyConfirmed,
     bothConfirmed,

@@ -90,6 +90,8 @@ router.get("/newpost/:id", auth, async (req, res) => {
 // Update post
 router.patch("/newpost/:id", auth, async (req, res) => {
   const updates = Object.keys(req.body);
+
+  // Base allowed fields (without tradeStatus)
   const allowedUpdates = [
     "avaliable",
     "description",
@@ -99,6 +101,12 @@ router.patch("/newpost/:id", auth, async (req, res) => {
     "good_response",
     "bad_response",
   ];
+
+  // Add tradeStatus if it's included in the request
+  if (updates.includes("tradeStatus")) {
+    allowedUpdates.push("tradeStatus");
+  }
+
   const isValid = updates.every((u) => allowedUpdates.includes(u));
   if (!isValid) {
     return res.status(400).send({ error: "Invalid updates!" });
@@ -109,13 +117,42 @@ router.patch("/newpost/:id", auth, async (req, res) => {
       _id: req.params.id,
       owner: req.user._id,
     });
-    if (!post) return res.status(404).send({ error: "Post not found" });
 
-    updates.forEach((u) => (post[u] = req.body[u]));
+    if (!post) {
+      return res.status(404).send({ error: "Post not found" });
+    }
+
+    // Trade Status special validation
+    if (updates.includes("tradeStatus")) {
+      const currentStatus = (post.tradeStatus || "").toLowerCase();
+      const newStatus = (req.body.tradeStatus || "").toLowerCase();
+      const allowedSwitch = ["available", "completed"];
+
+      // Allow switching only between "available" and "completed"
+      if (
+        !(
+          allowedSwitch.includes(currentStatus) &&
+          allowedSwitch.includes(newStatus)
+        )
+      ) {
+        return res.status(400).send({
+          error:
+            `Trade status can only be switched between "available" and "completed". ` +
+            `Current status is "${post.tradeStatus || "—"}".`,
+        });
+      }
+    }
+
+    // Apply updates
+    updates.forEach((u) => {
+      post[u] = req.body[u];
+    });
+
     await post.save();
     res.send(post);
   } catch (e) {
-    res.status(400).send(e);
+    console.error(e);
+    res.status(400).send({ error: "Failed to update post." });
   }
 });
 
@@ -175,7 +212,6 @@ router.post("/newpost/:id/buy", auth, async (req, res) => {
       return res.status(400).send({ error: "You cannot buy your own item" });
     }
 
-    // ✅ Check both availability fields
     if (!post.avaliable || post.tradeStatus !== "available") {
       return res.status(400).send({ error: "Item is not available to buy" });
     }
@@ -184,45 +220,41 @@ router.post("/newpost/:id/buy", auth, async (req, res) => {
       return res.status(400).send({ error: "Insufficient coins" });
     }
 
-    // ✅ Atomically reserve the post
-    const reservedPost = await newPost.findOneAndUpdate(
+    // ✅ Atomically add buyer to buyers array if not already added
+    const updatedPost = await newPost.findOneAndUpdate(
       {
         _id: req.params.id,
         tradeStatus: "available",
         avaliable: true,
+        buyers: { $ne: req.user._id }, // ensure same user can't buy twice
       },
       {
-        $set: {
-          buyer: req.user._id,
-          tradeStatus: "pending",
-        },
+        $push: { buyers: req.user._id }, // add buyer to array
       },
       { new: true }
     );
 
-    if (!reservedPost) {
+    if (!updatedPost) {
       return res
         .status(400)
-        .send({ error: "Item has already been reserved by someone else" });
+        .send({
+          error: "Item has already been reserved by you or is unavailable",
+        });
     }
-
-    // ✅ Deduct coins
-    req.user.coins -= reservedPost.price;
-    await req.user.save();
 
     // Emit update to clients watching this post room
     if (req.io) {
-      req.io.to(`post:${reservedPost._id}`).emit("postUpdated", {
-        _id: reservedPost._id,
-        tradeStatus: reservedPost.tradeStatus,
-        avaliable: reservedPost.avaliable,
-        buyer: reservedPost.buyer,
+      req.io.to(`post:${updatedPost._id}`).emit("postUpdated", {
+        _id: updatedPost._id,
+        tradeStatus: updatedPost.tradeStatus,
+        avaliable: updatedPost.avaliable,
+        buyers: updatedPost.buyers,
       });
     }
 
     res.send({
-      message: "Item reserved. Awaiting trade confirmation",
-      post: reservedPost,
+      message: "You have successfully reserved this item",
+      post: updatedPost,
     });
   } catch (e) {
     console.error("Buy error:", e);
@@ -280,7 +312,9 @@ router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
       post.tradeStatus = "pending_release";
       post.avaliable = false;
       post.releaseAt = releaseAt;
-
+      const buyerDoc = await User.findById(post.buyer._id).session(session);
+      buyerDoc.coins -= post.price;
+      await buyerDoc.save({ session });
       // Find or create TradeTransaction
       let tx = await TradeTransaction.findOne({ post: postId }).session(
         session
@@ -384,14 +418,14 @@ router.post("/newpost/:id/cancel-trade", auth, async (req, res) => {
       });
     }
 
-    // Refund coins if there's a buyer and the canceller is authorized
-    if (post.buyer) {
-      const buyer = await User.findById(post.buyer._id).session(session);
-      if (buyer) {
-        buyer.coins += post.price;
-        await buyer.save({ session });
-      }
-    }
+    // // Refund coins if there's a buyer and the canceller is authorized
+    // if (post.buyer) {
+    //   const buyer = await User.findById(post.buyer._id).session(session);
+    //   if (buyer) {
+    //     buyer.coins += post.price;
+    //     await buyer.save({ session });
+    //   }
+    // }
 
     // Reset post fields accordingly
     post.tradeStatus = "available";
@@ -780,6 +814,5 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
     });
   }
 });
-// GET all active disputes for admin review
 
 module.exports = router;

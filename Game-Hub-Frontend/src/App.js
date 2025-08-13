@@ -30,6 +30,7 @@ import PrivacyPolicyPage from "./pages/AboutUs/PrivacyPolicyPage";
 import TermsPage from "./pages/AboutUs/TermsOfUsePage";
 import DisclaimerPage from "./pages/AboutUs/DisclaimerPage";
 import DisputePolicyPage from "./pages/AboutUs/DisputePolicyPage";
+import UserProfilePage from "./pages/UserProfilePage.js";
 
 function App() {
   return (
@@ -83,6 +84,7 @@ function App() {
                   </RequireAuth>
                 }
               />
+
               <Route path="/requests" element={<Requests />} />
 
               <Route path="/all-posts" element={<AllPosts />} />
@@ -104,6 +106,7 @@ function App() {
               />
               <Route path="/deposit-success" element={<DepositSuccess />} />
               <Route path="/my-transactions" element={<MyTransactions />} />
+              <Route path="/profile/:userId" element={<UserProfilePage />} />
               <Route
                 path="/withdraw"
                 element={

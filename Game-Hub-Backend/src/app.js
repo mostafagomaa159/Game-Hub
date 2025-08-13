@@ -10,6 +10,7 @@ const transactionRoutes = require("./routers/transaction");
 const tradeRoutes = require("./routers/trade");
 const adminRouter = require("./routers/admin");
 const chatRouter = require("./routers/chat");
+const profilePostsRouter = require("./routers/Posts/posts");
 
 const app = express();
 
@@ -67,6 +68,7 @@ app.use(transactionRoutes);
 app.use(adminRouter);
 app.use(tradeRoutes);
 app.use(chatRouter);
+app.use(profilePostsRouter);
 
 // ✅ Default root route
 app.get("/", (req, res) => {

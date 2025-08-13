@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const PostModal = ({
   selectedPost,
@@ -19,22 +20,21 @@ const PostModal = ({
   hasConfirmed,
 }) => {
   const [showBuyMessage, setShowBuyMessage] = useState(false);
-  const [confirmDisabled, setConfirmDisabled] = useState(false); // toggle disable state
+  const [confirmDisabled, setConfirmDisabled] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!selectedPost) {
       setShowBuyMessage(false);
-      setConfirmDisabled(false); // reset when modal closes or post changes
+      setConfirmDisabled(false);
     }
   }, [selectedPost]);
 
   if (!selectedPost) return null;
 
-  // Normalize IDs (could be populated objects or plain IDs)
   const buyerId = selectedPost.buyer?._id || selectedPost.buyer;
   const ownerId = selectedPost.owner?._id || selectedPost.owner;
 
-  // Derived booleans for rendering logic
   const currentUserIsBuyer = Boolean(
     userId && buyerId && String(buyerId) === String(userId)
   );
@@ -52,7 +52,6 @@ const PostModal = ({
   );
   const isAvailable = Boolean(selectedPost.avaliable);
 
-  // Button visibility flags
   const showBuyButton =
     userId &&
     !currentUserIsOwner &&
@@ -72,22 +71,30 @@ const PostModal = ({
   const showRequestButton =
     userId && !currentUserIsOwner && (!bothConfirmedFlag || showReportButton);
 
-  // Updated Buy button click handler to show message inside modal
   const onBuyClick = () => {
     handleBuy(selectedPost._id);
     setShowBuyMessage(true);
   };
 
-  // Confirm button click: disable confirm button after clicking
   const onConfirmClick = () => {
     setConfirmDisabled(true);
     handleConfirmTrade(selectedPost);
   };
 
-  // Cancel button click: enable confirm button again
   const onCancelClick = () => {
     setConfirmDisabled(false);
     handleCancelTrade(selectedPost);
+  };
+
+  const handleShowProfile = () => {
+    if (!localStorage.getItem("token")) {
+      // If user not logged in
+      navigate("/login");
+      return;
+    }
+    setSelectedPostId(null); // Close modal first
+
+    navigate(`/profile/${ownerId}`);
   };
 
   return (
@@ -106,9 +113,19 @@ const PostModal = ({
 
         <h2 className="text-2xl font-bold mb-2">{selectedPost.description}</h2>
 
-        <p className="mb-2 text-sm font-semibold text-gray-600 dark:text-gray-300">
-          Server: {selectedPost.server}
-        </p>
+        <div className="flex justify-between items-center mb-2">
+          <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">
+            Server: {selectedPost.server}
+          </p>
+          {selectedPost.owner && (
+            <button
+              onClick={handleShowProfile}
+              className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+            >
+              Show Profile
+            </button>
+          )}
+        </div>
 
         <p className="mb-2 text-yellow-500 font-semibold">
           Price: {selectedPost.price}{" "}
@@ -186,7 +203,7 @@ const PostModal = ({
             <>
               <button
                 onClick={onConfirmClick}
-                disabled={isProcessing || confirmDisabled} // toggle disable
+                disabled={isProcessing || confirmDisabled}
                 className={`w-full py-2 rounded-xl text-white ${
                   isProcessing || confirmDisabled
                     ? "bg-green-400"

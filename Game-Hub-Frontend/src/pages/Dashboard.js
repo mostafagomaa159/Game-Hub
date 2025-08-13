@@ -67,20 +67,27 @@ const Dashboard = () => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const { description, price, server, avaliable, discord } = editData;
+      const { description, price, server, avaliable, discord, tradeStatus } =
+        editData;
       await axios.patch(`/newpost/${editData._id}`, {
         description,
         price: Number(price),
         server,
         avaliable,
         discord,
+        tradeStatus,
       });
       toast.success("Post updated successfully!");
       setEditData(null);
-      await fetchPosts();
+
+      // Instead of waiting for full fetch, update state instantly
+      setPosts((prev) =>
+        prev.map((p) => (p._id === editData._id ? { ...p, ...editData } : p))
+      );
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to update post.");
+      const errorMessage =
+        err.response?.data?.error || "Failed to update post.";
+      toast.error(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -142,42 +149,18 @@ const Dashboard = () => {
 
   const TableSkeletonRow = ({ keyIndex }) => (
     <tr key={`sk-${keyIndex}`} className="animate-pulse">
-      <td className="p-4">
-        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
-      </td>
-      <td className="p-4">
-        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-6" />
-      </td>
-      <td className="p-4">
-        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-12" />
-      </td>
-      <td className="p-4">
-        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20" />
-      </td>
-      <td className="p-4">
-        <div className="flex gap-2">
-          <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded" />
-          <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded" />
-        </div>
-      </td>
+      {Array.from({ length: 6 }).map((_, idx) => (
+        <td key={idx} className="p-4">
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+        </td>
+      ))}
     </tr>
   );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-darkBackground text-gray-900 dark:text-gray-100 p-6 transition-colors duration-300">
       <div className="max-w-6xl mx-auto">
-        <ToastContainer
-          position="top-center"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="dark"
-        />
+        <ToastContainer position="top-center" autoClose={3000} theme="dark" />
 
         <h2 className="text-3xl font-extrabold mb-6 text-center md:text-left">
           My Posts
@@ -243,7 +226,7 @@ const Dashboard = () => {
           </label>
         </div>
 
-        {/* Table or Skeleton */}
+        {/* Table */}
         <div className="overflow-x-auto bg-white dark:bg-darkCard shadow-md rounded-lg">
           <table className="w-full table-auto border-collapse">
             <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm">
@@ -252,27 +235,26 @@ const Dashboard = () => {
                 <th className="p-4 text-left">Available</th>
                 <th className="p-4 text-left">Price</th>
                 <th className="p-4 text-left">Server</th>
+                <th className="p-4 text-left">Trade Status</th>
                 <th className="p-4 text-left">Actions</th>
               </tr>
             </thead>
 
             <tbody className="text-sm divide-y">
               {loading ? (
-                <>
-                  {Array.from({ length: postsPerPage }).map((_, i) => (
-                    <TableSkeletonRow keyIndex={i} key={`skeleton-${i}`} />
-                  ))}
-                </>
+                Array.from({ length: postsPerPage }).map((_, i) => (
+                  <TableSkeletonRow keyIndex={i} key={`skeleton-${i}`} />
+                ))
               ) : error ? (
                 <tr>
-                  <td colSpan={5} className="p-6 text-red-600 text-center">
+                  <td colSpan={6} className="p-6 text-red-600 text-center">
                     {error}
                   </td>
                 </tr>
               ) : filteredPosts.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={6}
                     className="p-6 text-center text-gray-600 dark:text-gray-400"
                   >
                     No posts found.
@@ -288,8 +270,7 @@ const Dashboard = () => {
                     <td className="p-4 flex items-center gap-1">
                       {post.avaliable ? (
                         <>
-                          <FiCheckCircle className="text-green-500" />
-                          Yes
+                          <FiCheckCircle className="text-green-500" /> Yes
                         </>
                       ) : (
                         <>No</>
@@ -303,7 +284,23 @@ const Dashboard = () => {
                       />
                       {post.server}
                     </td>
-
+                    {/* New Trade Status Cell */}
+                    <td className="p-4">
+                      <span
+                        className={`px-2 py-1 rounded text-xs font-semibold
+                          ${
+                            post.tradeStatus === "completed"
+                              ? "bg-green-100 text-green-700"
+                              : post.tradeStatus === "pending"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : post.tradeStatus === "cancelled"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
+                      >
+                        {post.tradeStatus || "—"}
+                      </span>
+                    </td>
                     <td className="p-4 space-x-2">
                       <button
                         onClick={() => handleEdit(post)}
@@ -314,10 +311,18 @@ const Dashboard = () => {
                       </button>
                       <button
                         onClick={() => handleDelete(post._id)}
-                        className="text-red-600 hover:text-red-800 transition"
-                        aria-label="Delete post"
+                        className={`px-3 py-1 rounded flex items-center gap-1 ${
+                          post.tradeStatus === "pending" ||
+                          post.tradeStatus === "pending_release"
+                            ? "bg-gray-500 cursor-not-allowed opacity-50"
+                            : "bg-red-500 hover:bg-red-600"
+                        }`}
+                        disabled={
+                          post.tradeStatus === "pending" ||
+                          post.tradeStatus === "pending_release"
+                        }
                       >
-                        <FiTrash2 className="inline w-5 h-5" />
+                        <FiTrash2 />
                       </button>
                     </td>
                   </tr>
@@ -354,14 +359,14 @@ const Dashboard = () => {
         {/* Edit Modal */}
         {editData && (
           <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center px-4">
-            <div className="bg-white dark:bg-darkCard w-full max-w-lg p-6 rounded-xl shadow-lg transition-transform transform scale-100">
+            <div className="bg-white dark:bg-darkCard w-full max-w-lg p-6 rounded-xl shadow-lg">
               <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
                 Edit Post
               </h3>
               <form onSubmit={handleEditSubmit} className="space-y-4">
                 <div className="relative">
                   <FiEdit2
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                     size={20}
                   />
                   <input
@@ -370,14 +375,14 @@ const Dashboard = () => {
                     onChange={(e) =>
                       setEditData({ ...editData, description: e.target.value })
                     }
-                    className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Description"
                     required
                   />
                 </div>
                 <div className="relative">
                   <FiDollarSign
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                     size={20}
                   />
                   <input
@@ -386,14 +391,14 @@ const Dashboard = () => {
                     onChange={(e) =>
                       setEditData({ ...editData, price: e.target.value })
                     }
-                    className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Price"
                     required
                   />
                 </div>
                 <div className="relative">
                   <FiServer
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                     size={20}
                   />
                   <input
@@ -402,14 +407,14 @@ const Dashboard = () => {
                     onChange={(e) =>
                       setEditData({ ...editData, server: e.target.value })
                     }
-                    className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Server"
                     required
                   />
                 </div>
                 <div className="relative">
                   <FaDiscord
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                     size={20}
                   />
                   <input
@@ -418,11 +423,52 @@ const Dashboard = () => {
                     onChange={(e) =>
                       setEditData({ ...editData, discord: e.target.value })
                     }
-                    className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                    className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Discord (optional)"
                   />
                 </div>
 
+                {/* Trade Status Dropdown */}
+                <div>
+                  <label className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Trade Status
+                  </label>
+
+                  {["available", "completed"].includes(
+                    (editData.tradeStatus || "").toLowerCase()
+                  ) ? (
+                    // Editable dropdown with only available/completed
+                    <select
+                      value={editData.tradeStatus || ""}
+                      onChange={(e) =>
+                        setEditData({
+                          ...editData,
+                          tradeStatus: e.target.value,
+                        })
+                      }
+                      className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="available">Available</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  ) : (
+                    // Read-only display
+                    <span
+                      className={`inline-block px-3 py-2 rounded-md text-sm font-semibold
+        ${
+          editData.tradeStatus === "completed"
+            ? "bg-green-100 text-green-700"
+            : editData.tradeStatus === "pending"
+            ? "bg-yellow-100 text-yellow-700"
+            : editData.tradeStatus === "cancelled"
+            ? "bg-red-100 text-red-700"
+            : "bg-gray-100 text-gray-700"
+        }`}
+                    >
+                      {editData.tradeStatus || "—"}
+                    </span>
+                  )}
+                </div>
                 <label className="flex items-center gap-2 select-none cursor-pointer">
                   <input
                     type="checkbox"
@@ -439,7 +485,7 @@ const Dashboard = () => {
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className={`flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition disabled:opacity-70 disabled:cursor-not-allowed`}
+                    className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition disabled:opacity-70"
                   >
                     {isSaving && (
                       <SmallSpinner className="inline-block w-4 h-4" />
