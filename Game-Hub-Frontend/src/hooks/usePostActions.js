@@ -183,27 +183,50 @@ const usePostActions = (
     }
   };
 
-  const handleChooseBuyer = async (buyerId, postId) => {
-    if (!postId || !buyerId) return;
+  // Accept a buyer
+  const handleAcceptBuyer = async (post, buyerId) => {
+    if (!post || !buyerId) return;
+    const postId = post._id;
 
     if (processingIds.has(postId)) return;
     addProcessingId(postId);
 
     try {
-      const res = await axios.patch(`/newpost/${postId}/chooseBuyer`, {
-        chosenBuyerId: buyerId,
-      });
-
+      const res = await axios.patch(
+        `/newpost/${postId}/buyers/${buyerId}/accept`
+      );
       const updatedPost = res.data?.post || res.data;
-      if (updatedPost) {
-        // Update post in your global state (if you use it)
-        updatePost(updatedPost);
 
-        // Also refresh the modal so the buyer list disappears
+      if (updatedPost) {
+        updatePost(updatedPost); // updates post in state
         setSelectedPostId(updatedPost._id);
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || "Failed to choose buyer");
+      toast.error(err.response?.data?.error || "Failed to accept buyer");
+    } finally {
+      removeProcessingId(postId);
+    }
+  };
+
+  const handleCancelBuyer = async (post, buyerId) => {
+    if (!post || !buyerId) return;
+    const postId = post._id;
+
+    if (processingIds.has(postId)) return;
+    addProcessingId(postId);
+
+    try {
+      const res = await axios.patch(
+        `/newpost/${postId}/buyers/${buyerId}/cancel`
+      );
+      const updatedPost = res.data?.post || res.data;
+
+      if (updatedPost) {
+        updatePost(updatedPost);
+        setSelectedPostId(updatedPost._id);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Failed to cancel trade");
     } finally {
       removeProcessingId(postId);
     }
@@ -326,8 +349,9 @@ const usePostActions = (
     handleVote,
     handleToggleRequest,
     handleBuy,
-    handleChooseBuyer,
+    handleAcceptBuyer,
     handleConfirmTrade,
+    handleCancelBuyer,
     handleCancelTrade,
     handleReply, // <--- now reusable everywhere
 

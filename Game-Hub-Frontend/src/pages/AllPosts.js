@@ -7,7 +7,7 @@ import React, {
   useCallback,
 } from "react";
 import usePosts from "../hooks/usePosts";
-import { useUser } from "../context/UserContext"; // <-- updated import
+import { useUser } from "../context/UserContext";
 import usePostActions from "../hooks/usePostActions";
 import Filters from "../components/AllPosts/Filters";
 import PostGrid from "../components/AllPosts/PostGrid";
@@ -16,13 +16,14 @@ import ReportModal from "../components/AllPosts/ReportModal";
 import LoginModal from "../components/AllPosts/LoginModal";
 import Pagination from "../components/AllPosts/Pagination";
 import socket from "../utils/socket";
+
 const POSTS_PER_PAGE = 12;
 
 const AllPosts = () => {
-  // State declarations
   const { posts, loading, error, setPosts } = usePosts();
-  const { user } = useUser(); // get full user object
-  const userId = user?._id || null; // safely get userId
+  const { user } = useUser();
+  const userId = user?._id || null;
+
   const [searchTerm, setSearchTerm] = useState("");
   const [serverFilter, setServerFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,31 +38,32 @@ const AllPosts = () => {
   useEffect(() => {
     setHasConfirmed(false);
   }, [selectedPostId]);
+
+  // Join post rooms
   useEffect(() => {
     if (!posts.length) return;
-
-    // Join all post rooms once
     posts.forEach((post) => {
       socket.emit("joinRoom", { roomId: `post:${post._id}` });
     });
-  }, [posts]); // only join rooms when posts change
+  }, [posts]);
 
+  // Listen for updates
   useEffect(() => {
-    // Listen for post updates only once
     const handlePostUpdated = (updatedData) => {
       setPosts((prevPosts) =>
         prevPosts.map((p) =>
           p._id === updatedData._id ? { ...p, ...updatedData } : p
         )
       );
+
+      if (selectedPostId === updatedData._id) {
+        setSelectedPostId(updatedData._id);
+      }
     };
 
     socket.on("postUpdated", handlePostUpdated);
-
-    return () => {
-      socket.off("postUpdated", handlePostUpdated);
-    };
-  }, [setPosts]); // don't re-run on posts change
+    return () => socket.off("postUpdated", handlePostUpdated);
+  }, [selectedPostId, setPosts, setSelectedPostId]);
 
   const filtered = useMemo(() => {
     let temp = [...posts];
@@ -102,13 +104,15 @@ const AllPosts = () => {
   const isBuyer = useMemo(
     () =>
       !!selectedPost &&
-      (selectedPost.buyer?._id === userId || selectedPost.buyer === userId),
+      selectedPost.buyers?.some((b) => String(b) === String(userId)),
     [selectedPost, userId]
   );
 
   const {
     isProcessing,
     reportSubmitting,
+    handleAcceptBuyer,
+    handleCancelBuyer,
     handleVote,
     handleToggleRequest,
     handleBuy,
@@ -157,52 +161,21 @@ const AllPosts = () => {
     );
   };
 
-  const handlePostBuy = (postId) => {
-    const post = posts.find((p) => p._id === postId);
-    if (!post) {
-      console.error("Post not found for id", postId);
-      return;
-    }
-    handleBuy(post);
+  const handlePostBuy = (post) => {
+    handleBuy(post._id);
   };
 
   const handlePostToggleRequest = () => {
-    if (selectedPost) {
-      handleToggleRequest(selectedPost);
-    }
+    if (selectedPost) handleToggleRequest(selectedPost);
   };
 
   const handlePostConfirmTrade = () => {
-    if (selectedPost) {
-      handleConfirmTrade(selectedPost);
-    }
+    if (selectedPost) handleConfirmTrade(selectedPost);
   };
 
   const handlePostCancelTrade = () => {
-    if (selectedPost) {
-      handleCancelTrade(selectedPost);
-    }
+    if (selectedPost) handleCancelTrade(selectedPost);
   };
-  useEffect(() => {
-    const handlePostUpdated = (updatedData) => {
-      setPosts((prevPosts) =>
-        prevPosts.map((p) =>
-          p._id === updatedData._id ? { ...p, ...updatedData } : p
-        )
-      );
-
-      if (selectedPostId === updatedData._id) {
-        // Update selectedPostId to trigger modal re-render with new data
-        setSelectedPostId(updatedData._id);
-      }
-    };
-
-    socket.on("postUpdated", handlePostUpdated);
-
-    return () => {
-      socket.off("postUpdated", handlePostUpdated);
-    };
-  }, [selectedPostId, setPosts, setSelectedPostId]);
 
   return (
     <div className="bg-background dark:bg-darkBackground text-black dark:text-white min-h-screen py-8 px-4">
@@ -226,6 +199,7 @@ const AllPosts = () => {
         processingIds={processingIds}
         setSelectedPostId={setSelectedPostId}
         handleVote={handlePostVote}
+        handleBuy={handlePostBuy}
       />
 
       {totalPages > 1 && (
@@ -245,6 +219,8 @@ const AllPosts = () => {
           isProcessing={isProcessing}
           handleBuy={handlePostBuy}
           handleToggleRequest={handlePostToggleRequest}
+          handleAcceptBuyer={handleAcceptBuyer}
+          handleCancelBuyer={handleCancelBuyer}
           handleConfirmTrade={handlePostConfirmTrade}
           handleCancelTrade={handlePostCancelTrade}
           setShowReportModal={setShowReportModal}
