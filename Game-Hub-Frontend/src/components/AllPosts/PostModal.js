@@ -1,91 +1,69 @@
-// src/components/AllPosts/PostModal.js
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import socket from "../../utils/socket";
 
 const PostModal = ({
   selectedPost,
   setSelectedPostId,
   userId,
-  processingIds, // <- use Set to track processing
+  isProcessing,
   handleBuy,
   handleToggleRequest,
-  handleCancelBuyer,
-  handleAcceptBuyer,
   handleConfirmTrade,
   handleCancelTrade,
   setShowReportModal,
+  isOwner,
+  isBuyer,
+  processingIds,
   userAlreadyConfirmed,
   bothConfirmed,
   modalRef,
+  hasConfirmed,
 }) => {
   const [showBuyMessage, setShowBuyMessage] = useState(false);
   const [confirmDisabled, setConfirmDisabled] = useState(false);
-  const [buyersState, setBuyersState] = useState([]);
   const navigate = useNavigate();
 
-  // Initialize buyersState whenever selectedPost changes
   useEffect(() => {
-    if (!selectedPost) return;
-    const buyersWithStatus = (selectedPost.buyers || []).map((b) => ({
-      ...b,
-      status: "pending",
-    }));
-    setBuyersState(buyersWithStatus);
-    setShowBuyMessage(false);
-    setConfirmDisabled(false);
+    if (!selectedPost) {
+      setShowBuyMessage(false);
+      setConfirmDisabled(false);
+    }
   }, [selectedPost]);
-
-  // Listen for socket updates
-  useEffect(() => {
-    if (!selectedPost) return;
-
-    const handlePostUpdated = (updatedData) => {
-      if (updatedData._id === selectedPost._id) {
-        const updatedBuyers = (updatedData.buyers || []).map((b) => {
-          const existing = buyersState.find((e) => e._id === b._id);
-          return existing ? { ...existing } : { ...b, status: "pending" };
-        });
-        setBuyersState(updatedBuyers);
-      }
-    };
-
-    socket.on("postUpdated", handlePostUpdated);
-    return () => socket.off("postUpdated", handlePostUpdated);
-  }, [selectedPost, buyersState]);
 
   if (!selectedPost) return null;
 
+  const buyerId = selectedPost.buyer?._id || selectedPost.buyer;
   const ownerId = selectedPost.owner?._id || selectedPost.owner;
-  const currentUserIsOwner = String(ownerId) === String(userId);
-  const currentUserIsActiveBuyer =
-    String(selectedPost.activeBuyerId) === String(userId);
 
-  const bothConfirmedFlag =
-    typeof bothConfirmed === "function" && bothConfirmed(selectedPost);
-  const alreadyConfirmed =
-    typeof userAlreadyConfirmed === "function" &&
-    userAlreadyConfirmed(selectedPost);
-
+  const currentUserIsBuyer = Boolean(
+    userId && buyerId && String(buyerId) === String(userId)
+  );
+  const currentUserIsOwner = Boolean(
+    userId && ownerId && String(ownerId) === String(userId)
+  );
+  const bothConfirmedFlag = Boolean(
+    typeof bothConfirmed === "function" && bothConfirmed(selectedPost)
+  );
   const isPending = selectedPost.tradeStatus === "pending";
   const isPendingOrPendingRelease =
     isPending || selectedPost.tradeStatus === "pending_release";
+  const alreadyConfirmed = Boolean(
+    typeof userAlreadyConfirmed === "function" && userAlreadyConfirmed()
+  );
   const isAvailable = Boolean(selectedPost.avaliable);
 
-  // Show Buy Now button only if user is not owner and not active buyer
   const showBuyButton =
     userId &&
     !currentUserIsOwner &&
-    !currentUserIsActiveBuyer &&
     isAvailable &&
-    !bothConfirmedFlag;
+    !bothConfirmedFlag &&
+    !currentUserIsBuyer;
 
-  // Show Confirm/Cancel buttons only to active buyer or owner
   const showConfirmCancelButtons =
     isPending &&
-    !bothConfirmedFlag &&
-    (currentUserIsOwner || currentUserIsActiveBuyer) &&
-    !alreadyConfirmed;
+    (currentUserIsOwner || currentUserIsBuyer) &&
+    !alreadyConfirmed &&
+    !bothConfirmedFlag;
 
   const showReportButton =
     userId && bothConfirmedFlag && isPendingOrPendingRelease;
@@ -94,7 +72,7 @@ const PostModal = ({
     userId && !currentUserIsOwner && (!bothConfirmedFlag || showReportButton);
 
   const onBuyClick = () => {
-    handleBuy(selectedPost);
+    handleBuy(selectedPost._id);
     setShowBuyMessage(true);
   };
 
@@ -108,13 +86,15 @@ const PostModal = ({
     handleCancelTrade(selectedPost);
   };
 
-  const handleShowProfile = (profileId) => {
+  const handleShowProfile = () => {
     if (!localStorage.getItem("token")) {
+      // If user not logged in
       navigate("/login");
       return;
     }
-    setSelectedPostId(null);
-    navigate(`/profile/${profileId}`);
+    setSelectedPostId(null); // Close modal first
+
+    navigate(`/profile/${ownerId}`);
   };
 
   return (
@@ -139,7 +119,7 @@ const PostModal = ({
           </p>
           {selectedPost.owner && (
             <button
-              onClick={() => handleShowProfile(ownerId)}
+              onClick={handleShowProfile}
               className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline"
             >
               Show Profile
@@ -160,109 +140,60 @@ const PostModal = ({
           {isAvailable ? "Available ✔️" : "Not Available ❌"}
         </p>
 
-        {/* Buyers List */}
-        {buyersState.length > 0 && (
-          <div className="mb-2 text-sm">
-            <p className="font-semibold text-purple-600 mb-1">
-              Buyers ({buyersState.length}):
-            </p>
-            <ul className="space-y-1">
-              {buyersState.map((b) => (
-                <li
-                  key={b._id + (b.status || "pending")}
-                  className="flex justify-between items-center bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded"
-                >
-                  <div>
-                    <span className="font-medium">{b.name || "Unknown"}</span>{" "}
-                    <span className="text-gray-600 dark:text-gray-300">
-                      ({b.email || "N/A"})
-                    </span>
-                  </div>
-
-                  {/* Owner sees Accept/Cancel for pending buyers */}
-                  {currentUserIsOwner && b.status === "pending" && (
-                    <div className="space-x-2">
-                      <button
-                        onClick={() => handleAcceptBuyer(selectedPost, b._id)}
-                        className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded"
-                        disabled={processingIds.has(selectedPost._id)}
-                      >
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => handleCancelBuyer(selectedPost, b._id)}
-                        className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded"
-                        disabled={processingIds.has(selectedPost._id)}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-
-                  {b.status === "accepted" && (
-                    <p className="text-green-600 font-semibold text-sm ml-2">
-                      Seller accepted! Confirm/cancel trade or send chat
-                      request.
-                    </p>
-                  )}
-                  {b.status === "rejected" && (
-                    <p className="text-red-600 font-semibold text-sm ml-2">
-                      Seller rejected your request. Buy now or send chat request
-                      again.
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
+        {selectedPost.owner && (
+          <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-400">
+            Seller: {selectedPost.owner.name || "Unknown"}
+          </p>
         )}
 
-        {/* Confirmation & Trade Messages */}
+        {/* Confirmation status messages */}
         {isPendingOrPendingRelease && (
           <>
             {currentUserIsOwner &&
-              selectedPost.tradeConfirmations?.some((id) =>
-                buyersState.map((b) => b._id).includes(id)
-              ) &&
+              buyerId &&
+              selectedPost.tradeConfirmations?.includes(buyerId) &&
               !bothConfirmedFlag && (
                 <p className="mt-3 text-red-500 font-semibold">
-                  ✅ A buyer has confirmed the trade. Chat with them before you
-                  confirm!
+                  ✅ Buyer has confirmed the trade, Chat with him before you
+                  Confirm Trade
                 </p>
               )}
 
-            {currentUserIsActiveBuyer &&
+            {currentUserIsBuyer &&
               ownerId &&
               selectedPost.tradeConfirmations?.includes(ownerId) &&
               !bothConfirmedFlag && (
                 <p className="mt-3 text-red-500 font-semibold">
-                  ✅ Seller has confirmed the trade. Make sure to chat before
-                  confirming!
+                  ✅ Seller has confirmed the trade, Make Sure to Send Request
+                  to Him before you Confirm Trade!
                 </p>
               )}
 
             {bothConfirmedFlag &&
-              (currentUserIsActiveBuyer || currentUserIsOwner) && (
+              (currentUserIsBuyer || currentUserIsOwner) && (
                 <p className="mt-3 text-blue-600 font-semibold">
-                  🎉 Trade Successful! Feel free to report any issues.
+                  🎉 Trade Successful! Feel free to report if there is a
+                  problem.
                 </p>
               )}
           </>
         )}
 
+        {/* Show buy message inside modal after clicking Buy */}
         {showBuyMessage && (
           <p className="mt-3 text-red-600 font-semibold">
-            ⚠️ Please don't confirm until you chat with the seller and meet
+            ⚠️ Please Don't confirm till you chat with seller and meet with him
             in-game.
           </p>
         )}
 
+        {/* ===== Buttons Section ===== */}
         <div className="mt-4 space-y-2">
           {showBuyButton && (
             <button
               className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
               onClick={onBuyClick}
-              disabled={processingIds.has(selectedPost._id)}
+              disabled={isProcessing}
             >
               Buy Now
             </button>
@@ -272,11 +203,9 @@ const PostModal = ({
             <>
               <button
                 onClick={onConfirmClick}
-                disabled={
-                  processingIds.has(selectedPost._id) || confirmDisabled
-                }
+                disabled={isProcessing || confirmDisabled}
                 className={`w-full py-2 rounded-xl text-white ${
-                  processingIds.has(selectedPost._id) || confirmDisabled
+                  isProcessing || confirmDisabled
                     ? "bg-green-400"
                     : "bg-green-600 hover:bg-green-700"
                 }`}
@@ -286,11 +215,9 @@ const PostModal = ({
 
               <button
                 onClick={onCancelClick}
-                disabled={processingIds.has(selectedPost._id)}
+                disabled={isProcessing}
                 className={`w-full py-2 rounded-xl text-white ${
-                  processingIds.has(selectedPost._id)
-                    ? "bg-red-400"
-                    : "bg-red-600 hover:bg-red-700"
+                  isProcessing ? "bg-red-400" : "bg-red-600 hover:bg-red-700"
                 }`}
               >
                 Cancel Trade
@@ -311,7 +238,7 @@ const PostModal = ({
             <button
               className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
               onClick={() => handleToggleRequest(selectedPost)}
-              disabled={processingIds.has(selectedPost._id)}
+              disabled={isProcessing}
             >
               {selectedPost.requests?.includes(userId)
                 ? "Cancel Chat Request"
@@ -324,4 +251,4 @@ const PostModal = ({
   );
 };
 
-export default PostModal;
+export default React.memo(PostModal);

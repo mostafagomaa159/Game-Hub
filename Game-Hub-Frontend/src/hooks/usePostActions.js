@@ -173,60 +173,11 @@ const usePostActions = (
       const updatedPost = res.data?.post || res.data;
 
       if (updatedPost) {
-        updatePost(updatedPost); // already has populated owner, requests, buyer
-        setSelectedPostId(updatedPost._id);
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.error || "Purchase failed");
-    } finally {
-      removeProcessingId(postId);
-    }
-  };
-
-  // Accept a buyer
-  const handleAcceptBuyer = async (post, buyerId) => {
-    if (!post || !buyerId) return;
-    const postId = post._id;
-
-    if (processingIds.has(postId)) return;
-    addProcessingId(postId);
-
-    try {
-      const res = await axios.patch(
-        `/newpost/${postId}/buyers/${buyerId}/accept`
-      );
-      const updatedPost = res.data?.post || res.data;
-
-      if (updatedPost) {
-        updatePost(updatedPost); // updates post in state
-        setSelectedPostId(updatedPost._id);
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.error || "Failed to accept buyer");
-    } finally {
-      removeProcessingId(postId);
-    }
-  };
-
-  const handleCancelBuyer = async (post, buyerId) => {
-    if (!post || !buyerId) return;
-    const postId = post._id;
-
-    if (processingIds.has(postId)) return;
-    addProcessingId(postId);
-
-    try {
-      const res = await axios.patch(
-        `/newpost/${postId}/buyers/${buyerId}/cancel`
-      );
-      const updatedPost = res.data?.post || res.data;
-
-      if (updatedPost) {
         updatePost(updatedPost);
         setSelectedPostId(updatedPost._id);
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || "Failed to cancel trade");
+      toast.error(err.response?.data?.error || "Purchase failed");
     } finally {
       removeProcessingId(postId);
     }
@@ -349,12 +300,9 @@ const usePostActions = (
     handleVote,
     handleToggleRequest,
     handleBuy,
-    handleAcceptBuyer,
     handleConfirmTrade,
-    handleCancelBuyer,
     handleCancelTrade,
     handleReply, // <--- now reusable everywhere
-
     submitReport,
     userAlreadyConfirmed,
     bothConfirmed,
