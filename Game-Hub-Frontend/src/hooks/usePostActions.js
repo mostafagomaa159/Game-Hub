@@ -188,19 +188,35 @@ const usePostActions = (
       setShowLoginModal(true);
       return;
     }
+
     setIsProcessing(true);
+
     try {
       const res = await axios.post(`/newpost/${post._id}/confirm-trade`);
+
       if (res.data) {
+        // Update the post in your state
         updatePost(res.data);
         setSelectedPostId(res.data._id);
         setHasConfirmed(true);
+
+        // If backend returns the transaction with fee/net
+        if (res.data.transaction) {
+          return {
+            transaction: {
+              fee: res.data.transaction.fee,
+              amount: res.data.transaction.amount, // net to seller
+            },
+          };
+        }
       }
     } catch (err) {
       toast.error(err.response?.data?.error || "Confirmation failed");
     } finally {
       setIsProcessing(false);
     }
+
+    return null;
   };
 
   const handleCancelTrade = async (post) => {

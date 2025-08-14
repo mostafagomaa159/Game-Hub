@@ -490,8 +490,12 @@ router.post("/newpost/finalize-trades", auth, async (req, res) => {
         continue;
       }
 
-      // transfer funds
-      seller.coins = (seller.coins || 0) + Number(tx.amount || 0);
+      // calculate 10% platform fee
+      const feePercentage = 0.1; // 10%
+      const amountToSeller = Number(tx.amount || 0) * (1 - feePercentage);
+
+      // transfer funds after deducting fee
+      seller.coins = (seller.coins || 0) + amountToSeller;
       await seller.save({ session });
 
       // mark post fields
@@ -693,15 +697,6 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
       await session.abortTransaction();
       session.endSession();
       return res.status(404).send({ error: "Post not found" });
-    }
-
-    // Prevent reporting if trade is completed
-    if (post.tradeStatus === "completed") {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(400)
-        .send({ error: "Cannot report a trade that has been completed" });
     }
 
     // Normalize owner and buyer ids to string for comparison
