@@ -66,7 +66,10 @@ const PostModal = ({
     !bothConfirmedFlag;
 
   const showReportButton =
-    userId && bothConfirmedFlag && isPendingOrPendingRelease;
+    userId &&
+    bothConfirmedFlag &&
+    isPendingOrPendingRelease &&
+    (currentUserIsOwner || currentUserIsBuyer);
 
   const showRequestButton =
     userId && !currentUserIsOwner && (!bothConfirmedFlag || showReportButton);

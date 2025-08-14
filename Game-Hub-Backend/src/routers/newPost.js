@@ -40,9 +40,6 @@ router.get("/newpost", auth, async (req, res) => {
     const total = await newPost.countDocuments(filter); // total count
     const posts = await newPost
       .find(filter)
-      .populate("owner", "name email") // populate owner details
-      .populate("activeBuyerId")
-      .populate("buyers", "name email") // populate buyers details
       .skip((page - 1) * limit)
       .limit(Number(limit))
       .sort({ createdAt: -1 }); // optional sort by latest
@@ -64,9 +61,7 @@ router.get("/all", async (req, res) => {
   try {
     const posts = await newPost
       .find({})
-      .populate("owner", "name email") // seller info
-      .populate("activeBuyerId")
-      .populate("buyers", "name email") // buyers info
+      .populate("owner", "name email")
       .sort({ createdAt: -1 });
 
     res.status(200).json(posts);
@@ -95,8 +90,6 @@ router.get("/newpost/:id", auth, async (req, res) => {
 // Update post
 router.patch("/newpost/:id", auth, async (req, res) => {
   const updates = Object.keys(req.body);
-
-  // Base allowed fields (without tradeStatus)
   const allowedUpdates = [
     "avaliable",
     "description",
@@ -105,14 +98,10 @@ router.patch("/newpost/:id", auth, async (req, res) => {
     "server",
     "good_response",
     "bad_response",
+    "tradeStatus",
   ];
-
-  // Add tradeStatus if it's included in the request
-  if (updates.includes("tradeStatus")) {
-    allowedUpdates.push("tradeStatus");
-  }
-
   const isValid = updates.every((u) => allowedUpdates.includes(u));
+
   if (!isValid) {
     return res.status(400).send({ error: "Invalid updates!" });
   }
@@ -122,42 +111,15 @@ router.patch("/newpost/:id", auth, async (req, res) => {
       _id: req.params.id,
       owner: req.user._id,
     });
+    if (!post) return res.status(404).send({ error: "Post not found" });
 
-    if (!post) {
-      return res.status(404).send({ error: "Post not found" });
-    }
-
-    // Trade Status special validation
-    if (updates.includes("tradeStatus")) {
-      const currentStatus = (post.tradeStatus || "").toLowerCase();
-      const newStatus = (req.body.tradeStatus || "").toLowerCase();
-      const allowedSwitch = ["available", "completed"];
-
-      // Allow switching only between "available" and "completed"
-      if (
-        !(
-          allowedSwitch.includes(currentStatus) &&
-          allowedSwitch.includes(newStatus)
-        )
-      ) {
-        return res.status(400).send({
-          error:
-            `Trade status can only be switched between "available" and "completed". ` +
-            `Current status is "${post.tradeStatus || "—"}".`,
-        });
-      }
-    }
-
-    // Apply updates
-    updates.forEach((u) => {
-      post[u] = req.body[u];
-    });
-
+    updates.forEach((u) => (post[u] = req.body[u]));
+    post.buyer = null;
+    post.tradeConfirmations = [];
     await post.save();
     res.send(post);
   } catch (e) {
-    console.error(e);
-    res.status(400).send({ error: "Failed to update post." });
+    res.status(400).send(e);
   }
 });
 
@@ -213,163 +175,64 @@ router.post("/newpost/:id/buy", auth, async (req, res) => {
       return res.status(404).send({ error: "Item not found" });
     }
 
-    // Prevent owner from buying their own post
     if (post.owner.toString() === req.user._id.toString()) {
       return res.status(400).send({ error: "You cannot buy your own item" });
     }
 
-    // Check availability
+    // ✅ Check both availability fields
     if (!post.avaliable || post.tradeStatus !== "available") {
       return res.status(400).send({ error: "Item is not available to buy" });
     }
 
-    // Check user coins
     if (req.user.coins < post.price) {
       return res.status(400).send({ error: "Insufficient coins" });
     }
 
-    // Atomically add buyer to buyers array if not already in it
-    const updatedPost = await newPost.findOneAndUpdate(
+    // ✅ Atomically reserve the post
+    const reservedPost = await newPost.findOneAndUpdate(
       {
         _id: req.params.id,
         tradeStatus: "available",
         avaliable: true,
-        buyers: { $ne: req.user._id }, // ensure user cannot buy twice
       },
       {
-        $push: { buyers: req.user._id }, // add to buyers array
+        $set: {
+          buyer: req.user._id,
+          tradeStatus: "pending",
+        },
       },
       { new: true }
     );
 
-    if (!updatedPost) {
-      return res.status(400).send({
-        error: "Item has already been reserved by you or is unavailable",
+    if (!reservedPost) {
+      return res
+        .status(400)
+        .send({ error: "Item has already been reserved by someone else" });
+    }
+
+    // ✅ Deduct coins
+    // req.user.coins -= reservedPost.price;
+    // await req.user.save();
+
+    // Emit update to clients watching this post room
+    if (req.io) {
+      req.io.to(`post:${reservedPost._id}`).emit("postUpdated", {
+        _id: reservedPost._id,
+        tradeStatus: reservedPost.tradeStatus,
+        avaliable: reservedPost.avaliable,
+        buyer: reservedPost.buyer,
       });
     }
 
-    // Populate buyers with name & email for socket
-    const populatedPost = await newPost
-      .findById(updatedPost._id)
-      .populate("buyers", "_id name email")
-      .populate("owner", "_id name email");
-
-    // Emit update via socket.io
-    if (req.io) {
-      req.io.to(`post:${populatedPost._id}`).emit("postUpdated", populatedPost);
-    }
-
     res.send({
-      message: "You have successfully reserved this item",
-      post: populatedPost,
+      message: "Item reserved. Awaiting trade confirmation",
+      post: reservedPost,
     });
   } catch (e) {
     console.error("Buy error:", e);
     res.status(500).send({ error: "Failed to process purchase" });
   }
 });
-
-// Accept buyer
-// Accept buyer and set activeBuyerId
-
-router.patch(
-  "/newpost/:postId/buyers/:buyerId/accept",
-  auth,
-  async (req, res) => {
-    try {
-      const post = await newPost
-        .findById(req.params.postId)
-        .populate("buyers", "name email")
-        .populate("owner", "name email");
-
-      if (!post) return res.status(404).send({ error: "Post not found" });
-
-      // Only owner can accept
-      if (post.owner._id.toString() !== req.user._id.toString())
-        return res.status(403).send({ error: "Not owner" });
-
-      // Buyer must exist in buyers array
-      if (!post.buyers.some((b) => b._id.toString() === req.params.buyerId))
-        return res.status(400).send({ error: "User is not a buyer" });
-
-      // Add to tradeConfirmations if not already
-      if (!post.tradeConfirmations.includes(req.params.buyerId))
-        post.tradeConfirmations.push(req.params.buyerId);
-
-      // Set the activeBuyerId to this buyer
-      post.activeBuyerId = req.params.buyerId;
-
-      await post.save();
-
-      // Re-fetch & populate after save
-      const populatedPost = await newPost
-        .findById(post._id)
-        .populate("buyers", "_id name email")
-        .populate("owner", "_id name email");
-
-      req.app
-        .get("io")
-        ?.to(`post:${post._id}`)
-        .emit("postUpdated", populatedPost);
-
-      res.send({ success: true, post: populatedPost });
-    } catch (err) {
-      console.error(err);
-      res.status(500).send({ error: "Internal server error" });
-    }
-  }
-);
-
-// Cancel buyer
-router.patch(
-  "/newpost/:postId/buyers/:buyerId/cancel",
-  auth,
-  async (req, res) => {
-    try {
-      const post = await newPost
-        .findById(req.params.postId)
-        .populate("buyers", "name email")
-        .populate("owner", "name email");
-
-      if (!post) return res.status(404).send({ error: "Post not found" });
-
-      // Only owner can cancel
-      if (post.owner._id.toString() !== req.user._id.toString())
-        return res.status(403).send({ error: "Not owner" });
-
-      // Remove buyer from buyers and tradeConfirmations
-      post.buyers = post.buyers.filter(
-        (b) => b._id.toString() !== req.params.buyerId
-      );
-      post.tradeConfirmations = post.tradeConfirmations.filter(
-        (b) => b !== req.params.buyerId
-      );
-
-      // Reset activeBuyerId if it was this buyer
-      if (post.activeBuyerId === req.params.buyerId) {
-        post.activeBuyerId = null;
-      }
-
-      await post.save();
-
-      // Re-fetch & populate after save
-      const populatedPost = await newPost
-        .findById(post._id)
-        .populate("buyers", "_id name email")
-        .populate("owner", "_id name email");
-
-      req.app
-        .get("io")
-        ?.to(`post:${post._id}`)
-        .emit("postUpdated", populatedPost);
-
-      res.send({ success: true, post: populatedPost });
-    } catch (err) {
-      console.error(err);
-      res.status(500).send({ error: "Internal server error" });
-    }
-  }
-);
 
 // Confirm trade
 router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {

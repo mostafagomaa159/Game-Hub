@@ -50,15 +50,10 @@ const newPostSchema = new mongoose.Schema(
       required: true,
       ref: "User",
     },
-    buyers: {
-      type: [mongoose.Schema.Types.ObjectId],
-      ref: "User",
-      default: [],
-    },
-    activeBuyerId: {
+    buyer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: null, // ✅ Track which buyer is active
+      default: null,
     },
     tradeStatus: {
       type: String,
