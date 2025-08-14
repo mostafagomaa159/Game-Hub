@@ -333,6 +333,10 @@ const AdminDashboard = () => {
           <span className="mr-4">
             Users: <span className="font-medium">{counts.activeUsers}</span>
           </span>
+          <span className="mr-4">
+            Trade History:{" "}
+            <span className="font-medium">{counts.tradeHistory}</span>
+          </span>
           <span>
             Disputes: <span className="font-medium">{counts.disputes}</span>
           </span>

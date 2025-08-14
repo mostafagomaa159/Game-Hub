@@ -69,7 +69,8 @@ const PostModal = ({
     userId &&
     bothConfirmedFlag &&
     isPendingOrPendingRelease &&
-    (currentUserIsOwner || currentUserIsBuyer);
+    (currentUserIsOwner || currentUserIsBuyer) &&
+    selectedPost.tradeStatus !== "completed"; // <-- prevent report if completed
 
   const showRequestButton =
     userId && !currentUserIsOwner && (!bothConfirmedFlag || showReportButton);
@@ -183,7 +184,7 @@ const PostModal = ({
         )}
 
         {/* Show buy message inside modal after clicking Buy */}
-        {showBuyMessage && (
+        {showBuyMessage && !bothConfirmedFlag && (
           <p className="mt-3 text-red-600 font-semibold">
             ⚠️ Please Don't confirm till you chat with seller and meet with him
             in-game.

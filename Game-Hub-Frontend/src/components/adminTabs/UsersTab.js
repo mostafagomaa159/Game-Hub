@@ -1074,7 +1074,7 @@ export default function UsersTab({
                 </div>
 
                 {/* Mobile actions */}
-                <div className="md:hidden">
+                <div className="md:hidden relative">
                   <div className="relative">
                     <button
                       className="w-full px-3 py-1.5 rounded-md text-sm font-medium bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 flex items-center justify-center gap-1"
@@ -1089,10 +1089,7 @@ export default function UsersTab({
                       <FiMoreVertical size={14} />
                     </button>
 
-                    <div
-                      id={`actions-${user._id}`}
-                      className="hidden absolute z-10 mt-1 w-full rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
-                    >
+                    <div className="hidden absolute z-50 mt-1 w-full rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-y-auto max-h-60">
                       <div className="py-1">
                         <button
                           onClick={() => {

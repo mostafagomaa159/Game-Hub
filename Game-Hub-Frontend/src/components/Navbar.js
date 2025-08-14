@@ -200,14 +200,23 @@ const Navbar = () => {
               <Link
                 key={to}
                 to={to}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors font-medium relative ${
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors font-medium relative group ${
                   location.pathname === to
-                    ? "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300"
-                    : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
+                    ? "text-blue-600 dark:text-blue-400"
+                    : "text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
               >
                 {icon}
-                <span>{label}</span>
+                <span className="relative">
+                  {label}
+                  <span
+                    className={`absolute left-0 -bottom-1 h-0.5 bg-blue-600 dark:bg-blue-400 transition-all duration-300 ease-in-out ${
+                      location.pathname === to
+                        ? "w-full"
+                        : "w-0 group-hover:w-full"
+                    }`}
+                  />
+                </span>
                 {badge && (
                   <span className="absolute top-1 right-1 inline-flex items-center justify-center w-4 h-4 text-xs font-bold leading-none text-white bg-red-600 rounded-full">
                     !
@@ -393,31 +402,48 @@ const Navbar = () => {
 
               <Link
                 to="/"
-                className={`block px-4 py-3 mx-2 rounded-lg flex items-center space-x-3 ${
+                className={`block px-4 py-3 mx-2 rounded-lg flex items-center space-x-3 relative group ${
                   location.pathname === "/"
-                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    ? "text-blue-600 dark:text-blue-400"
+                    : "text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
                 }`}
               >
                 <Home size={20} />
-                <span>Home</span>
+                <span className="relative">
+                  Home
+                  <span
+                    className={`absolute left-0 -bottom-1 h-0.5 bg-blue-600 dark:bg-blue-400 transition-all duration-300 ease-in-out ${
+                      location.pathname === "/"
+                        ? "w-full"
+                        : "w-0 group-hover:w-full"
+                    }`}
+                  />
+                </span>
               </Link>
 
               {navLinks.map(({ to, label, icon }) => (
                 <Link
                   key={to}
                   to={to}
-                  className={`block px-4 py-3 mx-2 rounded-lg flex items-center space-x-3 ${
+                  className={`block px-4 py-3 mx-2 rounded-lg flex items-center space-x-3 relative group ${
                     location.pathname === to
-                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      ? "text-blue-600 dark:text-blue-400"
+                      : "text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
                   }`}
                 >
                   {icon}
-                  <span>{label}</span>
+                  <span className="relative">
+                    {label}
+                    <span
+                      className={`absolute left-0 -bottom-1 h-0.5 bg-blue-600 dark:bg-blue-400 transition-all duration-300 ease-in-out ${
+                        location.pathname === to
+                          ? "w-full"
+                          : "w-0 group-hover:w-full"
+                      }`}
+                    />
+                  </span>
                 </Link>
               ))}
-
               {user && (
                 <button
                   onClick={handleLogout}

@@ -695,6 +695,15 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
       return res.status(404).send({ error: "Post not found" });
     }
 
+    // Prevent reporting if trade is completed
+    if (post.tradeStatus === "completed") {
+      await session.abortTransaction();
+      session.endSession();
+      return res
+        .status(400)
+        .send({ error: "Cannot report a trade that has been completed" });
+    }
+
     // Normalize owner and buyer ids to string for comparison
     const ownerId = post.owner.toString();
     const buyerId = post.buyer ? post.buyer.toString() : null;

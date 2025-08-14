@@ -231,12 +231,12 @@ const Dashboard = () => {
           <table className="w-full table-auto border-collapse">
             <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-sm">
               <tr>
-                <th className="p-4 text-left">Description</th>
-                <th className="p-4 text-left">Available</th>
-                <th className="p-4 text-left">Price</th>
-                <th className="p-4 text-left">Server</th>
-                <th className="p-4 text-left">Trade Status</th>
-                <th className="p-4 text-left">Actions</th>
+                <th className="p-4 text-center w-1/3">Description</th>
+                <th className="p-4 text-center w-[80px]">Available</th>
+                <th className="p-4 text-center w-[80px]">Price</th>
+                <th className="p-4 text-center w-[150px]">Server</th>
+                <th className="p-4 text-center w-[120px]">Trade Status</th>
+                <th className="p-4 text-center w-[120px]">Actions</th>
               </tr>
             </thead>
 
@@ -266,63 +266,66 @@ const Dashboard = () => {
                     key={post._id}
                     className="hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                   >
-                    <td className="p-2">{post.description}</td>
-                    <td className="p-4 flex items-center gap-1">
+                    <td
+                      className="p-2 max-w-[200px] truncate"
+                      title={post.description}
+                    >
+                      {post.description}
+                    </td>
+                    <td className="p-4 flex items-center gap-1 justify-center">
                       {post.avaliable ? (
-                        <>
-                          <FiCheckCircle className="text-green-500" /> Yes
-                        </>
+                        <FiCheckCircle className="text-green-500" />
                       ) : (
-                        <>No</>
+                        "❌"
                       )}
                     </td>
-                    <td className="p-3">💰{post.price}</td>
-                    <td className="p-4 flex items-center gap-2">
+                    <td className="p-3 text-center">💰{post.price}</td>
+                    <td className="p-4 flex items-center gap-2 justify-center">
                       <FaDiscord
                         className="text-indigo-600 dark:text-indigo-400"
                         size={18}
                       />
                       {post.server}
                     </td>
-                    {/* New Trade Status Cell */}
-                    <td className="p-4">
+                    <td className="p-4 text-center">
                       <span
                         className={`px-2 py-1 rounded text-xs font-semibold
-                          ${
-                            post.tradeStatus === "completed"
-                              ? "bg-green-100 text-green-700"
-                              : post.tradeStatus === "pending"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : post.tradeStatus === "cancelled"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-gray-100 text-gray-700"
-                          }`}
+                    ${
+                      post.tradeStatus === "completed"
+                        ? "bg-green-100 text-green-700"
+                        : post.tradeStatus === "pending"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : post.tradeStatus === "cancelled"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-gray-100 text-gray-700"
+                    }`}
                       >
                         {post.tradeStatus || "—"}
                       </span>
                     </td>
-                    <td className="p-4 space-x-2">
+                    <td className="p-4 flex justify-center gap-2">
                       <button
                         onClick={() => handleEdit(post)}
-                        className="text-blue-600 hover:text-blue-800 transition"
+                        className="w-8 h-8 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded transition"
                         aria-label="Edit post"
                       >
-                        <FiEdit2 className="inline w-5 h-5" />
+                        <FiEdit2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(post._id)}
-                        className={`px-3 py-1 rounded flex items-center gap-1 ${
-                          post.tradeStatus === "pending" ||
-                          post.tradeStatus === "pending_release"
-                            ? "bg-gray-500 cursor-not-allowed opacity-50"
-                            : "bg-red-500 hover:bg-red-600"
-                        }`}
                         disabled={
                           post.tradeStatus === "pending" ||
                           post.tradeStatus === "pending_release"
                         }
+                        className={`w-8 h-8 flex items-center justify-center rounded transition ${
+                          post.tradeStatus === "pending" ||
+                          post.tradeStatus === "pending_release"
+                            ? "bg-gray-500 cursor-not-allowed opacity-50"
+                            : "bg-red-500 hover:bg-red-600 text-white"
+                        }`}
+                        aria-label="Delete post"
                       >
-                        <FiTrash2 />
+                        <FiTrash2 className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>

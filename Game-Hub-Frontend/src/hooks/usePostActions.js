@@ -230,6 +230,12 @@ const usePostActions = (
   };
 
   const submitReport = async (post, reportData) => {
+    // Check if tradeStatus is completed
+    if (post.tradeStatus === "completed") {
+      toast.error("Cannot report a trade that has been completed");
+      return { success: false };
+    }
+
     if (!reportData?.videoUrls?.length || !reportData.videoUrls[0]?.trim()) {
       toast.error("Please provide a valid evidence URL");
       return { success: false };
@@ -246,6 +252,7 @@ const usePostActions = (
       };
 
       const res = await axios.post(`/newpost/${post._id}/report`, payload);
+
       if (!res.data || !res.data.message) {
         toast.error(res.data?.error || "Report submission failed");
         return { success: false };

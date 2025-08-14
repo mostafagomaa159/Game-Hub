@@ -7,7 +7,7 @@ import React, {
   useCallback,
 } from "react";
 import usePosts from "../hooks/usePosts";
-import { useUser } from "../context/UserContext"; // <-- updated import
+import { useUser } from "../context/UserContext";
 import usePostActions from "../hooks/usePostActions";
 import Filters from "../components/AllPosts/Filters";
 import PostGrid from "../components/AllPosts/PostGrid";
@@ -16,15 +16,21 @@ import ReportModal from "../components/AllPosts/ReportModal";
 import LoginModal from "../components/AllPosts/LoginModal";
 import Pagination from "../components/AllPosts/Pagination";
 import socket from "../utils/socket";
+
 const POSTS_PER_PAGE = 12;
 
 const AllPosts = () => {
-  // State declarations
   const { posts, loading, error, setPosts } = usePosts();
-  const { user } = useUser(); // get full user object
-  const userId = user?._id || null; // safely get userId
+  const { user } = useUser();
+  const userId = user?._id || null;
+
+  // --- Filters state ---
   const [searchTerm, setSearchTerm] = useState("");
   const [serverFilter, setServerFilter] = useState("All");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
+  const [availableOnly, setAvailableOnly] = useState(false);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -37,17 +43,15 @@ const AllPosts = () => {
   useEffect(() => {
     setHasConfirmed(false);
   }, [selectedPostId]);
+
   useEffect(() => {
     if (!posts.length) return;
-
-    // Join all post rooms once
     posts.forEach((post) => {
       socket.emit("joinRoom", { roomId: `post:${post._id}` });
     });
-  }, [posts]); // only join rooms when posts change
+  }, [posts]);
 
   useEffect(() => {
-    // Listen for post updates only once
     const handlePostUpdated = (updatedData) => {
       setPosts((prevPosts) =>
         prevPosts.map((p) =>
@@ -57,27 +61,37 @@ const AllPosts = () => {
     };
 
     socket.on("postUpdated", handlePostUpdated);
-
     return () => {
       socket.off("postUpdated", handlePostUpdated);
     };
-  }, [setPosts]); // don't re-run on posts change
+  }, [setPosts]);
 
+  // --- Filter posts ---
   const filtered = useMemo(() => {
-    let temp = [...posts];
-    if (searchTerm) {
-      temp = temp.filter((post) =>
-        (post.description || "")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())
-      );
-    }
-    if (serverFilter !== "All") {
-      temp = temp.filter((post) => post.server === serverFilter);
-    }
-    return temp;
-  }, [searchTerm, serverFilter, posts]);
+    return posts.filter((post) => {
+      const matchesSearch = (post.description || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
 
+      const matchesServer =
+        serverFilter === "All" || post.server === serverFilter;
+
+      const matchesPriceMin = !priceMin || post.price >= parseFloat(priceMin);
+      const matchesPriceMax = !priceMax || post.price <= parseFloat(priceMax);
+
+      const matchesAvailable = !availableOnly || post.avaliable;
+
+      return (
+        matchesSearch &&
+        matchesServer &&
+        matchesPriceMin &&
+        matchesPriceMax &&
+        matchesAvailable
+      );
+    });
+  }, [posts, searchTerm, serverFilter, priceMin, priceMax, availableOnly]);
+
+  // --- Pagination ---
   const { currentPosts, totalPages } = useMemo(() => {
     const indexOfLast = currentPage * POSTS_PER_PAGE;
     const indexOfFirst = indexOfLast - POSTS_PER_PAGE;
@@ -143,10 +157,7 @@ const AllPosts = () => {
   }, [selectedPost, showLoginModal, handleClickOutside]);
 
   const handlePostReport = async (post, reportData) => {
-    if (!post || !post._id) {
-      console.error("handlePostReport: post or post._id is undefined");
-      return { success: false };
-    }
+    if (!post || !post._id) return { success: false };
     return await submitReport(post, reportData);
   };
 
@@ -159,58 +170,31 @@ const AllPosts = () => {
 
   const handlePostBuy = (postId) => {
     const post = posts.find((p) => p._id === postId);
-    if (!post) {
-      console.error("Post not found for id", postId);
-      return;
-    }
+    if (!post) return;
     handleBuy(post);
   };
 
-  const handlePostToggleRequest = () => {
-    if (selectedPost) {
-      handleToggleRequest(selectedPost);
-    }
-  };
-
-  const handlePostConfirmTrade = () => {
-    if (selectedPost) {
-      handleConfirmTrade(selectedPost);
-    }
-  };
-
-  const handlePostCancelTrade = () => {
-    if (selectedPost) {
-      handleCancelTrade(selectedPost);
-    }
-  };
-  useEffect(() => {
-    const handlePostUpdated = (updatedData) => {
-      setPosts((prevPosts) =>
-        prevPosts.map((p) =>
-          p._id === updatedData._id ? { ...p, ...updatedData } : p
-        )
-      );
-
-      if (selectedPostId === updatedData._id) {
-        // Update selectedPostId to trigger modal re-render with new data
-        setSelectedPostId(updatedData._id);
-      }
-    };
-
-    socket.on("postUpdated", handlePostUpdated);
-
-    return () => {
-      socket.off("postUpdated", handlePostUpdated);
-    };
-  }, [selectedPostId, setPosts, setSelectedPostId]);
+  const handlePostToggleRequest = () =>
+    selectedPost && handleToggleRequest(selectedPost);
+  const handlePostConfirmTrade = () =>
+    selectedPost && handleConfirmTrade(selectedPost);
+  const handlePostCancelTrade = () =>
+    selectedPost && handleCancelTrade(selectedPost);
 
   return (
     <div className="bg-background dark:bg-darkBackground text-black dark:text-white min-h-screen py-8 px-4">
+      {/* Filters */}
       <Filters
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         serverFilter={serverFilter}
         setServerFilter={setServerFilter}
+        priceMin={priceMin}
+        setPriceMin={setPriceMin}
+        priceMax={priceMax}
+        setPriceMax={setPriceMax}
+        availableOnly={availableOnly}
+        setAvailableOnly={setAvailableOnly}
         posts={posts}
       />
 
