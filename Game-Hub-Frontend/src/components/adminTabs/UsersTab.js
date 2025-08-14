@@ -1074,7 +1074,8 @@ export default function UsersTab({
                 </div>
 
                 {/* Mobile actions */}
-                <div className="md:hidden relative">
+                {/* Mobile actions */}
+                <div className="md:hidden">
                   <div className="relative">
                     <button
                       className="w-full px-3 py-1.5 rounded-md text-sm font-medium bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 flex items-center justify-center gap-1"
@@ -1082,22 +1083,36 @@ export default function UsersTab({
                         const el = document.getElementById(
                           `actions-${user._id}`
                         );
-                        if (el) el.classList.toggle("hidden");
+                        if (el) {
+                          el.classList.toggle("hidden");
+                          el.classList.toggle("opacity-0");
+                          el.classList.toggle("-translate-y-2");
+                          el.classList.toggle("scale-y-95");
+                        }
                       }}
                     >
                       <span>Actions</span>
                       <FiMoreVertical size={14} />
                     </button>
 
-                    <div className="hidden absolute z-50 mt-1 w-full rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-y-auto max-h-60">
+                    <div
+                      id={`actions-${user._id}`}
+                      className="hidden fixed z-50 left-0 right-0 mx-4 mt-2 rounded-md shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 max-h-[60vh] overflow-y-auto -webkit-overflow-scrolling-touch transition-all duration-200 ease-out transform opacity-0 -translate-y-2 scale-y-95"
+                    >
                       <div className="py-1">
                         <button
                           onClick={() => {
                             setSelectedUser(user);
                             setShowEditUser(true);
-                            document
-                              .getElementById(`actions-${user._id}`)
-                              ?.classList.add("hidden");
+                            const el = document.getElementById(
+                              `actions-${user._id}`
+                            );
+                            el?.classList.add(
+                              "hidden",
+                              "opacity-0",
+                              "-translate-y-2",
+                              "scale-y-95"
+                            );
                           }}
                           className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         >
@@ -1105,12 +1120,19 @@ export default function UsersTab({
                             <FiEdit2 size={14} /> Edit Profile
                           </span>
                         </button>
+
                         <button
                           onClick={() => {
                             toggleUserActive(user);
-                            document
-                              .getElementById(`actions-${user._id}`)
-                              ?.classList.add("hidden");
+                            const el = document.getElementById(
+                              `actions-${user._id}`
+                            );
+                            el?.classList.add(
+                              "hidden",
+                              "opacity-0",
+                              "-translate-y-2",
+                              "scale-y-95"
+                            );
                           }}
                           className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         >
@@ -1126,12 +1148,19 @@ export default function UsersTab({
                             )}
                           </span>
                         </button>
+
                         <button
                           onClick={() => {
                             fetchUserPosts(user._id);
-                            document
-                              .getElementById(`actions-${user._id}`)
-                              ?.classList.add("hidden");
+                            const el = document.getElementById(
+                              `actions-${user._id}`
+                            );
+                            el?.classList.add(
+                              "hidden",
+                              "opacity-0",
+                              "-translate-y-2",
+                              "scale-y-95"
+                            );
                           }}
                           className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                         >
