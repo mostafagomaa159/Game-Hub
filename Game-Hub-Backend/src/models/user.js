@@ -67,17 +67,17 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Virtuals
-userSchema.virtual("tasks", {
-  ref: "Tasks",
-  localField: "_id",
-  foreignField: "owner",
-});
-
 userSchema.virtual("newpost", {
   ref: "newPost",
   localField: "_id",
   foreignField: "owner",
+});
+
+// ✅ New virtual: posts where this user is a buyer
+userSchema.virtual("purchases", {
+  ref: "newPost",
+  localField: "_id",
+  foreignField: "buyers.user",
 });
 
 // Instance Methods

@@ -3,7 +3,7 @@ require("./db/mongoose");
 const cors = require("cors");
 
 const userRouter = require("./routers/user");
-const taskRouter = require("./routers/task");
+
 const newPostRouter = require("./routers/newPost");
 const financeRoutes = require("./routers/finance");
 const transactionRoutes = require("./routers/transaction");
@@ -61,7 +61,7 @@ app.use(express.json());
 
 // ✅ Register routers
 app.use(userRouter);
-app.use(taskRouter);
+
 app.use(newPostRouter);
 app.use(financeRoutes);
 app.use(transactionRoutes);
