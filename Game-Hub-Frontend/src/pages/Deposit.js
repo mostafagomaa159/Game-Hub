@@ -27,6 +27,12 @@ const Deposit = () => {
       return;
     }
 
+    // ✅ Minimum deposit check
+    if (Number(amount) < 10) {
+      setStatus("Minimum deposit is 10 coins.");
+      return;
+    }
+
     if (isBankInvalid) {
       if (!iban && !accountNumber) {
         setStatus("IBAN and Account Number are required.");
@@ -105,7 +111,7 @@ const Deposit = () => {
         onChange={(e) => setAmount(e.target.value)}
         className="w-full p-2 mb-4 rounded bg-gray-800 border border-gray-700 text-white placeholder-gray-400"
         placeholder="Enter amount"
-        min="1"
+        min="10"
       />
 
       <label className="block mb-1 text-gray-300">Select Payment Method:</label>

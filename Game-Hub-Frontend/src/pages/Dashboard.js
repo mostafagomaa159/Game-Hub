@@ -69,6 +69,7 @@ const Dashboard = () => {
     try {
       const { description, price, server, avaliable, discord, tradeStatus } =
         editData;
+
       await axios.patch(`/newpost/${editData._id}`, {
         description,
         price: Number(price),
@@ -77,17 +78,18 @@ const Dashboard = () => {
         discord,
         tradeStatus,
       });
+
       toast.success("Post updated successfully!");
       setEditData(null);
 
-      // Instead of waiting for full fetch, update state instantly
+      // Update state instantly for a smoother UI
       setPosts((prev) =>
         prev.map((p) => (p._id === editData._id ? { ...p, ...editData } : p))
       );
     } catch (err) {
       const errorMessage =
         err.response?.data?.error || "Failed to update post.";
-      toast.error(errorMessage);
+      toast.error(errorMessage); // ✅ Show backend restriction error
     } finally {
       setIsSaving(false);
     }
@@ -100,8 +102,9 @@ const Dashboard = () => {
       setPosts((prev) => prev.filter((p) => p._id !== id));
       toast.success("Post deleted.");
     } catch (err) {
-      console.error(err);
-      toast.error("Failed to delete post.");
+      const errorMessage =
+        err.response?.data?.error || "Failed to delete post.";
+      toast.error(errorMessage); // ✅ Will show "You can only delete if tradeStatus is..."
     }
   };
 
@@ -306,20 +309,50 @@ const Dashboard = () => {
                     <td className="p-4 flex justify-center gap-2">
                       <button
                         onClick={() => handleEdit(post)}
-                        className="w-8 h-8 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded transition"
+                        disabled={
+                          ![
+                            "completed",
+                            "cancelled",
+                            "resolved",
+                            "released",
+                            "refunded",
+                          ].includes(post.tradeStatus)
+                        }
+                        className={`w-8 h-8 flex items-center justify-center rounded transition ${
+                          ![
+                            "completed",
+                            "cancelled",
+                            "resolved",
+                            "released",
+                            "refunded",
+                          ].includes(post.tradeStatus)
+                            ? "bg-gray-500 cursor-not-allowed opacity-50"
+                            : "bg-blue-600 hover:bg-blue-700 text-white"
+                        }`}
                         aria-label="Edit post"
                       >
                         <FiEdit2 className="w-4 h-4" />
                       </button>
+
                       <button
                         onClick={() => handleDelete(post._id)}
                         disabled={
-                          post.tradeStatus === "pending" ||
-                          post.tradeStatus === "pending_release"
+                          ![
+                            "completed",
+                            "cancelled",
+                            "resolved",
+                            "released",
+                            "refunded",
+                          ].includes(post.tradeStatus)
                         }
                         className={`w-8 h-8 flex items-center justify-center rounded transition ${
-                          post.tradeStatus === "pending" ||
-                          post.tradeStatus === "pending_release"
+                          ![
+                            "completed",
+                            "cancelled",
+                            "resolved",
+                            "released",
+                            "refunded",
+                          ].includes(post.tradeStatus)
                             ? "bg-gray-500 cursor-not-allowed opacity-50"
                             : "bg-red-500 hover:bg-red-600 text-white"
                         }`}
@@ -437,7 +470,7 @@ const Dashboard = () => {
                     Trade Status
                   </label>
 
-                  {["available", "completed"].includes(
+                  {["available", "completed", "refunded", "cancelled"].includes(
                     (editData.tradeStatus || "").toLowerCase()
                   ) ? (
                     // Editable dropdown with only available/completed
@@ -452,7 +485,7 @@ const Dashboard = () => {
                       className="w-full p-2 border rounded-md dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="available">Available</option>
-                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
                     </select>
                   ) : (
                     // Read-only display

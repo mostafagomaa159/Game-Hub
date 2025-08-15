@@ -90,6 +90,8 @@ router.get("/newpost/:id", auth, async (req, res) => {
 // Update post
 router.patch("/newpost/:id", auth, async (req, res) => {
   const updates = Object.keys(req.body);
+
+  // Remove "tradeStatus" from allowed updates so it can't be changed here
   const allowedUpdates = [
     "avaliable",
     "description",
@@ -98,10 +100,9 @@ router.patch("/newpost/:id", auth, async (req, res) => {
     "server",
     "good_response",
     "bad_response",
-    "tradeStatus",
   ];
-  const isValid = updates.every((u) => allowedUpdates.includes(u));
 
+  const isValid = updates.every((u) => allowedUpdates.includes(u));
   if (!isValid) {
     return res.status(400).send({ error: "Invalid updates!" });
   }
@@ -113,10 +114,27 @@ router.patch("/newpost/:id", auth, async (req, res) => {
     });
     if (!post) return res.status(404).send({ error: "Post not found" });
 
+    // ✅ Only allow update if current tradeStatus is one of these
+    const allowedStatuses = [
+      "completed",
+      "cancelled",
+      "resolved",
+      "released",
+      "refunded",
+    ];
+    if (!allowedStatuses.includes(post.tradeStatus)) {
+      return res.status(400).send({
+        error: `Post can only be updated if tradeStatus is one of: ${allowedStatuses.join(
+          ", "
+        )}`,
+      });
+    }
+
     updates.forEach((u) => (post[u] = req.body[u]));
     post.buyer = null;
     post.tradeConfirmations = [];
     await post.save();
+
     res.send(post);
   } catch (e) {
     res.status(400).send(e);
@@ -155,15 +173,33 @@ router.patch("/newpost/:id/vote", auth, async (req, res) => {
 // Delete post
 router.delete("/newpost/:id", auth, async (req, res) => {
   try {
-    const deleted = await newPost.findOneAndDelete({
+    const post = await newPost.findOne({
       _id: req.params.id,
       owner: req.user._id,
     });
 
-    if (!deleted) return res.status(404).send();
-    res.send(deleted);
+    if (!post) return res.status(404).send({ error: "Post not found" });
+
+    // ✅ Only allow delete if tradeStatus is in allowed list
+    const allowedStatuses = [
+      "completed",
+      "refunded",
+      "cancelled",
+      "resolved",
+      "released",
+    ];
+    if (!allowedStatuses.includes(post.tradeStatus)) {
+      return res.status(400).send({
+        error: `You can only delete a post if tradeStatus is one of: ${allowedStatuses.join(
+          ", "
+        )}`,
+      });
+    }
+
+    await post.deleteOne();
+    res.send(post);
   } catch (e) {
-    res.status(500).send(e);
+    res.status(500).send({ error: "Failed to delete post" });
   }
 });
 

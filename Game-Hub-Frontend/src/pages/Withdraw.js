@@ -13,6 +13,13 @@ const Withdraw = () => {
   const handleWithdraw = async (e) => {
     e.preventDefault();
     setMessage("");
+
+    // ✅ Minimum amount check
+    if (!amount || Number(amount) < 10) {
+      setMessage("Minimum withdrawal amount is 10 coins.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -54,7 +61,7 @@ const Withdraw = () => {
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           className="w-full p-3 rounded-md border dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-          min="1"
+          min="10"
           required
         />
 

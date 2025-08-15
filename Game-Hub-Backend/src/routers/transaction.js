@@ -35,8 +35,11 @@ router.post("/transactions/deposit", auth, async (req, res) => {
   try {
     const { amount, method, iban, accountNumber } = req.body;
 
-    if (!amount || amount <= 0) {
-      return res.status(400).send({ error: "Invalid amount" });
+    // ✅ Minimum 10 coins check
+    if (!amount || amount < 10) {
+      return res.status(400).send({
+        error: "Minimum deposit amount is 10 coins",
+      });
     }
 
     if (!["paypal", "bank"].includes(method)) {
@@ -99,6 +102,7 @@ router.post("/transactions/deposit", auth, async (req, res) => {
     });
   }
 });
+
 // 👮 Admin: Get all pending deposits
 router.get(
   "/transactions/pending-deposits",
@@ -198,10 +202,12 @@ router.post("/transactions/withdraw", auth, async (req, res) => {
   try {
     const { amount, method, paypalEmail, iban, accountNumber } = req.body;
 
-    if (!amount || amount <= 0 || req.user.coins < amount) {
-      return res
-        .status(400)
-        .send({ error: "Invalid amount or insufficient coins" });
+    // ✅ Minimum 10 coins + balance check
+    if (!amount || amount < 10 || req.user.coins < amount) {
+      return res.status(400).send({
+        error:
+          "Minimum withdrawal is 10 coins and must not exceed your available balance",
+      });
     }
 
     if (!["paypal", "bank"].includes(method)) {
@@ -253,6 +259,7 @@ router.post("/transactions/withdraw", auth, async (req, res) => {
     res.status(400).send({ error: "Failed to request withdrawal" });
   }
 });
+
 router.post("/transactions/deposit/paypal", auth, async (req, res) => {
   const { amount } = req.body;
 
@@ -652,7 +659,7 @@ router.get("/transactions/summary", auth, adminAuth, async (req, res) => {
     const activeUsersCount = await User.countDocuments({ isActive: true });
 
     const disputesCount = await TradeTransaction.countDocuments({
-      "dispute.status": { $ne: "none" },
+      status: { $in: "disputed" },
     });
 
     const tradeHistoryCount = await TradeTransaction.countDocuments({

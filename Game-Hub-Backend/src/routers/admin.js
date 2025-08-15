@@ -351,7 +351,7 @@ router.post(
       }
 
       // update tx and post
-      tx.status = "completed";
+      tx.status = "refunded";
       tx.logs = tx.logs || [];
       tx.logs.push({
         message: "Refunded by admin",
@@ -361,7 +361,7 @@ router.post(
       await tx.save({ session });
 
       post.tradeStatus = "refunded";
-      post.avaliable = true;
+      post.avaliable = false;
       post.buyer = null;
       post.releaseAt = null;
       post.cancellationNote = "Refunded by admin";

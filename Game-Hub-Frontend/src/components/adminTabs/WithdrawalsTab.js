@@ -230,6 +230,27 @@ const WithdrawalsTab = ({
                       <span className="font-medium">{item.paypalEmail}</span>
                     </p>
                   )}
+                  {item.method === "paypal" && item.paypalEmail && (
+                    <p className="mt-1">
+                      <strong className="mr-2">PayPal Email:</strong>
+                      <span className="font-medium">{item.paypalEmail}</span>
+                    </p>
+                  )}
+
+                  {item.method === "bank" && (
+                    <>
+                      <p className="mt-1">
+                        <strong className="mr-2">IBAN:</strong>
+                        <span className="font-medium">{item.iban || "-"}</span>
+                      </p>
+                      <p className="mt-1">
+                        <strong className="mr-2">Account Number:</strong>
+                        <span className="font-medium">
+                          {item.accountNumber || "-"}
+                        </span>
+                      </p>
+                    </>
+                  )}
 
                   {item.payoutBatchId && (
                     <p className="mt-1">

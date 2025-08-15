@@ -15,7 +15,7 @@ const transactionSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
-      min: [1, "Amount must be at least 1"],
+      min: [10, "Amount must be at least 10"],
     },
     method: {
       type: String,
