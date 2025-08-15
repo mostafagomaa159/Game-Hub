@@ -86,7 +86,7 @@ io.on("connection", (socket) => {
 });
 
 // Auto-finalize trades
-const FINALIZE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const FINALIZE_INTERVAL_MS = 1 * 60 * 1000; // 5 minutes
 setInterval(async () => {
   try {
     const result = await finalizeDueTrades({ io });

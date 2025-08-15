@@ -30,6 +30,7 @@ import PrivacyPolicyPage from "./pages/AboutUs/PrivacyPolicyPage";
 import TermsPage from "./pages/AboutUs/TermsOfUsePage";
 import DisclaimerPage from "./pages/AboutUs/DisclaimerPage";
 import DisputePolicyPage from "./pages/AboutUs/DisputePolicyPage";
+
 import UserProfilePage from "./pages/UserProfilePage.js";
 
 function App() {
@@ -151,6 +152,7 @@ function App() {
                 <Route path="contact" element={<ContactPage />} />
                 <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
                 <Route path="terms" element={<TermsPage />} />
+
                 <Route path="disclaimer" element={<DisclaimerPage />} />
                 <Route path="dispute-policy" element={<DisputePolicyPage />} />
               </Route>

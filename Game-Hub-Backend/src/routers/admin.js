@@ -344,12 +344,14 @@ router.post(
       // refund buyer
       const buyer = await User.findById(post.buyer).session(session);
       if (buyer) {
-        buyer.coins = (buyer.coins || 0) + Number(tx.amount || 0);
+        const feePercentage = 0.1; // 10%
+        const amountToBuyer = Number(tx.amount || 0) * (1 - feePercentage);
+        buyer.coins = (buyer.coins || 0) + amountToBuyer;
         await buyer.save({ session });
       }
 
       // update tx and post
-      tx.status = "refunded";
+      tx.status = "completed";
       tx.logs = tx.logs || [];
       tx.logs.push({
         message: "Refunded by admin",
@@ -358,7 +360,7 @@ router.post(
       });
       await tx.save({ session });
 
-      post.tradeStatus = "cancelled";
+      post.tradeStatus = "refunded";
       post.avaliable = true;
       post.buyer = null;
       post.releaseAt = null;

@@ -62,6 +62,8 @@ const newPostSchema = new mongoose.Schema(
         "pending",
         "completed",
         "cancelled",
+        "refunded",
+        "disputed",
         "pending_release",
       ],
       default: "available", // ✅ Changed from null to "available"

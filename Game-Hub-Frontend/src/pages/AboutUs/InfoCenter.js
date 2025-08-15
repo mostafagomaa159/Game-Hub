@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const links = [
   { label: "📜 Rules", path: "/about/rules" },
+
   { label: "🛡️ Privacy Policy", path: "/about/privacy-policy" },
   { label: "📄 Terms of Use", path: "/about/terms" },
   { label: "💬 Dispute Policy", path: "/about/dispute-policy" },

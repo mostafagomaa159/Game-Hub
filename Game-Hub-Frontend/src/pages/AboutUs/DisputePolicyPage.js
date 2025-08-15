@@ -13,11 +13,11 @@ const disputeSections = [
   {
     title: "📤 How to Start a Dispute",
     content:
-      'Go to the relevant transaction and click "Open Dispute". You’ll be asked to submit video or screenshot evidence within 24 hours.',
+      "Go to the Post Click on Report Button. You’ll be asked to submit video and Reason within 24 hours.",
   },
   {
     title: "📹 Evidence Requirements",
-    content: `• Show the full chat and trade process clearly.\n• Include usernames, timestamps, and item/account delivery.\n• Video evidence is preferred and must be unedited.`,
+    content: `• Show the full chat and trade process clearly.\n• Include Chars Name, and item/account delivery.\n• Video evidence is preferred and must be unedited.`,
   },
   {
     title: "🔍 Admin Review Process",

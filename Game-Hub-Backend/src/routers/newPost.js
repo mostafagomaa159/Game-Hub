@@ -279,7 +279,7 @@ router.post("/newpost/:id/confirm-trade", auth, async (req, res) => {
     const confirmedByBuyer = post.tradeConfirmations.includes(buyerId);
 
     if (confirmedByOwner && confirmedByBuyer) {
-      const releaseAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes hold
+      const releaseAt = new Date(Date.now() + 1 * 60 * 1000); // 5 minutes hold
 
       post.tradeStatus = "pending_release";
       post.avaliable = false;
@@ -490,16 +490,12 @@ router.post("/newpost/finalize-trades", auth, async (req, res) => {
         continue;
       }
 
-      // calculate 10% platform fee
-      const feePercentage = 0.1; // 10%
-      const amountToSeller = Number(tx.amount || 0) * (1 - feePercentage);
-
-      // transfer funds after deducting fee
-      seller.coins = (seller.coins || 0) + amountToSeller;
+      // transfer funds
+      seller.coins = (seller.coins || 0) + Number(tx.amount || 0);
       await seller.save({ session });
 
       // mark post fields
-      const postDoc = await Post.findById(post._id).session(session);
+      const postDoc = await newPost.findById(post._id).session(session);
       postDoc.tradeStatus = "completed";
       postDoc.avaliable = false;
       postDoc.releaseAt = null;
@@ -761,10 +757,10 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
 
     // Set releaseAt to null and tradeStatus to "pending" on both documents
     tx.releaseAt = null;
-    tx.status = "pending";
+    tx.status = "disputed";
 
     post.releaseAt = null;
-    post.tradeStatus = "pending";
+    post.tradeStatus = "disputed";
 
     // Save both documents within the session
     await tx.save({ session });

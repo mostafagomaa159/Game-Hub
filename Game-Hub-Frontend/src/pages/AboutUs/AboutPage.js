@@ -19,12 +19,11 @@ const aboutSections = [
   {
     title: "🌐 Supported Games",
     content:
-      "We support a growing list of online games. Whether you’re trading MMO gold, skins, or rare accounts, you’ll find a place here. Let us know if you’d like your favorite game added!",
+      "We support a growing list of online games. Whether you're trading MMO gold, skins, or rare accounts, you’ll find a place here. Let us know if you’d like your favorite game added!",
   },
   {
     title: "📬 Get in Touch",
-    content:
-      "Have questions, ideas, or feedback? Contact us through the Help Center or Live Chat. We’re here to help!",
+    content: "Have questions, ideas, or feedback? Contact us through gmail!",
   },
 ];
 

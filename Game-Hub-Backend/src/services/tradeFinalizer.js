@@ -87,7 +87,9 @@ async function finalizeTradeByPostId(
       }
       return { ok: false, reason: "seller-not-found" };
     }
-    seller.coins = (seller.coins || 0) + Number(tx.amount || 0);
+    const feePercentage = force ? 0.1 : 0; // or always 0.1 if fees apply to everyone
+    const amountToSeller = Number(tx.amount || 0) * (1 - feePercentage);
+    seller.coins = (seller.coins || 0) + amountToSeller;
     await seller.save({ session });
 
     // mark post done
@@ -176,8 +178,9 @@ async function finalizeDueTrades({ io = null, limit = 100 } = {}) {
 
       const seller = await User.findById(post.owner).session(session);
       if (!seller) continue;
-
-      seller.coins = (seller.coins || 0) + Number(tx.amount || 0);
+      const feePercentage = 0.1; // 10%
+      const amountToSeller = Number(tx.amount || 0) * (1 - feePercentage);
+      seller.coins = (seller.coins || 0) + amountToSeller;
       await seller.save({ session });
 
       // update post
@@ -209,7 +212,7 @@ async function finalizeDueTrades({ io = null, limit = 100 } = {}) {
       if (io && finalized > 0) {
         const finalizedPosts = await Post.find({
           tradeStatus: "completed",
-          tradeCompletedAt: { $gte: new Date(Date.now() - 5 * 60 * 1000) }, // recently completed
+          tradeCompletedAt: { $gte: new Date(Date.now() - 1 * 60 * 1000) }, // recently completed
         })
           .sort({ tradeCompletedAt: -1 })
           .limit(finalized);

@@ -14,13 +14,13 @@ const contactSections = [
     title: "📧 Email Support",
     content: `You can reach us anytime via email:
 
-• General Support: support@yourdomain.com  
-• Report Fraud: fraud@yourdomain.com`,
+• General Support: Game-HubPro@gmail.com  
+`,
   },
   {
     title: "📍 Company Info",
     content: `Online Marketplace Inc.  
-1234 Virtual Trade Ave,  
+34 Virtual Trade Ave,  
 Gaming City, GC 10101`,
   },
 ];

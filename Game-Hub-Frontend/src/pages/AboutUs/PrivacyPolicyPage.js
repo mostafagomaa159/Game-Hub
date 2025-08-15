@@ -26,11 +26,11 @@ const privacySections = [
     content:
       "If you choose to contact other users, your communication remains private and is not monitored by us.",
   },
-  {
-    title: "🗑️ Account/Data Deletion",
-    content:
-      "You can request to delete your account or data at any time by contacting us at: your-support-email",
-  },
+  // {
+  //   title: "🗑️ Account/Data Deletion",
+  //   content:
+  //     "You can request to delete your account or data at any time by contacting us at: your-support-email",
+  // },
   {
     title: "📅 Policy Updates",
     content:

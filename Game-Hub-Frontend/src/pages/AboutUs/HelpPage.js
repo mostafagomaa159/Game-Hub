@@ -13,17 +13,17 @@ const helpSections = [
     title: "📹 Didn’t Receive Your Item?",
     content: `If you paid but didn’t get your in-game item:
 
-- Go to your active chat with the seller.
-- Click 🟥 "Item Not Received".
-- This will start a dispute where both sides must provide video proof.`,
+- Record Video Before you click Confirm Trade Button make sure to show you char name and seller char name that u both mentioned in chat via website.
+- Click 🟥 Report Button and Submit your Video URL within 24h from Confirm Button, make sure to upload it on Youtube and make it Public.
+- This will start a dispute where both sides must provide video proof, Admin Team will review your proof and decide`,
   },
-  {
-    title: "🔐 Account Issues",
-    content: `Forgot your password or can’t access your account? Use the Password Reset feature on the login page. For locked accounts or suspicious activity, contact support via live chat or email.`,
-  },
+  // {
+  //   title: "🔐 Account Issues",
+  //   content: `Forgot your password or can’t access your account? Use the Password Reset feature on the login page. For locked accounts or suspicious activity, contact support via live chat or email.`,
+  // },
   {
     title: "📤 Uploading Video Evidence",
-    content: `During disputes, you must provide video evidence. Make sure it:
+    content: `During disputes,within 24h! you must provide video evidence. Make sure it:
 
 - Shows the full screen and entire trade process.
 - Clearly displays usernames, server names, and item transfer.
@@ -33,8 +33,8 @@ const helpSections = [
     title: "📧 Still Need Help?",
     content: `If you didn’t find what you need here, feel free to reach out directly:
 
-- Email us at support@yourdomain.com
-- Or message us on Live Chat (available 24/7)`,
+- Email us at Game-HubPro@gmail.com  
+`,
   },
 ];
 

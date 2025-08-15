@@ -18,12 +18,12 @@ const terms = [
     answer:
       "This app is for listing and discussing in-game items only. We do not support or process any in-game transactions.",
   },
-  {
-    icon: "💸",
-    question: "4. Real Money Transactions",
-    answer:
-      "Any real money transactions are done at your own risk. We do not act as a middleman and are not liable for disputes.",
-  },
+  // {
+  //   icon: "💸",
+  //   question: "4. Real Money Transactions",
+  //   answer:
+  //     "Any real money transactions are done at your own risk. We do not act as a middleman and are not liable for disputes.",
+  // },
   {
     icon: "🚫",
     question: "5. Fraud and Abuse",
