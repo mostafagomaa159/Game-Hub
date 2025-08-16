@@ -11,9 +11,13 @@ const PostModal = ({
   handleConfirmTrade,
   handleCancelTrade,
   setShowReportModal,
-  bothConfirmed,
+  isOwner,
+  isBuyer,
+  processingIds,
   userAlreadyConfirmed,
+  bothConfirmed,
   modalRef,
+  hasConfirmed,
   dispute,
 }) => {
   const [showBuyMessage, setShowBuyMessage] = useState(false);
@@ -21,25 +25,62 @@ const PostModal = ({
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log("PostModal received selectedPost:", selectedPost?._id);
+    if (!selectedPost) {
+      setShowBuyMessage(false);
+      setConfirmDisabled(false);
+    }
   }, [selectedPost]);
+
+  if (!selectedPost) return null;
 
   const buyerId = selectedPost.buyer?._id || selectedPost.buyer;
   const ownerId = selectedPost.owner?._id || selectedPost.owner;
-  const [localDispute, setLocalDispute] = useState(null);
-  const currentUserIsBuyer = userId && String(userId) === String(buyerId);
-  const currentUserIsOwner = userId && String(userId) === String(ownerId);
 
-  const bothConfirmedFlag =
-    typeof bothConfirmed === "function" && bothConfirmed(selectedPost);
-
-  const alreadyConfirmed =
-    typeof userAlreadyConfirmed === "function" && userAlreadyConfirmed();
-
+  const currentUserIsBuyer = Boolean(
+    userId && buyerId && String(buyerId) === String(userId)
+  );
+  const currentUserIsOwner = Boolean(
+    userId && ownerId && String(ownerId) === String(userId)
+  );
+  const bothConfirmedFlag = Boolean(
+    typeof bothConfirmed === "function" && bothConfirmed(selectedPost)
+  );
   const isPending = selectedPost.tradeStatus === "pending";
   const isPendingOrPendingRelease =
     isPending || selectedPost.tradeStatus === "pending_release";
+  const alreadyConfirmed = Boolean(
+    typeof userAlreadyConfirmed === "function" && userAlreadyConfirmed()
+  );
   const isAvailable = Boolean(selectedPost.avaliable);
+
+  const getDisputeMessage = () => {
+    if (!dispute || dispute.status === "none") return null;
+
+    const currentUserIsSeller = isOwner;
+    const currentUserIsBuyer = isBuyer;
+
+    switch (dispute.status) {
+      case "seller_reported":
+        return currentUserIsBuyer
+          ? "⚠️ Seller has reported an issue with this trade"
+          : null;
+      case "buyer_reported":
+        return currentUserIsSeller
+          ? "⚠️ Buyer has reported an issue with this trade"
+          : null;
+      case "both_reported":
+        return "⏳ Admin is reviewing your reports";
+      case "resolved":
+      case "refunded":
+        return dispute.adminDecision?.winner
+          ? `🏆 Dispute resolved in favor of ${dispute.adminDecision.winner}`
+          : "✅ Dispute has been resolved";
+      default:
+        return null;
+    }
+  };
+
+  const disputeMessage = getDisputeMessage();
 
   const showBuyButton =
     userId &&
@@ -87,137 +128,6 @@ const PostModal = ({
     setSelectedPostId(null);
     navigate(`/profile/${ownerId}`);
   };
-  useEffect(() => {
-    if (dispute) {
-      setLocalDispute(dispute);
-      localStorage.setItem(
-        `dispute_${selectedPost._id}`,
-        JSON.stringify(dispute)
-      );
-    }
-  }, [dispute, selectedPost?._id]);
-
-  // Load dispute from localStorage if dispute prop is null
-  useEffect(() => {
-    if (!dispute && selectedPost?._id) {
-      const saved = localStorage.getItem(`dispute_${selectedPost._id}`);
-      if (saved) setLocalDispute(JSON.parse(saved));
-    }
-  }, [dispute, selectedPost?._id]);
-  // ===== Render Dispute Section =====
-  // ===== Unified Dispute Section =====
-  const renderDisputeSection = () => {
-    if (!localDispute?.status || localDispute.status === "none") return null;
-
-    const reportLink = (report) =>
-      report?.evidenceUrl ? (
-        <a
-          href={report.evidenceUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="underline text-blue-400 hover:text-blue-600"
-        >
-          View Evidence
-        </a>
-      ) : null;
-
-    const boxStyle = "p-4 mb-4 rounded-lg border shadow-sm";
-
-    if (localDispute.status === "both_reported") {
-      return (
-        <div
-          className={`${boxStyle} bg-yellow-100 border-yellow-400 text-yellow-800`}
-        >
-          ⚠️ Both parties have reported each other. Admin will review as soon as
-          possible.
-        </div>
-      );
-    }
-
-    if (
-      localDispute.status === "seller_reported" &&
-      currentUserIsBuyer &&
-      localDispute.sellerReport
-    ) {
-      return (
-        <div className={`${boxStyle} bg-red-50 border-red-400 text-red-700`}>
-          <h4 className="font-semibold mb-1">Seller Reported You ⚠️</h4>
-          <p>
-            <strong>Reason:</strong> {localDispute.sellerReport.reason}
-          </p>
-          <p>
-            <strong>Urgency:</strong> {localDispute.sellerReport.urgency}
-          </p>
-          {reportLink(localDispute.sellerReport)}
-          <p className="text-sm text-gray-500">
-            Reported at:{" "}
-            {new Date(localDispute.sellerReport.reportedAt).toLocaleString()}
-          </p>
-        </div>
-      );
-    }
-
-    if (
-      localDispute.status === "buyer_reported" &&
-      currentUserIsOwner &&
-      localDispute.buyerReport
-    ) {
-      return (
-        <div className={`${boxStyle} bg-blue-50 border-blue-400 text-blue-700`}>
-          <h4 className="font-semibold mb-1">Buyer Reported You ⚠️</h4>
-          <p>
-            <strong>Reason:</strong> {localDispute.buyerReport.reason}
-          </p>
-          <p>
-            <strong>Urgency:</strong> {localDispute.buyerReport.urgency}
-          </p>
-          {reportLink(localDispute.buyerReport)}
-          <p className="text-sm text-gray-500">
-            Reported at:{" "}
-            {new Date(localDispute.buyerReport.reportedAt).toLocaleString()}
-          </p>
-        </div>
-      );
-    }
-
-    if (localDispute.status === "resolved") {
-      return (
-        <div
-          className={`${boxStyle} bg-green-50 border-green-400 text-green-700`}
-        >
-          ✅ Dispute resolved by admin.
-        </div>
-      );
-    }
-
-    if (localDispute.status === "refunded") {
-      return (
-        <div
-          className={`${boxStyle} bg-orange-50 border-orange-400 text-orange-700`}
-        >
-          ⚠️ Trade has been refunded.
-        </div>
-      );
-    }
-
-    // Admin Decision and Expiry
-    return (
-      <div className={`${boxStyle} bg-gray-50 border-gray-300 text-gray-700`}>
-        {localDispute.adminDecision &&
-          Object.keys(localDispute.adminDecision).length > 0 && (
-            <p>
-              <strong>Admin Decision:</strong>{" "}
-              {localDispute.adminDecision.note || "Pending"}
-            </p>
-          )}
-        {localDispute.expiresAt && (
-          <p className="text-sm text-gray-500">
-            Dispute expires: {new Date(localDispute.expiresAt).toLocaleString()}
-          </p>
-        )}
-      </div>
-    );
-  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -225,10 +135,6 @@ const PostModal = ({
         ref={modalRef}
         className="bg-white dark:bg-darkCard text-black dark:text-white rounded-2xl shadow-xl w-full max-w-md p-6 relative"
       >
-        {/* Dispute Banner */}
-        {renderDisputeSection()}
-
-        {/* Close Button */}
         <button
           onClick={() => setSelectedPostId(null)}
           className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 dark:hover:text-white text-xl"
@@ -237,7 +143,6 @@ const PostModal = ({
           &times;
         </button>
 
-        {/* Post Info */}
         <h2 className="text-2xl font-bold mb-2">{selectedPost.description}</h2>
 
         <div className="flex justify-between items-center mb-2">
@@ -273,7 +178,22 @@ const PostModal = ({
           </p>
         )}
 
-        {/* Confirmation Status */}
+        {/* Dispute message */}
+        {disputeMessage && (
+          <div className="mt-3 p-3 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
+            <p className="text-yellow-800 dark:text-yellow-200 font-semibold">
+              {disputeMessage}
+            </p>
+            {dispute?.status === "both_reported" && dispute?.expiresAt && (
+              <p className="text-sm mt-1 text-yellow-700 dark:text-yellow-300">
+                Expected resolution time:{" "}
+                {new Date(dispute.expiresAt).toLocaleString()}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Confirmation status messages */}
         {isPendingOrPendingRelease && (
           <>
             {currentUserIsOwner &&
@@ -306,6 +226,7 @@ const PostModal = ({
           </>
         )}
 
+        {/* Show buy message inside modal after clicking Buy */}
         {showBuyMessage && !bothConfirmedFlag && (
           <p className="mt-3 text-red-600 font-semibold">
             ⚠️ Please Don't confirm till you chat with seller and meet with him
@@ -313,7 +234,7 @@ const PostModal = ({
           </p>
         )}
 
-        {/* Buttons */}
+        {/* ===== Buttons Section ===== */}
         <div className="mt-4 space-y-2">
           {showBuyButton && (
             <button

@@ -10,23 +10,17 @@ const usePostActions = (
   setProcessingIds,
   setShowLoginModal,
   setSelectedPostId,
-  setHasConfirmed,
-  selectedPostId
+  setHasConfirmed
 ) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
-  const [dispute, setDispute] = useState(null); // ← dispute state
+  const [dispute, setDispute] = useState(null);
 
-  const updatePost = (updated) => {
+  const updatePost = (updated) =>
     setPosts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
-  };
 
   const addProcessingId = (id) => {
-    setProcessingIds((prev) => {
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
+    setProcessingIds((prev) => new Set([...prev, id]));
   };
 
   const removeProcessingId = (id) => {
@@ -36,14 +30,14 @@ const usePostActions = (
       return next;
     });
   };
+
   // ------------------------ Dispute Fetching ------------------------
-  const fetchDispute = async (tradeId) => {
+  const fetchDispute = async (post) => {
+    const tradeId = post.tradeTransaction?._id;
     if (!tradeId) return null;
 
     try {
       const res = await axios.get(`/trade/${tradeId}/dispute`);
-
-      // directly use the returned object
       setDispute(res.data);
       return res.data;
     } catch (err) {
@@ -53,47 +47,15 @@ const usePostActions = (
     }
   };
 
-  /** =========================
-   *  Handle posting a reply
-   *  ========================= */
-  const handleReply = async (commentId, replyText) => {
-    if (!userId) {
-      setShowLoginModal(true);
-      return;
-    }
-
-    if (!replyText.trim()) {
-      toast.error("Reply cannot be empty");
-      return;
-    }
-
-    try {
-      const res = await axios.post(`/comments/${commentId}/reply`, {
-        text: replyText.trim(),
-      });
-
-      if (res.data?.updatedPost) {
-        updatePost(res.data.updatedPost);
-      } else {
-        // fallback: refresh manually
-        toast.success("Reply posted");
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.error || "Failed to post reply");
-    }
-  };
-
-  /** =========================
-   *  Voting
-   *  ========================= */
+  // ------------------------ Voting ------------------------
   const handleVote = async (post, voteType) => {
     if (!userId) {
       setShowLoginModal(true);
       return;
     }
+
     const postId = post._id;
-    if (processingIds.has(postId)) return;
-    if (post.voters?.includes(userId)) return;
+    if (processingIds.has(postId) || post.voters?.includes(userId)) return;
 
     const previousPost = { ...post, voters: [...(post.voters || [])] };
     const optimisticPost = {
@@ -120,11 +82,9 @@ const usePostActions = (
     }
   };
 
+  // ------------------------ Chat Requests ------------------------
   const handleToggleRequest = async (post) => {
-    if (!userId) {
-      setShowLoginModal(true);
-      return;
-    }
+    if (!userId) return setShowLoginModal(true);
 
     const postId = post._id;
     if (processingIds.has(postId)) return;
@@ -148,13 +108,12 @@ const usePostActions = (
       }`;
       const res = await axios.post(url);
       const updatedPost = res.data?.post || res.data;
-
       if (updatedPost) {
         updatePost(updatedPost);
         setSelectedPostId(updatedPost._id);
       }
 
-      if (!requested && post.owner && post.owner._id) {
+      if (!requested && post.owner?._id) {
         socket.emit("notify-request", {
           toUserId: post.owner._id,
           message: `A Buyer sent you a chat request for item: ${post.description}`,
@@ -169,16 +128,9 @@ const usePostActions = (
     }
   };
 
+  // ------------------------ Buy ------------------------
   const handleBuy = async (post) => {
-    if (!post) {
-      console.error("handleBuy received undefined post!");
-      return;
-    }
-
-    if (!userId) {
-      setShowLoginModal(true);
-      return;
-    }
+    if (!post || !userId) return setShowLoginModal(true);
 
     const postId = post._id;
     if (processingIds.has(postId)) return;
@@ -188,7 +140,6 @@ const usePostActions = (
     try {
       const res = await axios.post(`/newpost/${postId}/buy`);
       const updatedPost = res.data?.post || res.data;
-
       if (updatedPost) {
         updatePost(updatedPost);
         setSelectedPostId(updatedPost._id);
@@ -200,48 +151,27 @@ const usePostActions = (
     }
   };
 
+  // ------------------------ Confirm / Cancel Trade ------------------------
   const handleConfirmTrade = async (post) => {
-    if (!userId) {
-      setShowLoginModal(true);
-      return;
-    }
-
+    if (!userId) return setShowLoginModal(true);
     setIsProcessing(true);
 
     try {
       const res = await axios.post(`/newpost/${post._id}/confirm-trade`);
-
       if (res.data) {
-        // Update the post in your state
         updatePost(res.data);
         setSelectedPostId(res.data._id);
         setHasConfirmed(true);
-
-        // If backend returns the transaction with fee/net
-        if (res.data.transaction) {
-          return {
-            transaction: {
-              fee: res.data.transaction.fee,
-              amount: res.data.transaction.amount, // net to seller
-            },
-          };
-        }
       }
     } catch (err) {
       toast.error(err.response?.data?.error || "Confirmation failed");
     } finally {
       setIsProcessing(false);
     }
-
-    return null;
   };
 
   const handleCancelTrade = async (post) => {
-    if (!userId) {
-      setShowLoginModal(true);
-      return;
-    }
-
+    if (!userId) return setShowLoginModal(true);
     const postId = post._id;
     if (processingIds.has(postId)) return;
 
@@ -249,7 +179,7 @@ const usePostActions = (
     addProcessingId(postId);
 
     try {
-      const res = await axios.post(`/newpost/${post._id}/cancel-trade`, {});
+      const res = await axios.post(`/newpost/${post._id}/cancel-trade`);
       if (res.data?.post) {
         updatePost(res.data.post);
         setSelectedPostId(res.data.post._id);
@@ -262,6 +192,7 @@ const usePostActions = (
     }
   };
 
+  // ------------------------ Report ------------------------
   const submitReport = async (post, reportData) => {
     if (!reportData?.videoUrls?.length || !reportData.videoUrls[0]?.trim()) {
       toast.error("Please provide a valid evidence URL");
@@ -279,7 +210,7 @@ const usePostActions = (
       };
 
       const res = await axios.post(`/newpost/${post._id}/report`, payload);
-      if (!res.data || !res.data.message) {
+      if (!res.data?.message) {
         toast.error(res.data?.error || "Report submission failed");
         return { success: false };
       }
@@ -291,13 +222,10 @@ const usePostActions = (
             res.data.tradeTransaction || res.data.post.tradeTransaction,
         };
         updatePost(updatedPost);
-
-        if (selectedPostId === updatedPost._id) {
-          setSelectedPostId(updatedPost._id); // re-render modal
-        }
+        if (updatedPost._id === post._id) setSelectedPostId(updatedPost._id);
       }
 
-      toast.success(res.data.message || "Report submitted successfully");
+      toast.success(res.data.message);
       return { success: true };
     } catch (err) {
       toast.error(err.response?.data?.error || "Report submission failed");
@@ -307,6 +235,7 @@ const usePostActions = (
     }
   };
 
+  // ------------------------ Helpers ------------------------
   const getId = (id) => (id?._id ? id._id : id);
 
   const userAlreadyConfirmed = (post) => {
@@ -334,7 +263,6 @@ const usePostActions = (
     handleBuy,
     handleConfirmTrade,
     handleCancelTrade,
-    handleReply,
     submitReport,
     userAlreadyConfirmed,
     bothConfirmed,

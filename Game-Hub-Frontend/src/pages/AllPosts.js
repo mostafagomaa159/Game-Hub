@@ -42,7 +42,6 @@ const AllPosts = () => {
 
   useEffect(() => {
     setHasConfirmed(false);
-    console.log("selectedPostId changed:", selectedPostId);
   }, [selectedPostId]);
 
   useEffect(() => {
@@ -126,14 +125,14 @@ const AllPosts = () => {
     reportSubmitting,
     handleVote,
     handleToggleRequest,
-    dispute, // ← from hook
-    fetchDispute, // ← from hook
     handleBuy,
     handleConfirmTrade,
     handleCancelTrade,
     submitReport,
     userAlreadyConfirmed,
     bothConfirmed,
+    dispute,
+    fetchDispute,
   } = usePostActions(
     setPosts,
     userId,
@@ -141,8 +140,7 @@ const AllPosts = () => {
     setProcessingIds,
     setShowLoginModal,
     setSelectedPostId,
-    setHasConfirmed,
-    selectedPostId
+    setHasConfirmed
   );
 
   const handleClickOutside = useCallback((e) => {
@@ -150,11 +148,6 @@ const AllPosts = () => {
       setShowLoginModal(false);
     }
   }, []);
-  useEffect(() => {
-    if (selectedPost?.tradeTransaction?._id) {
-      fetchDispute(selectedPost.tradeTransaction._id);
-    }
-  }, [selectedPost, fetchDispute]); // ← add fetchDispute here
 
   useEffect(() => {
     if (selectedPost || showLoginModal) {
@@ -167,15 +160,7 @@ const AllPosts = () => {
 
   const handlePostReport = async (post, reportData) => {
     if (!post || !post._id) return { success: false };
-
-    const result = await submitReport(post, reportData);
-
-    if (result.success && post.tradeTransaction?._id) {
-      // Refetch dispute after successful report
-      await fetchDispute(post.tradeTransaction._id);
-    }
-
-    return result;
+    return await submitReport(post, reportData);
   };
 
   const handlePostVote = (postId, voteType) => {
@@ -197,6 +182,11 @@ const AllPosts = () => {
     selectedPost && handleConfirmTrade(selectedPost);
   const handlePostCancelTrade = () =>
     selectedPost && handleCancelTrade(selectedPost);
+  useEffect(() => {
+    if (selectedPost) {
+      fetchDispute(selectedPost);
+    }
+  }, [selectedPost, fetchDispute]);
 
   return (
     <div className="bg-background dark:bg-darkBackground text-black dark:text-white min-h-screen py-8 px-4">
@@ -252,12 +242,12 @@ const AllPosts = () => {
           setReportUrl={setReportUrl}
           isOwner={isOwner}
           isBuyer={isBuyer}
-          dispute={dispute}
           userAlreadyConfirmed={userAlreadyConfirmed}
           bothConfirmed={bothConfirmed}
           modalRef={modalRef}
           processingIds={processingIds}
           hasConfirmed={hasConfirmed}
+          dispute={dispute}
         />
       )}
 
