@@ -43,16 +43,9 @@ const usePostActions = (
     try {
       const res = await axios.get(`/trade/${tradeId}/dispute`);
 
-      const disputeData = {
-        status: res.data.status || "none",
-        sellerReport: res.data.sellerReport || null,
-        buyerReport: res.data.buyerReport || null,
-        expiresAt: res.data.expiresAt || null,
-        adminDecision: res.data.adminDecision || null,
-      };
-
-      setDispute(disputeData);
-      return disputeData;
+      // directly use the returned object
+      setDispute(res.data);
+      return res.data;
     } catch (err) {
       console.error("Failed to fetch dispute:", err);
       setDispute(null);

@@ -4,7 +4,7 @@ const Trade = require("../models/Trade");
 const User = require("../models/user");
 const auth = require("../middleware/auth");
 const adminAuth = require("../middleware/adminAuth");
-
+const TradeTransaction = require("../models/TradeTransaction");
 const router = new express.Router();
 
 // Cancel trade route (updated with dispute check)
@@ -134,8 +134,9 @@ router.post("/trade/:id/report", auth, async (req, res) => {
 router.get("/trade/:id/dispute", auth, async (req, res) => {
   try {
     const trade = await TradeTransaction.findById(req.params.id)
-      .populate("buyer seller", "name avatar") // basic user info
-      .populate("dispute.adminDecision"); // if you want admin info later
+      .populate("buyer", "name avatar")
+      .populate("seller", "name avatar")
+      .populate("post", "description");
 
     if (!trade) return res.status(404).send({ error: "Trade not found" });
 
