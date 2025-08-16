@@ -39,12 +39,23 @@ const usePostActions = (
   // ------------------------ Dispute Fetching ------------------------
   const fetchDispute = async (tradeId) => {
     if (!tradeId) return null;
+
     try {
       const res = await axios.get(`/trade/${tradeId}/dispute`);
-      setDispute(res.data);
-      return res.data;
+
+      const disputeData = {
+        status: res.data.status || "none",
+        sellerReport: res.data.sellerReport || null,
+        buyerReport: res.data.buyerReport || null,
+        expiresAt: res.data.expiresAt || null,
+        adminDecision: res.data.adminDecision || null,
+      };
+
+      setDispute(disputeData);
+      return disputeData;
     } catch (err) {
       console.error("Failed to fetch dispute:", err);
+      setDispute(null);
       return null;
     }
   };

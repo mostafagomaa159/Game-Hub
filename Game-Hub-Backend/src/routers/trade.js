@@ -133,33 +133,34 @@ router.post("/trade/:id/report", auth, async (req, res) => {
 // Get dispute details (participants or admin)
 router.get("/trade/:id/dispute", auth, async (req, res) => {
   try {
-    const trade = await Trade.findById(req.params.id).populate(
-      "dispute.reports.reporter",
-      "name avatar"
-    );
+    const trade = await TradeTransaction.findById(req.params.id)
+      .populate("buyer seller", "name avatar") // basic user info
+      .populate("dispute.adminDecision"); // if you want admin info later
 
     if (!trade) return res.status(404).send({ error: "Trade not found" });
 
-    // Verify participant or admin
+    // Only allow buyer, seller, or admin
     const isParticipant =
-      String(trade.buyer) === String(req.user._id) ||
-      String(trade.seller) === String(req.user._id);
+      String(trade.buyer._id) === String(req.user._id) ||
+      String(trade.seller._id) === String(req.user._id);
 
     if (!isParticipant && !req.user.isAdmin) {
       return res.status(403).send({ error: "Not authorized" });
     }
 
+    // Respond with dispute info
     res.send({
       status: trade.dispute?.status || "none",
-      reports: trade.dispute?.reports || [],
-      expiresAt: trade.dispute?.expiresAt,
+      sellerReport: trade.dispute?.sellerReport || null,
+      buyerReport: trade.dispute?.buyerReport || null,
+      expiresAt: trade.dispute?.expiresAt || null,
+      adminDecision: trade.dispute?.adminDecision || null,
     });
   } catch (err) {
     console.error("Get dispute error:", err);
     res.status(500).send({ error: "Failed to fetch dispute details" });
   }
 });
-
 // --------------------
 // Admin: Resolve dispute
 // --------------------

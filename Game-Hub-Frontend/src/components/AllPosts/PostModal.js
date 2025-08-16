@@ -96,41 +96,61 @@ const PostModal = ({
         className="bg-white dark:bg-darkCard text-black dark:text-white rounded-2xl shadow-xl w-full max-w-md p-6 relative"
       >
         {/* ===== Dispute Banner ===== */}
-        {dispute?.status && (
-          <div className="absolute top-0 left-0 w-full bg-red-600 text-white ...">
+        {dispute?.status && dispute.status !== "none" && (
+          <div className="absolute top-0 left-0 w-full bg-red-600 text-white text-center py-2 rounded-t-2xl z-50 space-y-1">
             {dispute.status === "both_reported" && (
               <p>
                 ⚠️ You both reported each other. Please wait for admin review.
               </p>
             )}
-            {dispute.buyerReport &&
+
+            {dispute.status === "buyer_reported" &&
+              dispute.buyerReport &&
               String(selectedPost.owner?._id) === String(userId) && (
                 <p>
                   ⚠️ Buyer reported you: {dispute.buyerReport.reason}{" "}
-                  <a
-                    href={dispute.buyerReport.evidenceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline text-blue-300"
-                  >
-                    Video
-                  </a>
+                  {dispute.buyerReport.evidenceUrl && (
+                    <a
+                      href={dispute.buyerReport.evidenceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline text-blue-300"
+                    >
+                      Video
+                    </a>
+                  )}
                 </p>
               )}
-            {dispute.sellerReport &&
+
+            {dispute.status === "seller_reported" &&
+              dispute.sellerReport &&
               String(selectedPost.buyer?._id) === String(userId) && (
                 <p>
                   ⚠️ Seller reported you: {dispute.sellerReport.reason}{" "}
-                  <a
-                    href={dispute.sellerReport.evidenceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline text-blue-300"
-                  >
-                    Video
-                  </a>
+                  {dispute.sellerReport.evidenceUrl && (
+                    <a
+                      href={dispute.sellerReport.evidenceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline text-blue-300"
+                    >
+                      Video
+                    </a>
+                  )}
                 </p>
               )}
+
+            {dispute.status === "resolved" && (
+              <p className="text-green-200 font-semibold">
+                ✅ Dispute resolved by admin.
+              </p>
+            )}
+
+            {dispute.status === "refunded" && (
+              <p className="text-yellow-200 font-semibold">
+                ⚠️ Trade has been refunded.
+              </p>
+            )}
           </div>
         )}
 
