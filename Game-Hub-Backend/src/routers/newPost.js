@@ -783,16 +783,12 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
         .status(403)
         .send({ error: "User not authorized for this dispute" });
     }
-    const hasSellerReport =
-      tx.dispute.sellerReport && tx.dispute.sellerReport.reportedAt;
-    const hasBuyerReport =
-      tx.dispute.buyerReport && tx.dispute.buyerReport.reportedAt;
 
-    if (hasSellerReport && hasBuyerReport) {
+    if (tx.dispute.sellerReport && tx.dispute.buyerReport) {
       tx.dispute.status = "both_reported";
-    } else if (hasSellerReport) {
+    } else if (tx.dispute.sellerReport) {
       tx.dispute.status = "seller_reported";
-    } else if (hasBuyerReport) {
+    } else if (tx.dispute.buyerReport) {
       tx.dispute.status = "buyer_reported";
     } else {
       tx.dispute.status = "none";

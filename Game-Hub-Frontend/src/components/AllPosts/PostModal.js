@@ -92,29 +92,14 @@ const PostModal = ({
 
   const handleShowProfile = () => {
     if (!localStorage.getItem("token")) {
+      // If user not logged in
       navigate("/login");
       return;
     }
-    setSelectedPostId(null);
+    setSelectedPostId(null); // Close modal first
+
     navigate(`/profile/${ownerId}`);
   };
-
-  // New: detect if the other party already reported
-  const otherReportedMessage = () => {
-    if (!selectedPost?.tradeTransaction?.dispute) return null;
-
-    const dispute = selectedPost.tradeTransaction.dispute;
-
-    if (currentUserIsSeller() && dispute.buyerReport?.reportedAt) {
-      return "Buyer has reported you for this trade!";
-    }
-    if (currentUserIsBuyer && dispute.sellerReport?.reportedAt) {
-      return "Seller has reported you for this trade!";
-    }
-    return null;
-  };
-
-  const currentUserIsSeller = () => currentUserIsOwner;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -203,13 +188,6 @@ const PostModal = ({
           <p className="mt-3 text-red-600 font-semibold">
             ⚠️ Please Don't confirm till you chat with seller and meet with him
             in-game.
-          </p>
-        )}
-
-        {/* New: show if other party reported */}
-        {otherReportedMessage() && (
-          <p className="mt-3 text-red-600 font-semibold">
-            ⚠️ {otherReportedMessage()}
           </p>
         )}
 
