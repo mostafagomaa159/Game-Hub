@@ -26,7 +26,7 @@ const PostModal = ({
 
   const buyerId = selectedPost.buyer?._id || selectedPost.buyer;
   const ownerId = selectedPost.owner?._id || selectedPost.owner;
-
+  const [localDispute, setLocalDispute] = useState(null);
   const currentUserIsBuyer = userId && String(userId) === String(buyerId);
   const currentUserIsOwner = userId && String(userId) === String(ownerId);
 
@@ -87,63 +87,136 @@ const PostModal = ({
     setSelectedPostId(null);
     navigate(`/profile/${ownerId}`);
   };
+  useEffect(() => {
+    if (dispute) {
+      setLocalDispute(dispute);
+      localStorage.setItem(
+        `dispute_${selectedPost._id}`,
+        JSON.stringify(dispute)
+      );
+    }
+  }, [dispute, selectedPost?._id]);
 
-  // ===== Render Dispute Banner =====
-  const renderDisputeBanner = () => {
-    if (!dispute?.status || dispute.status === "none") return null;
+  // Load dispute from localStorage if dispute prop is null
+  useEffect(() => {
+    if (!dispute && selectedPost?._id) {
+      const saved = localStorage.getItem(`dispute_${selectedPost._id}`);
+      if (saved) setLocalDispute(JSON.parse(saved));
+    }
+  }, [dispute, selectedPost?._id]);
+  // ===== Render Dispute Section =====
+  // ===== Unified Dispute Section =====
+  const renderDisputeSection = () => {
+    if (!localDispute?.status || localDispute.status === "none") return null;
 
-    const renderReportLink = (report) =>
+    const reportLink = (report) =>
       report?.evidenceUrl ? (
         <a
           href={report.evidenceUrl}
           target="_blank"
           rel="noreferrer"
-          className="underline text-blue-300"
+          className="underline text-blue-400 hover:text-blue-600"
         >
-          Video
+          View Evidence
         </a>
       ) : null;
 
-    switch (dispute.status) {
-      case "both_reported":
-        return (
-          <p>⚠️ You both reported each other. Please wait for admin review.</p>
-        );
-      case "buyer_reported":
-        if (dispute.buyerReport && currentUserIsOwner) {
-          return (
-            <p>
-              ⚠️ Buyer reported you: {dispute.buyerReport.reason}{" "}
-              {renderReportLink(dispute.buyerReport)}
-            </p>
-          );
-        }
-        break;
-      case "seller_reported":
-        if (dispute.sellerReport && currentUserIsBuyer) {
-          return (
-            <p>
-              ⚠️ Seller reported you: {dispute.sellerReport.reason}{" "}
-              {renderReportLink(dispute.sellerReport)}
-            </p>
-          );
-        }
-        break;
-      case "resolved":
-        return (
-          <p className="text-green-200 font-semibold">
-            ✅ Dispute resolved by admin.
-          </p>
-        );
-      case "refunded":
-        return (
-          <p className="text-yellow-200 font-semibold">
-            ⚠️ Trade has been refunded.
-          </p>
-        );
-      default:
-        return null;
+    const boxStyle = "p-4 mb-4 rounded-lg border shadow-sm";
+
+    if (localDispute.status === "both_reported") {
+      return (
+        <div
+          className={`${boxStyle} bg-yellow-100 border-yellow-400 text-yellow-800`}
+        >
+          ⚠️ Both parties have reported each other. Admin will review as soon as
+          possible.
+        </div>
+      );
     }
+
+    if (
+      localDispute.status === "seller_reported" &&
+      currentUserIsBuyer &&
+      localDispute.sellerReport
+    ) {
+      return (
+        <div className={`${boxStyle} bg-red-50 border-red-400 text-red-700`}>
+          <h4 className="font-semibold mb-1">Seller Reported You ⚠️</h4>
+          <p>
+            <strong>Reason:</strong> {localDispute.sellerReport.reason}
+          </p>
+          <p>
+            <strong>Urgency:</strong> {localDispute.sellerReport.urgency}
+          </p>
+          {reportLink(localDispute.sellerReport)}
+          <p className="text-sm text-gray-500">
+            Reported at:{" "}
+            {new Date(localDispute.sellerReport.reportedAt).toLocaleString()}
+          </p>
+        </div>
+      );
+    }
+
+    if (
+      localDispute.status === "buyer_reported" &&
+      currentUserIsOwner &&
+      localDispute.buyerReport
+    ) {
+      return (
+        <div className={`${boxStyle} bg-blue-50 border-blue-400 text-blue-700`}>
+          <h4 className="font-semibold mb-1">Buyer Reported You ⚠️</h4>
+          <p>
+            <strong>Reason:</strong> {localDispute.buyerReport.reason}
+          </p>
+          <p>
+            <strong>Urgency:</strong> {localDispute.buyerReport.urgency}
+          </p>
+          {reportLink(localDispute.buyerReport)}
+          <p className="text-sm text-gray-500">
+            Reported at:{" "}
+            {new Date(localDispute.buyerReport.reportedAt).toLocaleString()}
+          </p>
+        </div>
+      );
+    }
+
+    if (localDispute.status === "resolved") {
+      return (
+        <div
+          className={`${boxStyle} bg-green-50 border-green-400 text-green-700`}
+        >
+          ✅ Dispute resolved by admin.
+        </div>
+      );
+    }
+
+    if (localDispute.status === "refunded") {
+      return (
+        <div
+          className={`${boxStyle} bg-orange-50 border-orange-400 text-orange-700`}
+        >
+          ⚠️ Trade has been refunded.
+        </div>
+      );
+    }
+
+    // Admin Decision and Expiry
+    return (
+      <div className={`${boxStyle} bg-gray-50 border-gray-300 text-gray-700`}>
+        {localDispute.adminDecision &&
+          Object.keys(localDispute.adminDecision).length > 0 && (
+            <p>
+              <strong>Admin Decision:</strong>{" "}
+              {localDispute.adminDecision.note || "Pending"}
+            </p>
+          )}
+        {localDispute.expiresAt && (
+          <p className="text-sm text-gray-500">
+            Dispute expires: {new Date(localDispute.expiresAt).toLocaleString()}
+          </p>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -153,83 +226,7 @@ const PostModal = ({
         className="bg-white dark:bg-darkCard text-black dark:text-white rounded-2xl shadow-xl w-full max-w-md p-6 relative"
       >
         {/* Dispute Banner */}
-        {renderDisputeBanner()}
-
-        {dispute && (
-          <div className="dispute-section border p-4 rounded-md bg-gray-100 dark:bg-gray-800 mt-4">
-            <h3 className="text-lg font-bold mb-2">
-              Dispute Status: {dispute.status}
-            </h3>
-
-            {dispute.sellerReport &&
-              Object.keys(dispute.sellerReport).length > 0 && (
-                <div className="mb-2">
-                  <h4 className="font-semibold">Seller Report:</h4>
-                  <p>Reason: {dispute.sellerReport.reason}</p>
-                  <p>Urgency: {dispute.sellerReport.urgency}</p>
-                  {dispute.sellerReport.evidenceUrl && (
-                    <p>
-                      Evidence:{" "}
-                      <a
-                        href={dispute.sellerReport.evidenceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 underline"
-                      >
-                        View
-                      </a>
-                    </p>
-                  )}
-                  <p>
-                    Reported At:{" "}
-                    {new Date(dispute.sellerReport.reportedAt).toLocaleString()}
-                  </p>
-                </div>
-              )}
-
-            {dispute.buyerReport &&
-              Object.keys(dispute.buyerReport).length > 0 && (
-                <div className="mb-2">
-                  <h4 className="font-semibold">Buyer Report:</h4>
-                  <p>Reason: {dispute.buyerReport.reason}</p>
-                  <p>Urgency: {dispute.buyerReport.urgency}</p>
-                  {dispute.buyerReport.evidenceUrl && (
-                    <p>
-                      Evidence:{" "}
-                      <a
-                        href={dispute.buyerReport.evidenceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 underline"
-                      >
-                        View
-                      </a>
-                    </p>
-                  )}
-                  <p>
-                    Reported At:{" "}
-                    {new Date(dispute.buyerReport.reportedAt).toLocaleString()}
-                  </p>
-                </div>
-              )}
-
-            {dispute.adminDecision &&
-              Object.keys(dispute.adminDecision).length > 0 && (
-                <div className="mb-2">
-                  <h4 className="font-semibold">Admin Decision:</h4>
-                  <p>
-                    {dispute.adminDecision.note || "No decision details yet."}
-                  </p>
-                </div>
-              )}
-
-            {dispute.expiresAt && (
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Dispute expires: {new Date(dispute.expiresAt).toLocaleString()}
-              </p>
-            )}
-          </div>
-        )}
+        {renderDisputeSection()}
 
         {/* Close Button */}
         <button
