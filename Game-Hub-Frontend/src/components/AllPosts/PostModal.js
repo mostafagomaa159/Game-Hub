@@ -85,7 +85,7 @@ const PostModal = ({
     navigate(`/profile/${ownerId}`);
   };
 
-  const dispute = selectedPost?.tradeTransaction?.dispute;
+  // const dispute = selectedPost?.tradeTransaction?.dispute;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -94,16 +94,21 @@ const PostModal = ({
         className="bg-white dark:bg-darkCard text-black dark:text-white rounded-2xl shadow-xl w-full max-w-md p-6 relative"
       >
         {/* ===== Dispute Banner ===== */}
-        {dispute?.status && (
-          <div className="absolute top-0 left-0 w-full bg-red-600 text-white text-center py-2 rounded-t-2xl z-50">
-            {dispute.status === "both_reported" &&
-              "⚠️ Both Buyer and Seller have reported this trade."}
-            {currentUserIsOwner &&
-              dispute?.buyerReport &&
-              "⚠️ Buyer Reported you"}
-            {currentUserIsBuyer &&
-              dispute?.sellerReport &&
-              "⚠️ Seller Reported you"}
+        {selectedPost.tradeTransaction?.dispute && (
+          <div className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-500 text-red-300 text-sm font-semibold">
+            {selectedPost.tradeTransaction.dispute.bothReported && (
+              <p>⚠️ You Both Reported each other, wait for Admin</p>
+            )}
+            {!selectedPost.tradeTransaction.dispute.bothReported &&
+              currentUserIsOwner &&
+              selectedPost.tradeTransaction.dispute.buyerReport && (
+                <p>⚠️ Buyer Reported you</p>
+              )}
+            {!selectedPost.tradeTransaction.dispute.bothReported &&
+              currentUserIsBuyer &&
+              selectedPost.tradeTransaction.dispute.sellerReport && (
+                <p>⚠️ Seller Reported you</p>
+              )}
           </div>
         )}
 
