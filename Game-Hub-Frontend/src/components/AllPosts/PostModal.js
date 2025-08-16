@@ -23,10 +23,6 @@ const PostModal = ({
   useEffect(() => {
     console.log("PostModal received selectedPost:", selectedPost?._id);
   }, [selectedPost]);
-  useEffect(() => {
-    console.log("Updated dispute in PostModal:", dispute);
-  }, [dispute]);
-  if (!selectedPost) return null;
 
   const buyerId = selectedPost.buyer?._id || selectedPost.buyer;
   const ownerId = selectedPost.owner?._id || selectedPost.owner;
@@ -158,6 +154,82 @@ const PostModal = ({
       >
         {/* Dispute Banner */}
         {renderDisputeBanner()}
+
+        {dispute && (
+          <div className="dispute-section border p-4 rounded-md bg-gray-100 dark:bg-gray-800 mt-4">
+            <h3 className="text-lg font-bold mb-2">
+              Dispute Status: {dispute.status}
+            </h3>
+
+            {dispute.sellerReport &&
+              Object.keys(dispute.sellerReport).length > 0 && (
+                <div className="mb-2">
+                  <h4 className="font-semibold">Seller Report:</h4>
+                  <p>Reason: {dispute.sellerReport.reason}</p>
+                  <p>Urgency: {dispute.sellerReport.urgency}</p>
+                  {dispute.sellerReport.evidenceUrl && (
+                    <p>
+                      Evidence:{" "}
+                      <a
+                        href={dispute.sellerReport.evidenceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 underline"
+                      >
+                        View
+                      </a>
+                    </p>
+                  )}
+                  <p>
+                    Reported At:{" "}
+                    {new Date(dispute.sellerReport.reportedAt).toLocaleString()}
+                  </p>
+                </div>
+              )}
+
+            {dispute.buyerReport &&
+              Object.keys(dispute.buyerReport).length > 0 && (
+                <div className="mb-2">
+                  <h4 className="font-semibold">Buyer Report:</h4>
+                  <p>Reason: {dispute.buyerReport.reason}</p>
+                  <p>Urgency: {dispute.buyerReport.urgency}</p>
+                  {dispute.buyerReport.evidenceUrl && (
+                    <p>
+                      Evidence:{" "}
+                      <a
+                        href={dispute.buyerReport.evidenceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 underline"
+                      >
+                        View
+                      </a>
+                    </p>
+                  )}
+                  <p>
+                    Reported At:{" "}
+                    {new Date(dispute.buyerReport.reportedAt).toLocaleString()}
+                  </p>
+                </div>
+              )}
+
+            {dispute.adminDecision &&
+              Object.keys(dispute.adminDecision).length > 0 && (
+                <div className="mb-2">
+                  <h4 className="font-semibold">Admin Decision:</h4>
+                  <p>
+                    {dispute.adminDecision.note || "No decision details yet."}
+                  </p>
+                </div>
+              )}
+
+            {dispute.expiresAt && (
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Dispute expires: {new Date(dispute.expiresAt).toLocaleString()}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Close Button */}
         <button
