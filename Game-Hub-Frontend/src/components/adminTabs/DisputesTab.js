@@ -71,18 +71,16 @@ const DisputesTab = () => {
     }
   };
 
-  // Fetch disputes on mount
   useEffect(() => {
     fetchDisputes();
   }, [fetchDisputes]);
 
-  // Socket.IO listeners for live updates
   useEffect(() => {
     socket.on("admin:disputes_updated", (data) => {
       setDisputes(data);
     });
 
-    socket.on("admin:dispute_resolved", (update) => {
+    socket.on("admin:dispute_resolved", () => {
       fetchDisputes();
     });
 
@@ -93,8 +91,10 @@ const DisputesTab = () => {
   }, [fetchDisputes]);
 
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold mb-4">Disputes</h2>
+    <div className="p-4 sm:p-6 lg:p-8">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100">
+        Disputes
+      </h2>
 
       {loading && (
         <div className="space-y-4">
@@ -102,36 +102,54 @@ const DisputesTab = () => {
         </div>
       )}
 
-      {error && <p className="text-red-500 mb-4">{error}</p>}
+      {error && (
+        <p className="text-red-600 dark:text-red-400 font-medium mb-4">
+          {error}
+        </p>
+      )}
 
       {!loading && !error && disputes.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-center text-gray-600 dark:text-gray-300">
+        <div className="flex flex-col items-center justify-center py-20 text-center text-gray-600 dark:text-gray-400">
           <div className="text-6xl animate-bounce mb-3 select-none">📭</div>
-          <div className="text-lg font-medium">No disputes found.</div>
+          <p className="text-lg font-medium">No disputes found</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Disputes will appear here when reported.
+          </p>
         </div>
       )}
 
       {!loading && !error && disputes.length > 0 && (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {disputes.map((tx) => (
             <div
               key={tx._id}
-              className="p-4 border rounded bg-gray-900 text-white"
+              className="rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-darkCard p-6 transition hover:shadow-lg"
             >
-              <p>
-                <strong>Buyer:</strong> {tx?.buyer?.email || "N/A"}
-              </p>
-              <p>
-                <strong>Seller:</strong> {tx?.seller?.email || "N/A"}
-              </p>
-              <p>
-                <strong>Amount:</strong> {tx?.amount} coins
-              </p>
+              <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                <p>
+                  <span className="font-semibold">Buyer:</span>{" "}
+                  {tx?.buyer?.email || "N/A"}
+                </p>
+                <p>
+                  <span className="font-semibold">Seller:</span>{" "}
+                  {tx?.seller?.email || "N/A"}
+                </p>
+                <p>
+                  <span className="font-semibold">Description:</span>{" "}
+                  {tx?.post?.description}
+                </p>
+                <p>
+                  <span className="font-semibold">Amount:</span> {tx?.amount}{" "}
+                  coins
+                </p>
+              </div>
 
               {/* Buyer Report */}
               {tx?.dispute?.buyerReport && (
-                <div className="mt-2">
-                  <p className="font-semibold">Buyer Report:</p>
+                <div className="mt-4 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">
+                    Buyer Report:
+                  </p>
                   <p>Reason: {tx.dispute.buyerReport.reason}</p>
                   <p>Urgency: {tx.dispute.buyerReport.urgency}</p>
                   {tx.dispute.buyerReport.evidenceUrl && (
@@ -139,7 +157,7 @@ const DisputesTab = () => {
                       href={tx.dispute.buyerReport.evidenceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-400 underline"
+                      className="text-blue-600 dark:text-blue-400 underline"
                     >
                       Evidence Link
                     </a>
@@ -149,8 +167,10 @@ const DisputesTab = () => {
 
               {/* Seller Report */}
               {tx?.dispute?.sellerReport && (
-                <div className="mt-2">
-                  <p className="font-semibold">Seller Report:</p>
+                <div className="mt-4 bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                  <p className="font-semibold text-gray-800 dark:text-gray-200">
+                    Seller Report:
+                  </p>
                   <p>Reason: {tx.dispute.sellerReport.reason}</p>
                   <p>Urgency: {tx.dispute.sellerReport.urgency}</p>
                   {tx.dispute.sellerReport.evidenceUrl && (
@@ -158,7 +178,7 @@ const DisputesTab = () => {
                       href={tx.dispute.sellerReport.evidenceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-400 underline"
+                      className="text-blue-600 dark:text-blue-400 underline"
                     >
                       Evidence Link
                     </a>
@@ -166,7 +186,8 @@ const DisputesTab = () => {
                 </div>
               )}
 
-              <div className="mt-2">
+              {/* Resolution Form */}
+              <div className="mt-4">
                 <textarea
                   placeholder="Enter resolution note (optional)"
                   value={selectedDisputeId === tx._id ? decisionNote : ""}
@@ -174,20 +195,21 @@ const DisputesTab = () => {
                     setSelectedDisputeId(tx._id);
                     setDecisionNote(e.target.value);
                   }}
-                  className="w-full p-2 rounded bg-gray-800 text-white border border-gray-700"
+                  className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
                 />
-                <div className="flex gap-2 mt-2">
+                <div className="flex flex-col sm:flex-row gap-3 mt-3">
                   <button
                     onClick={() => handleResolve(tx._id, "refund")}
-                    className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 transition"
                   >
-                    Refund Buyer
+                    <span>💸</span> Refund to Buyer
                   </button>
                   <button
                     onClick={() => handleResolve(tx._id, "release")}
-                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition"
                   >
-                    Release to Seller
+                    <span>📤</span> Release to Seller
                   </button>
                 </div>
               </div>

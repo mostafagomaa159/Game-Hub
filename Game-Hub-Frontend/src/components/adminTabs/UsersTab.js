@@ -1069,7 +1069,8 @@ export default function UsersTab({
                     onClick={() => fetchUserPosts(user._id)}
                     className="flex-1 px-3 py-1.5 rounded-md text-sm font-medium bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 flex items-center justify-center gap-1"
                   >
-                    <FiMessageSquare size={14} /> Posts
+                    <FiMessageSquare size={14} />
+                    Edit Posts
                   </button>
                 </div>
 

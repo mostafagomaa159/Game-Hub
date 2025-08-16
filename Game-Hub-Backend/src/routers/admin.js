@@ -631,7 +631,9 @@ router.post("/trades/:id/report", auth, async (req, res) => {
 router.get("/admin/disputes", auth, adminAuth, async (req, res) => {
   try {
     const disputes = await TradeTransaction.find({
-      "dispute.status": { $in: ["both_reported", "open"] },
+      "dispute.status": {
+        $in: ["both_reported", "seller_reported", "buyer_reported", "open"],
+      },
     })
       .select("buyer seller post amount status dispute createdAt updatedAt")
       .populate("buyer", "name email")
@@ -676,20 +678,22 @@ router.post(
       }
 
       const amount = Number(tx.amount || 0);
+      const feePercentage = 0.1; // 10% fee
+      const netAmount = amount * (1 - feePercentage);
 
       if (action === "refund") {
-        tx.buyer.coins += amount;
+        tx.buyer.coins = (tx.buyer.coins || 0) + netAmount;
         tx.logs = tx.logs || [];
         tx.logs.push({
-          message: `Admin refunded buyer. Note: ${note}`,
+          message: `Admin refunded buyer (10% fee applied). Note: ${note}`,
           by: req.user._id,
           at: new Date(),
         });
       } else if (action === "release") {
-        tx.seller.coins += amount;
+        tx.seller.coins = (tx.seller.coins || 0) + netAmount;
         tx.logs = tx.logs || [];
         tx.logs.push({
-          message: `Admin released to seller. Note: ${note}`,
+          message: `Admin released to seller (10% fee applied). Note: ${note}`,
           by: req.user._id,
           at: new Date(),
         });
@@ -731,8 +735,8 @@ router.post(
           status: "completed",
           message:
             action === "refund"
-              ? "Admin refunded you."
-              : "Admin released funds to seller.",
+              ? "Admin refunded you (10% fee deducted)."
+              : "Admin released funds to seller (10% fee deducted).",
         });
 
         req.io.to(tx.seller._id.toString()).emit("trade:update", {
@@ -740,15 +744,15 @@ router.post(
           status: "completed",
           message:
             action === "refund"
-              ? "Admin refunded buyer."
-              : "Admin released funds to you.",
+              ? "Admin refunded buyer (10% fee deducted)."
+              : "Admin released funds to you (10% fee deducted).",
         });
       }
 
       res.send({
         message: `Funds ${
           action === "refund" ? "refunded to buyer" : "released to seller"
-        }`,
+        } (10% fee deducted)`,
         tradeTransaction: tx,
       });
     } catch (err) {

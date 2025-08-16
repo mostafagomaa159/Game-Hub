@@ -31,9 +31,15 @@ const PostModal = ({
   }, [selectedPost]);
 
   if (!selectedPost) return null;
-
+  const isDisputed = selectedPost.tradeStatus === "disputed";
   const buyerId = selectedPost.buyer?._id || selectedPost.buyer;
   const ownerId = selectedPost.owner?._id || selectedPost.owner;
+  const reportedUsers = selectedPost.reports || [];
+  let otherPartyReported = false;
+  let reporterRole = null;
+  const alreadyReported = reportedUsers.some(
+    (r) => String(r.userId) === String(userId)
+  );
 
   const currentUserIsBuyer = Boolean(
     userId && buyerId && String(buyerId) === String(userId)
@@ -67,10 +73,10 @@ const PostModal = ({
 
   const showReportButton =
     userId &&
-    bothConfirmedFlag &&
-    isPendingOrPendingRelease &&
+    (bothConfirmedFlag || isDisputed) && // allow disputed too
+    (isPendingOrPendingRelease || isDisputed) &&
     (currentUserIsOwner || currentUserIsBuyer) &&
-    selectedPost.tradeStatus !== "completed"; // <-- prevent report if completed
+    selectedPost.tradeStatus !== "completed";
 
   const showRequestButton =
     userId && !currentUserIsOwner && (!bothConfirmedFlag || showReportButton);
@@ -100,6 +106,21 @@ const PostModal = ({
 
     navigate(`/profile/${ownerId}`);
   };
+  if (
+    currentUserIsBuyer &&
+    reportedUsers.some((r) => String(r.userId) === String(ownerId))
+  ) {
+    otherPartyReported = true;
+    reporterRole = "Seller";
+  }
+
+  if (
+    currentUserIsOwner &&
+    reportedUsers.some((r) => String(r.userId) === String(buyerId))
+  ) {
+    otherPartyReported = true;
+    reporterRole = "Buyer";
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -178,6 +199,14 @@ const PostModal = ({
                 <p className="mt-3 text-blue-600 font-semibold">
                   🎉 Trade Successful! Feel free to report if there is a
                   problem.
+                </p>
+              )}
+            {selectedPost.tradeStatus === "disputed" &&
+              otherPartyReported &&
+              !alreadyReported && (
+                <p className="mt-3 text-red-600 font-semibold">
+                  ⚠️ {reporterRole} reported you, you have 24h to submit your
+                  report to complete your trade.
                 </p>
               )}
           </>

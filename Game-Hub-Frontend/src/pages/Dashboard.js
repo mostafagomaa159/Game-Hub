@@ -313,6 +313,7 @@ const Dashboard = () => {
                           ![
                             "completed",
                             "cancelled",
+                            "available",
                             "resolved",
                             "released",
                             "refunded",
@@ -321,6 +322,7 @@ const Dashboard = () => {
                         className={`w-8 h-8 flex items-center justify-center rounded transition ${
                           ![
                             "completed",
+                            "available",
                             "cancelled",
                             "resolved",
                             "released",
@@ -341,6 +343,7 @@ const Dashboard = () => {
                             "completed",
                             "cancelled",
                             "resolved",
+                            "available",
                             "released",
                             "refunded",
                           ].includes(post.tradeStatus)
@@ -348,6 +351,7 @@ const Dashboard = () => {
                         className={`w-8 h-8 flex items-center justify-center rounded transition ${
                           ![
                             "completed",
+                            "available",
                             "cancelled",
                             "resolved",
                             "released",
