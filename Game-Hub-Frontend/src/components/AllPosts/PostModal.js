@@ -111,23 +111,6 @@ const PostModal = ({
             )}
           </div>
         )}
-        {dispute?.status && (
-          <div className="absolute top-0 left-0 w-full bg-red-600 text-white text-center py-2 rounded-t-2xl z-50">
-            {dispute.status === "both_reported" && (
-              <p>
-                ⚠️ You both reported each other. Please wait for admin review.
-              </p>
-            )}
-
-            {currentUserIsOwner && dispute.status === "buyer_reported" && (
-              <p>⚠️ Buyer reported you</p>
-            )}
-
-            {currentUserIsBuyer && dispute.status === "seller_reported" && (
-              <p>⚠️ Seller reported you</p>
-            )}
-          </div>
-        )}
 
         <button
           onClick={() => setSelectedPostId(null)}
