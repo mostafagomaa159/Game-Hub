@@ -18,6 +18,7 @@ const PostModal = ({
   bothConfirmed,
   modalRef,
   hasConfirmed,
+  reportSuccessMessage,
 }) => {
   const [showBuyMessage, setShowBuyMessage] = useState(false);
   const [confirmDisabled, setConfirmDisabled] = useState(false);
@@ -181,6 +182,11 @@ const PostModal = ({
                   problem.
                 </p>
               )}
+            {reportSuccessMessage && (
+              <div className="mt-3 text-green-500 text-sm font-medium">
+                {reportSuccessMessage}
+              </div>
+            )}
           </>
         )}
 
