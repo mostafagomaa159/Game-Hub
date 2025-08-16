@@ -24,12 +24,13 @@ const AllPosts = () => {
   const { user } = useUser();
   const userId = user?._id || null;
 
+  // --- Filters state ---
   const [searchTerm, setSearchTerm] = useState("");
   const [serverFilter, setServerFilter] = useState("All");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [availableOnly, setAvailableOnly] = useState(false);
-  const [showReportedMessage, setShowReportedMessage] = useState(false);
+
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -39,7 +40,9 @@ const AllPosts = () => {
   const [hasConfirmed, setHasConfirmed] = useState(false);
   const modalRef = useRef(null);
 
-  useEffect(() => setHasConfirmed(false), [selectedPostId]);
+  useEffect(() => {
+    setHasConfirmed(false);
+  }, [selectedPostId]);
 
   useEffect(() => {
     if (!posts.length) return;
@@ -56,20 +59,26 @@ const AllPosts = () => {
         )
       );
     };
+
     socket.on("postUpdated", handlePostUpdated);
-    return () => socket.off("postUpdated", handlePostUpdated);
+    return () => {
+      socket.off("postUpdated", handlePostUpdated);
+    };
   }, [setPosts]);
 
-  // --- Filtered posts ---
+  // --- Filter posts ---
   const filtered = useMemo(() => {
     return posts.filter((post) => {
       const matchesSearch = (post.description || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
+
       const matchesServer =
         serverFilter === "All" || post.server === serverFilter;
+
       const matchesPriceMin = !priceMin || post.price >= parseFloat(priceMin);
       const matchesPriceMax = !priceMax || post.price <= parseFloat(priceMax);
+
       const matchesAvailable = !availableOnly || post.avaliable;
 
       return (
@@ -82,6 +91,7 @@ const AllPosts = () => {
     });
   }, [posts, searchTerm, serverFilter, priceMin, priceMax, availableOnly]);
 
+  // --- Pagination ---
   const { currentPosts, totalPages } = useMemo(() => {
     const indexOfLast = currentPage * POSTS_PER_PAGE;
     const indexOfFirst = indexOfLast - POSTS_PER_PAGE;
@@ -141,25 +151,22 @@ const AllPosts = () => {
     if (selectedPost || showLoginModal) {
       document.addEventListener("mousedown", handleClickOutside);
     }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, [selectedPost, showLoginModal, handleClickOutside]);
 
   const handlePostReport = async (post, reportData) => {
-    if (!post?._id) return { success: false };
-    const result = await submitReport(post, reportData);
-    if (result?.success && result.post) {
-      setPosts((prevPosts) =>
-        prevPosts.map((p) => (p._id === result.post._id ? result.post : p))
-      );
-    }
-    return result;
+    if (!post || !post._id) return { success: false };
+    return await submitReport(post, reportData);
   };
 
-  const handlePostVote = (postId, voteType) =>
+  const handlePostVote = (postId, voteType) => {
     handleVote(
       posts.find((p) => p._id === postId),
       voteType
     );
+  };
 
   const handlePostBuy = (postId) => {
     const post = posts.find((p) => p._id === postId);
@@ -167,8 +174,16 @@ const AllPosts = () => {
     handleBuy(post);
   };
 
+  const handlePostToggleRequest = () =>
+    selectedPost && handleToggleRequest(selectedPost);
+  const handlePostConfirmTrade = () =>
+    selectedPost && handleConfirmTrade(selectedPost);
+  const handlePostCancelTrade = () =>
+    selectedPost && handleCancelTrade(selectedPost);
+
   return (
     <div className="bg-background dark:bg-darkBackground text-black dark:text-white min-h-screen py-8 px-4">
+      {/* Filters */}
       <Filters
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -213,15 +228,9 @@ const AllPosts = () => {
           userId={userId}
           isProcessing={isProcessing}
           handleBuy={handlePostBuy}
-          handleToggleRequest={() =>
-            selectedPost && handleToggleRequest(selectedPost)
-          }
-          handleConfirmTrade={() =>
-            selectedPost && handleConfirmTrade(selectedPost)
-          }
-          handleCancelTrade={() =>
-            selectedPost && handleCancelTrade(selectedPost)
-          }
+          handleToggleRequest={handlePostToggleRequest}
+          handleConfirmTrade={handlePostConfirmTrade}
+          handleCancelTrade={handlePostCancelTrade}
           setShowReportModal={setShowReportModal}
           setReportUrl={setReportUrl}
           isOwner={isOwner}
@@ -231,7 +240,6 @@ const AllPosts = () => {
           modalRef={modalRef}
           processingIds={processingIds}
           hasConfirmed={hasConfirmed}
-          showReportedMessage={showReportedMessage}
         />
       )}
 
@@ -243,7 +251,6 @@ const AllPosts = () => {
           reportSubmitting={reportSubmitting}
           submitReport={handlePostReport}
           selectedPost={selectedPost}
-          setShowReportedMessage={setShowReportedMessage}
         />
       )}
 

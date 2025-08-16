@@ -1,4 +1,3 @@
-// src/components/AllPosts/PostModal.js
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -12,7 +11,6 @@ const PostModal = ({
   handleConfirmTrade,
   handleCancelTrade,
   setShowReportModal,
-  showReportedMessage,
   isOwner,
   isBuyer,
   processingIds,
@@ -34,10 +32,8 @@ const PostModal = ({
 
   if (!selectedPost) return null;
 
-  const isDisputed = selectedPost.tradeStatus === "disputed";
   const buyerId = selectedPost.buyer?._id || selectedPost.buyer;
   const ownerId = selectedPost.owner?._id || selectedPost.owner;
-  const reportedUsers = selectedPost.reports || [];
 
   const currentUserIsBuyer = Boolean(
     userId && buyerId && String(buyerId) === String(userId)
@@ -45,28 +41,6 @@ const PostModal = ({
   const currentUserIsOwner = Boolean(
     userId && ownerId && String(ownerId) === String(userId)
   );
-  const alreadyReported = reportedUsers.some(
-    (r) => String(r.userId) === String(userId)
-  );
-
-  let otherPartyReported = false;
-  let reporterRole = null;
-
-  if (
-    currentUserIsBuyer &&
-    reportedUsers.some((r) => String(r.userId) === String(ownerId))
-  ) {
-    otherPartyReported = true;
-    reporterRole = "Seller";
-  }
-  if (
-    currentUserIsOwner &&
-    reportedUsers.some((r) => String(r.userId) === String(buyerId))
-  ) {
-    otherPartyReported = true;
-    reporterRole = "Buyer";
-  }
-
   const bothConfirmedFlag = Boolean(
     typeof bothConfirmed === "function" && bothConfirmed(selectedPost)
   );
@@ -84,17 +58,20 @@ const PostModal = ({
     isAvailable &&
     !bothConfirmedFlag &&
     !currentUserIsBuyer;
+
   const showConfirmCancelButtons =
     isPending &&
     (currentUserIsOwner || currentUserIsBuyer) &&
     !alreadyConfirmed &&
     !bothConfirmedFlag;
+
   const showReportButton =
     userId &&
-    (bothConfirmedFlag || isDisputed) &&
-    (isPendingOrPendingRelease || isDisputed) &&
+    bothConfirmedFlag &&
+    isPendingOrPendingRelease &&
     (currentUserIsOwner || currentUserIsBuyer) &&
-    selectedPost.tradeStatus !== "completed";
+    selectedPost.tradeStatus !== "completed"; // <-- prevent report if completed
+
   const showRequestButton =
     userId && !currentUserIsOwner && (!bothConfirmedFlag || showReportButton);
 
@@ -102,14 +79,17 @@ const PostModal = ({
     handleBuy(selectedPost._id);
     setShowBuyMessage(true);
   };
+
   const onConfirmClick = () => {
     setConfirmDisabled(true);
     handleConfirmTrade(selectedPost);
   };
+
   const onCancelClick = () => {
     setConfirmDisabled(false);
     handleCancelTrade(selectedPost);
   };
+
   const handleShowProfile = () => {
     if (!localStorage.getItem("token")) {
       navigate("/login");
@@ -118,6 +98,23 @@ const PostModal = ({
     setSelectedPostId(null);
     navigate(`/profile/${ownerId}`);
   };
+
+  // New: detect if the other party already reported
+  const otherReportedMessage = () => {
+    if (!selectedPost?.tradeTransaction?.dispute) return null;
+
+    const dispute = selectedPost.tradeTransaction.dispute;
+
+    if (currentUserIsSeller() && dispute.buyerReport?.reportedAt) {
+      return "Buyer has reported you for this trade!";
+    }
+    if (currentUserIsBuyer && dispute.sellerReport?.reportedAt) {
+      return "Seller has reported you for this trade!";
+    }
+    return null;
+  };
+
+  const currentUserIsSeller = () => currentUserIsOwner;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -128,9 +125,11 @@ const PostModal = ({
         <button
           onClick={() => setSelectedPostId(null)}
           className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 dark:hover:text-white text-xl"
+          aria-label="Close modal"
         >
           &times;
         </button>
+
         <h2 className="text-2xl font-bold mb-2">{selectedPost.description}</h2>
 
         <div className="flex justify-between items-center mb-2">
@@ -151,6 +150,7 @@ const PostModal = ({
           Price: {selectedPost.price}{" "}
           {selectedPost.price === 1 ? "Coin" : "Coins"}
         </p>
+
         <p
           className={`text-sm font-semibold ${
             isAvailable ? "text-green-600" : "text-red-500"
@@ -158,12 +158,14 @@ const PostModal = ({
         >
           {isAvailable ? "Available ✔️" : "Not Available ❌"}
         </p>
+
         {selectedPost.owner && (
           <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-400">
             Seller: {selectedPost.owner.name || "Unknown"}
           </p>
         )}
 
+        {/* Confirmation status messages */}
         {isPendingOrPendingRelease && (
           <>
             {currentUserIsOwner &&
@@ -175,6 +177,7 @@ const PostModal = ({
                   Confirm Trade
                 </p>
               )}
+
             {currentUserIsBuyer &&
               ownerId &&
               selectedPost.tradeConfirmations?.includes(ownerId) &&
@@ -184,15 +187,7 @@ const PostModal = ({
                   to Him before you Confirm Trade!
                 </p>
               )}
-            {selectedPost.tradeStatus === "disputed" &&
-              otherPartyReported &&
-              !alreadyReported &&
-              showReportedMessage && (
-                <p className="mt-3 text-red-600 font-semibold">
-                  ⚠️ {reporterRole} reported you, you have 24h to submit your
-                  report to complete your trade.
-                </p>
-              )}
+
             {bothConfirmedFlag &&
               (currentUserIsBuyer || currentUserIsOwner) && (
                 <p className="mt-3 text-blue-600 font-semibold">
@@ -203,6 +198,7 @@ const PostModal = ({
           </>
         )}
 
+        {/* Show buy message inside modal after clicking Buy */}
         {showBuyMessage && !bothConfirmedFlag && (
           <p className="mt-3 text-red-600 font-semibold">
             ⚠️ Please Don't confirm till you chat with seller and meet with him
@@ -210,6 +206,14 @@ const PostModal = ({
           </p>
         )}
 
+        {/* New: show if other party reported */}
+        {otherReportedMessage() && (
+          <p className="mt-3 text-red-600 font-semibold">
+            ⚠️ {otherReportedMessage()}
+          </p>
+        )}
+
+        {/* ===== Buttons Section ===== */}
         <div className="mt-4 space-y-2">
           {showBuyButton && (
             <button
@@ -220,6 +224,7 @@ const PostModal = ({
               Buy Now
             </button>
           )}
+
           {showConfirmCancelButtons && (
             <>
               <button
@@ -233,6 +238,7 @@ const PostModal = ({
               >
                 Confirm Trade
               </button>
+
               <button
                 onClick={onCancelClick}
                 disabled={isProcessing}
@@ -244,6 +250,7 @@ const PostModal = ({
               </button>
             </>
           )}
+
           {showReportButton && (
             <button
               onClick={() => setShowReportModal(true)}
@@ -252,6 +259,7 @@ const PostModal = ({
               Report
             </button>
           )}
+
           {showRequestButton && (
             <button
               className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
