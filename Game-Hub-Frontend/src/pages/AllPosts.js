@@ -42,6 +42,7 @@ const AllPosts = () => {
 
   useEffect(() => {
     setHasConfirmed(false);
+    console.log("selectedPostId changed:", selectedPostId);
   }, [selectedPostId]);
 
   useEffect(() => {
@@ -125,6 +126,8 @@ const AllPosts = () => {
     reportSubmitting,
     handleVote,
     handleToggleRequest,
+    dispute, // ← from hook
+    fetchDispute, // ← from hook
     handleBuy,
     handleConfirmTrade,
     handleCancelTrade,
@@ -138,7 +141,8 @@ const AllPosts = () => {
     setProcessingIds,
     setShowLoginModal,
     setSelectedPostId,
-    setHasConfirmed
+    setHasConfirmed,
+    selectedPostId
   );
 
   const handleClickOutside = useCallback((e) => {
@@ -146,6 +150,11 @@ const AllPosts = () => {
       setShowLoginModal(false);
     }
   }, []);
+  useEffect(() => {
+    if (selectedPost?.tradeTransaction?._id) {
+      fetchDispute(selectedPost.tradeTransaction._id);
+    }
+  }, [selectedPost, fetchDispute]); // ← add fetchDispute here
 
   useEffect(() => {
     if (selectedPost || showLoginModal) {
@@ -223,10 +232,7 @@ const AllPosts = () => {
 
       {selectedPost && (
         <PostModal
-          selectedPost={{
-            ...selectedPost,
-            tradeTransaction: selectedPost.tradeTransaction || {},
-          }}
+          selectedPost={selectedPost}
           setSelectedPostId={setSelectedPostId}
           userId={userId}
           isProcessing={isProcessing}
@@ -238,6 +244,7 @@ const AllPosts = () => {
           setReportUrl={setReportUrl}
           isOwner={isOwner}
           isBuyer={isBuyer}
+          dispute={dispute}
           userAlreadyConfirmed={userAlreadyConfirmed}
           bothConfirmed={bothConfirmed}
           modalRef={modalRef}

@@ -10,11 +10,12 @@ const usePostActions = (
   setProcessingIds,
   setShowLoginModal,
   setSelectedPostId,
-  setHasConfirmed
+  setHasConfirmed,
+  selectedPostId
 ) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
-  const [dispute, setDispute] = useState(null);
+  const [dispute, setDispute] = useState(null); // ← dispute state
 
   const updatePost = (updated) => {
     setPosts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
@@ -34,6 +35,18 @@ const usePostActions = (
       next.delete(id);
       return next;
     });
+  };
+  // ------------------------ Dispute Fetching ------------------------
+  const fetchDispute = async (tradeId) => {
+    if (!tradeId) return null;
+    try {
+      const res = await axios.get(`/trade/${tradeId}/dispute`);
+      setDispute(res.data);
+      return res.data;
+    } catch (err) {
+      console.error("Failed to fetch dispute:", err);
+      return null;
+    }
   };
 
   /** =========================
@@ -274,12 +287,16 @@ const usePostActions = (
             res.data.tradeTransaction || res.data.post.tradeTransaction,
         };
         updatePost(updatedPost);
+
+        if (selectedPostId === updatedPost._id) {
+          setSelectedPostId(updatedPost._id); // re-render modal
+        }
       }
+
       toast.success(res.data.message || "Report submitted successfully");
       return { success: true };
     } catch (err) {
       toast.error(err.response?.data?.error || "Report submission failed");
-      console.error("submitReport error:", err);
       return { success: false };
     } finally {
       setReportSubmitting(false);
@@ -307,22 +324,13 @@ const usePostActions = (
     isProcessing,
     reportSubmitting,
     dispute,
-    fetchDispute: async (tradeId) => {
-      try {
-        const res = await axios.get(`/trade/${tradeId}/dispute`);
-        setDispute(res.data);
-        return res.data;
-      } catch (err) {
-        console.error("Failed to fetch dispute:", err);
-        return null;
-      }
-    },
+    fetchDispute,
     handleVote,
     handleToggleRequest,
     handleBuy,
     handleConfirmTrade,
     handleCancelTrade,
-    handleReply, // <--- now reusable everywhere
+    handleReply,
     submitReport,
     userAlreadyConfirmed,
     bothConfirmed,

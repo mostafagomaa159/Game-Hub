@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 const PostModal = ({
@@ -14,10 +14,14 @@ const PostModal = ({
   bothConfirmed,
   userAlreadyConfirmed,
   modalRef,
+  dispute,
 }) => {
   const [showBuyMessage, setShowBuyMessage] = useState(false);
   const [confirmDisabled, setConfirmDisabled] = useState(false);
   const navigate = useNavigate();
+  useEffect(() => {
+    console.log("PostModal received selectedPost:", selectedPost?._id);
+  }, [selectedPost]);
 
   if (!selectedPost) return null;
 
@@ -85,8 +89,6 @@ const PostModal = ({
     navigate(`/profile/${ownerId}`);
   };
 
-  const dispute = selectedPost?.tradeTransaction?.dispute;
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
       <div
@@ -95,40 +97,40 @@ const PostModal = ({
       >
         {/* ===== Dispute Banner ===== */}
         {dispute?.status && (
-          <div className="absolute top-0 left-0 w-full bg-red-600 text-white text-center py-2 rounded-t-2xl z-50 space-y-1">
+          <div className="absolute top-0 left-0 w-full bg-red-600 text-white ...">
             {dispute.status === "both_reported" && (
               <p>
                 ⚠️ You both reported each other. Please wait for admin review.
               </p>
             )}
-
-            {currentUserIsOwner && dispute.buyerReport && (
-              <p>
-                ⚠️ Buyer reported you: {dispute.buyerReport.reason}{" "}
-                <a
-                  href={dispute.buyerReport.evidenceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline text-blue-300"
-                >
-                  Video
-                </a>
-              </p>
-            )}
-
-            {currentUserIsBuyer && dispute.sellerReport && (
-              <p>
-                ⚠️ Seller reported you: {dispute.sellerReport.reason}{" "}
-                <a
-                  href={dispute.sellerReport.evidenceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline text-blue-300"
-                >
-                  Video
-                </a>
-              </p>
-            )}
+            {dispute.buyerReport &&
+              String(selectedPost.owner?._id) === String(userId) && (
+                <p>
+                  ⚠️ Buyer reported you: {dispute.buyerReport.reason}{" "}
+                  <a
+                    href={dispute.buyerReport.evidenceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline text-blue-300"
+                  >
+                    Video
+                  </a>
+                </p>
+              )}
+            {dispute.sellerReport &&
+              String(selectedPost.buyer?._id) === String(userId) && (
+                <p>
+                  ⚠️ Seller reported you: {dispute.sellerReport.reason}{" "}
+                  <a
+                    href={dispute.sellerReport.evidenceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline text-blue-300"
+                  >
+                    Video
+                  </a>
+                </p>
+              )}
           </div>
         )}
 
