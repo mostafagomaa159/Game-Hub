@@ -74,16 +74,21 @@ router.get("/all", async (req, res) => {
 // Get single post (by owner)
 router.get("/newpost/:id", auth, async (req, res) => {
   try {
-    const newpost = await newPost.findOne({
-      _id: req.params.id,
-      owner: req.user._id,
+    const post = await newPost.findById(req.params.id);
+    if (!post) return res.status(404).send({ error: "Post not found" });
+
+    // Find the trade transaction for this post
+    const transaction = await TradeTransaction.findOne({ post: post._id })
+      .populate("buyer", "name")
+      .populate("seller", "name");
+
+    res.send({
+      ...post.toObject(),
+      tradeTransaction: transaction ? transaction.toObject() : null, // attach dispute here
     });
-    if (!newpost) {
-      return res.status(404).send();
-    }
-    res.send(newpost);
-  } catch (e) {
-    res.status(500).send();
+  } catch (err) {
+    console.error("Error fetching post:", err);
+    res.status(500).send({ error: "Server error" });
   }
 });
 
@@ -734,7 +739,6 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
       return res.status(404).send({ error: "Post not found" });
     }
 
-    // Normalize owner and buyer ids to string for comparison
     const ownerId = post.owner.toString();
     const buyerId = post.buyer ? post.buyer.toString() : null;
 
@@ -747,17 +751,15 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
     }
 
     let tx = await TradeTransaction.findOne({ post: postId }).session(session);
-
     if (!tx) {
       tx = new TradeTransaction({
         post: postId,
         buyer: post.buyer,
         seller: post.owner,
         amount: 0,
-        dispute: {}, // initialize dispute object
+        dispute: {},
       });
     }
-
     if (!tx.dispute) tx.dispute = {};
 
     const now = new Date();
@@ -776,17 +778,10 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
         evidenceUrl: videoUrls[0].trim(),
         reportedAt: now,
       };
-    } else {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(403)
-        .send({ error: "User not authorized for this dispute" });
     }
-    const hasSellerReport =
-      tx.dispute.sellerReport && tx.dispute.sellerReport.reportedAt;
-    const hasBuyerReport =
-      tx.dispute.buyerReport && tx.dispute.buyerReport.reportedAt;
+
+    const hasSellerReport = !!tx.dispute.sellerReport?.reportedAt;
+    const hasBuyerReport = !!tx.dispute.buyerReport?.reportedAt;
 
     if (hasSellerReport && hasBuyerReport) {
       tx.dispute.status = "both_reported";
@@ -798,19 +793,27 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
       tx.dispute.status = "none";
     }
 
-    // Set releaseAt to null and tradeStatus to "pending" on both documents
+    // Force dispute state
     tx.releaseAt = null;
     tx.status = "disputed";
 
     post.releaseAt = null;
     post.tradeStatus = "disputed";
 
-    // Save both documents within the session
     await tx.save({ session });
     await post.save({ session });
 
     await session.commitTransaction();
     session.endSession();
+
+    // 🔥 Emit socket update so buyer/seller see the dispute instantly
+    if (req.io) {
+      req.io.to(`post:${post._id}`).emit("postUpdated", {
+        _id: post._id,
+        tradeStatus: post.tradeStatus,
+        dispute: tx.dispute, // send only what frontend needs for banner
+      });
+    }
 
     res.send({
       success: true,
@@ -822,11 +825,7 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
     await session.abortTransaction().catch(() => {});
     session.endSession();
     console.error("Error submitting trade dispute:", error);
-    res.status(500).send({
-      error: "Internal server error",
-      message: error.message,
-      stack: error.stack,
-    });
+    res.status(500).send({ error: "Internal server error" });
   }
 });
 
