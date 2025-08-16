@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const PostModal = ({
@@ -11,45 +11,31 @@ const PostModal = ({
   handleConfirmTrade,
   handleCancelTrade,
   setShowReportModal,
-  isOwner,
-  isBuyer,
-  processingIds,
-  userAlreadyConfirmed,
   bothConfirmed,
+  userAlreadyConfirmed,
   modalRef,
-  hasConfirmed,
 }) => {
   const [showBuyMessage, setShowBuyMessage] = useState(false);
   const [confirmDisabled, setConfirmDisabled] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!selectedPost) {
-      setShowBuyMessage(false);
-      setConfirmDisabled(false);
-    }
-  }, [selectedPost]);
 
   if (!selectedPost) return null;
 
   const buyerId = selectedPost.buyer?._id || selectedPost.buyer;
   const ownerId = selectedPost.owner?._id || selectedPost.owner;
 
-  const currentUserIsBuyer = Boolean(
-    userId && buyerId && String(buyerId) === String(userId)
-  );
-  const currentUserIsOwner = Boolean(
-    userId && ownerId && String(ownerId) === String(userId)
-  );
-  const bothConfirmedFlag = Boolean(
-    typeof bothConfirmed === "function" && bothConfirmed(selectedPost)
-  );
+  const currentUserIsBuyer = userId && String(userId) === String(buyerId);
+  const currentUserIsOwner = userId && String(userId) === String(ownerId);
+
+  const bothConfirmedFlag =
+    typeof bothConfirmed === "function" && bothConfirmed(selectedPost);
+
+  const alreadyConfirmed =
+    typeof userAlreadyConfirmed === "function" && userAlreadyConfirmed();
+
   const isPending = selectedPost.tradeStatus === "pending";
   const isPendingOrPendingRelease =
     isPending || selectedPost.tradeStatus === "pending_release";
-  const alreadyConfirmed = Boolean(
-    typeof userAlreadyConfirmed === "function" && userAlreadyConfirmed()
-  );
   const isAvailable = Boolean(selectedPost.avaliable);
 
   const showBuyButton =
@@ -68,8 +54,7 @@ const PostModal = ({
   const showReportButton =
     userId &&
     bothConfirmedFlag &&
-    (selectedPost.tradeStatus === "pending" ||
-      selectedPost.tradeStatus === "pendingRelease" ||
+    (selectedPost.tradeStatus === "pending_release" ||
       selectedPost.tradeStatus === "disputed") &&
     (currentUserIsOwner || currentUserIsBuyer);
 
@@ -96,11 +81,10 @@ const PostModal = ({
       navigate("/login");
       return;
     }
-    setSelectedPostId(null); // Close modal first
+    setSelectedPostId(null);
     navigate(`/profile/${ownerId}`);
   };
 
-  // dispute object
   const dispute = selectedPost?.tradeTransaction?.dispute;
 
   return (
@@ -110,15 +94,15 @@ const PostModal = ({
         className="bg-white dark:bg-darkCard text-black dark:text-white rounded-2xl shadow-xl w-full max-w-md p-6 relative"
       >
         {/* ===== Dispute Banner ===== */}
-        {selectedPost.tradeTransaction?.dispute?.status && (
+        {dispute?.status && (
           <div className="absolute top-0 left-0 w-full bg-red-600 text-white text-center py-2 rounded-t-2xl z-50">
-            {selectedPost.tradeTransaction.dispute.status === "both_reported" &&
+            {dispute.status === "both_reported" &&
               "⚠️ Both Buyer and Seller have reported this trade."}
             {currentUserIsOwner &&
-              selectedPost.tradeTransaction.dispute?.buyerReport &&
+              dispute?.buyerReport &&
               "⚠️ Buyer Reported you"}
             {currentUserIsBuyer &&
-              selectedPost.tradeTransaction.dispute?.sellerReport &&
+              dispute?.sellerReport &&
               "⚠️ Seller Reported you"}
           </div>
         )}
@@ -130,23 +114,6 @@ const PostModal = ({
         >
           &times;
         </button>
-
-        {/* 🔴 Dispute Messages */}
-        {dispute?.status && (
-          <div className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-500 text-red-300 text-sm font-semibold">
-            {dispute.status === "both_reported" && (
-              <p>⚠️ Both Buyer and Seller have reported this trade.</p>
-            )}
-
-            {currentUserIsOwner && dispute?.buyerReport && (
-              <p>⚠️ Buyer Reported you</p>
-            )}
-
-            {currentUserIsBuyer && dispute?.sellerReport && (
-              <p>⚠️ Seller Reported you</p>
-            )}
-          </div>
-        )}
 
         <h2 className="text-2xl font-bold mb-2">{selectedPost.description}</h2>
 
@@ -216,7 +183,6 @@ const PostModal = ({
           </>
         )}
 
-        {/* Show buy message inside modal after clicking Buy */}
         {showBuyMessage && !bothConfirmedFlag && (
           <p className="mt-3 text-red-600 font-semibold">
             ⚠️ Please Don't confirm till you chat with seller and meet with him
