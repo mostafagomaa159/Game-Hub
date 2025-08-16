@@ -68,9 +68,10 @@ const PostModal = ({
   const showReportButton =
     userId &&
     bothConfirmedFlag &&
-    isPendingOrPendingRelease &&
-    (currentUserIsOwner || currentUserIsBuyer) &&
-    selectedPost.tradeStatus !== "completed"; // <-- prevent report if completed
+    (selectedPost.tradeStatus === "pending" ||
+      selectedPost.tradeStatus === "pendingRelease" ||
+      selectedPost.tradeStatus === "disputed") &&
+    (currentUserIsOwner || currentUserIsBuyer);
 
   const showRequestButton =
     userId && !currentUserIsOwner && (!bothConfirmedFlag || showReportButton);
