@@ -19,10 +19,13 @@ const PostModal = ({
   const [showBuyMessage, setShowBuyMessage] = useState(false);
   const [confirmDisabled, setConfirmDisabled] = useState(false);
   const navigate = useNavigate();
+
   useEffect(() => {
     console.log("PostModal received selectedPost:", selectedPost?._id);
   }, [selectedPost]);
-
+  useEffect(() => {
+    console.log("Updated dispute in PostModal:", dispute);
+  }, [dispute]);
   if (!selectedPost) return null;
 
   const buyerId = selectedPost.buyer?._id || selectedPost.buyer;
@@ -89,71 +92,74 @@ const PostModal = ({
     navigate(`/profile/${ownerId}`);
   };
 
+  // ===== Render Dispute Banner =====
+  const renderDisputeBanner = () => {
+    if (!dispute?.status || dispute.status === "none") return null;
+
+    const renderReportLink = (report) =>
+      report?.evidenceUrl ? (
+        <a
+          href={report.evidenceUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="underline text-blue-300"
+        >
+          Video
+        </a>
+      ) : null;
+
+    switch (dispute.status) {
+      case "both_reported":
+        return (
+          <p>⚠️ You both reported each other. Please wait for admin review.</p>
+        );
+      case "buyer_reported":
+        if (dispute.buyerReport && currentUserIsOwner) {
+          return (
+            <p>
+              ⚠️ Buyer reported you: {dispute.buyerReport.reason}{" "}
+              {renderReportLink(dispute.buyerReport)}
+            </p>
+          );
+        }
+        break;
+      case "seller_reported":
+        if (dispute.sellerReport && currentUserIsBuyer) {
+          return (
+            <p>
+              ⚠️ Seller reported you: {dispute.sellerReport.reason}{" "}
+              {renderReportLink(dispute.sellerReport)}
+            </p>
+          );
+        }
+        break;
+      case "resolved":
+        return (
+          <p className="text-green-200 font-semibold">
+            ✅ Dispute resolved by admin.
+          </p>
+        );
+      case "refunded":
+        return (
+          <p className="text-yellow-200 font-semibold">
+            ⚠️ Trade has been refunded.
+          </p>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
       <div
         ref={modalRef}
         className="bg-white dark:bg-darkCard text-black dark:text-white rounded-2xl shadow-xl w-full max-w-md p-6 relative"
       >
-        {/* ===== Dispute Banner ===== */}
-        {dispute?.status && dispute.status !== "none" && (
-          <div className="absolute top-0 left-0 w-full bg-red-600 text-white text-center py-2 rounded-t-2xl z-50 space-y-1">
-            {dispute.status === "both_reported" && (
-              <p>
-                ⚠️ You both reported each other. Please wait for admin review.
-              </p>
-            )}
+        {/* Dispute Banner */}
+        {renderDisputeBanner()}
 
-            {dispute.status === "buyer_reported" &&
-              dispute.buyerReport &&
-              String(selectedPost.owner?._id) === String(userId) && (
-                <p>
-                  ⚠️ Buyer reported you: {dispute.buyerReport.reason}{" "}
-                  {dispute.buyerReport.evidenceUrl && (
-                    <a
-                      href={dispute.buyerReport.evidenceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="underline text-blue-300"
-                    >
-                      Video
-                    </a>
-                  )}
-                </p>
-              )}
-
-            {dispute.status === "seller_reported" &&
-              dispute.sellerReport &&
-              String(selectedPost.buyer?._id) === String(userId) && (
-                <p>
-                  ⚠️ Seller reported you: {dispute.sellerReport.reason}{" "}
-                  {dispute.sellerReport.evidenceUrl && (
-                    <a
-                      href={dispute.sellerReport.evidenceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="underline text-blue-300"
-                    >
-                      Video
-                    </a>
-                  )}
-                </p>
-              )}
-
-            {dispute.status === "resolved" && (
-              <p className="text-green-200 font-semibold">
-                ✅ Dispute resolved by admin.
-              </p>
-            )}
-
-            {dispute.status === "refunded" && (
-              <p className="text-yellow-200 font-semibold">
-                ⚠️ Trade has been refunded.
-              </p>
-            )}
-          </div>
-        )}
-
+        {/* Close Button */}
         <button
           onClick={() => setSelectedPostId(null)}
           className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 dark:hover:text-white text-xl"
@@ -162,6 +168,7 @@ const PostModal = ({
           &times;
         </button>
 
+        {/* Post Info */}
         <h2 className="text-2xl font-bold mb-2">{selectedPost.description}</h2>
 
         <div className="flex justify-between items-center mb-2">
@@ -197,7 +204,7 @@ const PostModal = ({
           </p>
         )}
 
-        {/* Confirmation status messages */}
+        {/* Confirmation Status */}
         {isPendingOrPendingRelease && (
           <>
             {currentUserIsOwner &&
@@ -237,7 +244,7 @@ const PostModal = ({
           </p>
         )}
 
-        {/* ===== Buttons Section ===== */}
+        {/* Buttons */}
         <div className="mt-4 space-y-2">
           {showBuyButton && (
             <button

@@ -167,7 +167,15 @@ const AllPosts = () => {
 
   const handlePostReport = async (post, reportData) => {
     if (!post || !post._id) return { success: false };
-    return await submitReport(post, reportData);
+
+    const result = await submitReport(post, reportData);
+
+    if (result.success && post.tradeTransaction?._id) {
+      // Refetch dispute after successful report
+      await fetchDispute(post.tradeTransaction._id);
+    }
+
+    return result;
   };
 
   const handlePostVote = (postId, voteType) => {
