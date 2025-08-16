@@ -18,7 +18,6 @@ const PostModal = ({
   bothConfirmed,
   modalRef,
   hasConfirmed,
-  reportSuccessMessage,
 }) => {
   const [showBuyMessage, setShowBuyMessage] = useState(false);
   const [confirmDisabled, setConfirmDisabled] = useState(false);
@@ -94,14 +93,15 @@ const PostModal = ({
 
   const handleShowProfile = () => {
     if (!localStorage.getItem("token")) {
-      // If user not logged in
       navigate("/login");
       return;
     }
     setSelectedPostId(null); // Close modal first
-
     navigate(`/profile/${ownerId}`);
   };
+
+  // dispute object
+  const dispute = selectedPost?.tradeTransaction?.dispute;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -109,6 +109,20 @@ const PostModal = ({
         ref={modalRef}
         className="bg-white dark:bg-darkCard text-black dark:text-white rounded-2xl shadow-xl w-full max-w-md p-6 relative"
       >
+        {/* ===== Dispute Banner ===== */}
+        {selectedPost.tradeTransaction?.dispute?.status && (
+          <div className="absolute top-0 left-0 w-full bg-red-600 text-white text-center py-2 rounded-t-2xl z-50">
+            {selectedPost.tradeTransaction.dispute.status === "both_reported" &&
+              "⚠️ Both Buyer and Seller have reported this trade."}
+            {currentUserIsOwner &&
+              selectedPost.tradeTransaction.dispute?.buyerReport &&
+              "⚠️ Buyer Reported you"}
+            {currentUserIsBuyer &&
+              selectedPost.tradeTransaction.dispute?.sellerReport &&
+              "⚠️ Seller Reported you"}
+          </div>
+        )}
+
         <button
           onClick={() => setSelectedPostId(null)}
           className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 dark:hover:text-white text-xl"
@@ -116,6 +130,23 @@ const PostModal = ({
         >
           &times;
         </button>
+
+        {/* 🔴 Dispute Messages */}
+        {dispute?.status && (
+          <div className="mb-4 p-3 rounded-lg bg-red-900/40 border border-red-500 text-red-300 text-sm font-semibold">
+            {dispute.status === "both_reported" && (
+              <p>⚠️ Both Buyer and Seller have reported this trade.</p>
+            )}
+
+            {currentUserIsOwner && dispute?.buyerReport && (
+              <p>⚠️ Buyer Reported you</p>
+            )}
+
+            {currentUserIsBuyer && dispute?.sellerReport && (
+              <p>⚠️ Seller Reported you</p>
+            )}
+          </div>
+        )}
 
         <h2 className="text-2xl font-bold mb-2">{selectedPost.description}</h2>
 
@@ -182,11 +213,6 @@ const PostModal = ({
                   problem.
                 </p>
               )}
-            {reportSuccessMessage && (
-              <div className="mt-3 text-green-500 text-sm font-medium">
-                {reportSuccessMessage}
-              </div>
-            )}
           </>
         )}
 

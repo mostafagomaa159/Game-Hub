@@ -268,9 +268,13 @@ const usePostActions = (
       }
 
       if (res.data.post) {
-        updatePost(res.data.post);
+        const updatedPost = {
+          ...res.data.post,
+          tradeTransaction:
+            res.data.tradeTransaction || res.data.post.tradeTransaction,
+        };
+        updatePost(updatedPost);
       }
-
       toast.success(res.data.message || "Report submitted successfully");
       return { success: true };
     } catch (err) {

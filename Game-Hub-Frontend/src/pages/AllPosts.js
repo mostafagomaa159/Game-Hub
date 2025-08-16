@@ -39,7 +39,6 @@ const AllPosts = () => {
   const [processingIds, setProcessingIds] = useState(new Set());
   const [hasConfirmed, setHasConfirmed] = useState(false);
   const modalRef = useRef(null);
-  const [reportSuccessMessage, setReportSuccessMessage] = useState("");
 
   useEffect(() => {
     setHasConfirmed(false);
@@ -224,7 +223,10 @@ const AllPosts = () => {
 
       {selectedPost && (
         <PostModal
-          selectedPost={selectedPost}
+          selectedPost={{
+            ...selectedPost,
+            tradeTransaction: selectedPost.tradeTransaction || {},
+          }}
           setSelectedPostId={setSelectedPostId}
           userId={userId}
           isProcessing={isProcessing}
@@ -241,7 +243,6 @@ const AllPosts = () => {
           modalRef={modalRef}
           processingIds={processingIds}
           hasConfirmed={hasConfirmed}
-          reportSuccessMessage={reportSuccessMessage}
         />
       )}
 
@@ -251,13 +252,7 @@ const AllPosts = () => {
           reportUrl={reportUrl}
           setReportUrl={setReportUrl}
           reportSubmitting={reportSubmitting}
-          submitReport={async (post, reportData) => {
-            const result = await handlePostReport(post, reportData);
-            if (result.success) {
-              setReportSuccessMessage("Report submitted successfully!"); // 👈 set message
-            }
-            return result;
-          }}
+          submitReport={handlePostReport}
           selectedPost={selectedPost}
         />
       )}
