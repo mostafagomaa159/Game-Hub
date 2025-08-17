@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import PostModal from "../components/AllPosts/PostModal";
 import axios from "../api/axiosInstance";
 import { FaRegCopy } from "react-icons/fa";
+
 const UserProfilePage = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
@@ -15,7 +16,6 @@ const UserProfilePage = () => {
   const [completedTrades, setCompletedTrades] = useState(0);
   const [selectedPost, setSelectedPost] = useState(null);
   const [copied, setCopied] = useState(false);
-
   const [commentInputs, setCommentInputs] = useState({});
   const [replyInputs, setReplyInputs] = useState({});
 
@@ -30,7 +30,7 @@ const UserProfilePage = () => {
       );
       console.log("Posts data:", userRes.data.posts);
       setUser(userRes.data.user);
-      setPosts(userRes.data.posts); // backend sends posts with reactions & userReaction included
+      setPosts(userRes.data.posts);
       setTotalPosts(userRes.data.totalPosts);
       setCompletedTrades(userRes.data.completedTradesCount);
     } catch (error) {
@@ -46,7 +46,7 @@ const UserProfilePage = () => {
     fetchProfileData();
   }, [fetchProfileData]);
 
-  // Handle post reactions (now synced with backend)
+  // Handle post reactions
   const handleReact = async (postId, reactionType) => {
     try {
       const res = await axios.post(`/posts/${postId}/react`, { reactionType });
@@ -114,10 +114,11 @@ const UserProfilePage = () => {
       toast.error("Failed to add reply");
     }
   };
+
   const getCount = (reaction) =>
     Array.isArray(reaction) ? reaction.length : reaction ?? 0;
-  // Handle post sharing
 
+  // Handle post sharing
   const handleShare = async (postId) => {
     try {
       const { data } = await axios.post(`/posts/${postId}/share`);
@@ -137,6 +138,7 @@ const UserProfilePage = () => {
   };
 
   const handleCopyLink = (postId) => {
+    // Make sure to accept postId parameter
     const url = `${window.location.origin}/posts/${postId}`;
     navigator.clipboard
       .writeText(url)
@@ -152,50 +154,57 @@ const UserProfilePage = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
+      <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   if (!user) {
-    return <div className="text-center py-10">User not found</div>;
+    return (
+      <div className="flex justify-center items-center min-h-screen text-gray-600 dark:text-gray-300">
+        User not found
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* User Profile Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Enhanced User Profile Header */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8 border border-gray-100 dark:border-gray-700">
         <div className="flex flex-col md:flex-row items-center gap-6">
-          <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden">
-            {user.avatar ? (
-              <img
-                src={`data:image/jpeg;base64,${user.avatar}`}
-                alt="Profile"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span className="text-3xl text-gray-500 dark:text-gray-400">
-                {user.name.charAt(0).toUpperCase()}
-              </span>
-            )}
+          <div className="relative w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-gray-700 dark:to-gray-600 p-1 shadow-md">
+            <div className="w-full h-full rounded-full bg-white dark:bg-gray-800 flex items-center justify-center overflow-hidden border-2 border-white dark:border-gray-700">
+              {user.avatar ? (
+                <img
+                  src={`data:image/jpeg;base64,${user.avatar}`}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-3xl text-gray-500 dark:text-gray-400">
+                  {user.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
           </div>
+
           <div className="flex-1 text-center md:text-left">
             <h1 className="text-2xl font-bold dark:text-white">{user.name}</h1>
             <p className="text-gray-600 dark:text-gray-300">{user.email}</p>
-            <div className="flex justify-center md:justify-start gap-4 mt-3">
-              <div className="bg-blue-100 dark:bg-blue-900 px-3 py-1 rounded-full">
-                <span className="font-medium text-blue-800 dark:text-blue-200">
+            <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-3">
+              <div className="bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-lg border border-blue-100 dark:border-blue-900/50">
+                <span className="font-medium text-blue-700 dark:text-blue-300">
                   {totalPosts} {totalPosts === 1 ? "Post" : "Posts"}
                 </span>
               </div>
-              <div className="bg-green-100 dark:bg-green-900 px-3 py-1 rounded-full">
-                <span className="font-medium text-green-800 dark:text-green-200">
+              <div className="bg-green-50 dark:bg-green-900/30 px-3 py-1 rounded-lg border border-green-100 dark:border-green-900/50">
+                <span className="font-medium text-green-700 dark:text-green-300">
                   {completedTrades} Completed Trades
                 </span>
               </div>
-              <div className="bg-yellow-100 dark:bg-yellow-900 px-3 py-1 rounded-full">
-                <span className="font-medium text-yellow-800 dark:text-yellow-200">
+              <div className="bg-yellow-50 dark:bg-yellow-900/30 px-3 py-1 rounded-lg border border-yellow-100 dark:border-yellow-900/50">
+                <span className="font-medium text-yellow-700 dark:text-yellow-300">
                   {user.coins} Coins
                 </span>
               </div>
@@ -204,57 +213,61 @@ const UserProfilePage = () => {
         </div>
       </div>
 
-      {/* User Posts Section */}
+      {/* Enhanced User Posts Section */}
       <div className="mb-8">
-        <h2 className="text-xl font-semibold dark:text-white mb-4">
+        <h2 className="text-xl font-semibold dark:text-white mb-6">
           Recent Posts
         </h2>
+
         {posts.length === 0 ? (
-          <div className="text-center py-10 text-gray-500 dark:text-gray-400">
+          <div className="text-center py-10 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-xl shadow p-8 border border-gray-100 dark:border-gray-700">
             No posts found
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {posts.map((post) => (
               <div
                 key={post._id}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer border border-gray-100 dark:border-gray-700"
                 onClick={() => setSelectedPost(post)}
               >
                 {post.media && post.media.length > 0 && (
-                  <div className="h-48 overflow-hidden">
+                  <div className="h-48 w-full relative overflow-hidden">
                     <img
                       src={post.media[0].url}
                       alt="Post media"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                     />
+                    <div className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 rounded-md text-xs backdrop-blur-sm">
+                      {post.server}
+                    </div>
                   </div>
                 )}
+
                 <div className="p-4">
                   <h3 className="font-bold text-lg dark:text-white mb-2 line-clamp-2">
                     {post.description}
                   </h3>
+
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-yellow-600 dark:text-yellow-400 font-semibold">
                       {post.price} {post.price === 1 ? "Coin" : "Coins"}
                     </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {post.server}
-                    </span>
+
+                    {post.avaliable ? (
+                      <span className="inline-block px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        Available to buy
+                      </span>
+                    ) : (
+                      <span className="inline-block px-2 py-1 rounded-full text-xs bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                        Unavailable to buy
+                      </span>
+                    )}
                   </div>
-                  {post.avaliable && (
-                    <span className="inline-block px-2 py-1 rounded-full text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                      Available to buy
-                    </span>
-                  )}
-                  {post.avaliable === false && (
-                    <span className="inline-block px-2 py-1 rounded-full text-xs bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                      Unavailable to buy
-                    </span>
-                  )}
+
                   <div className="flex justify-between items-center text-sm">
                     <div className="flex space-x-2">
-                      {/* Like */}
+                      {/* Like - Original implementation */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -269,7 +282,7 @@ const UserProfilePage = () => {
                         👍 {getCount(post.reactions?.like)}
                       </button>
 
-                      {/* Love */}
+                      {/* Love - Original implementation */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -284,7 +297,7 @@ const UserProfilePage = () => {
                         ❤️ {getCount(post.reactions?.love)}
                       </button>
 
-                      {/* Haha */}
+                      {/* Haha - Original implementation */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -299,8 +312,7 @@ const UserProfilePage = () => {
                         😆 {getCount(post.reactions?.haha)}
                       </button>
 
-                      {/* Share Button */}
-                      {/* Share button (tracks shares) */}
+                      {/* Share Button - Original implementation */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -311,11 +323,11 @@ const UserProfilePage = () => {
                         🔗 Share ({post.sharesCount || 0})
                       </button>
 
-                      {/* Copy link icon (only copies link) */}
+                      {/* Copy link icon - Original implementation */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleCopyLink();
+                          handleCopyLink(post._id); // Pass the post._id here
                         }}
                         title="Copy post link"
                         className="flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-blue-500"
@@ -343,24 +355,32 @@ const UserProfilePage = () => {
           </div>
         )}
 
-        {/* Pagination */}
+        {/* Enhanced Pagination */}
         {totalPosts > limit && (
-          <div className="flex justify-center mt-6">
-            <nav className="flex items-center gap-2">
+          <div className="flex justify-center mt-8">
+            <nav className="inline-flex rounded-md shadow-sm">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-4 py-2 border rounded-md disabled:opacity-50"
+                className={`inline-flex items-center px-4 py-2 rounded-l-md border ${
+                  page === 1
+                    ? "bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                    : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
               >
                 Previous
               </button>
-              <span className="px-4 py-2">
+              <span className="inline-flex items-center px-4 py-2 border-t border-b border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                 Page {page} of {Math.ceil(totalPosts / limit)}
               </span>
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page >= Math.ceil(totalPosts / limit)}
-                className="px-4 py-2 border rounded-md disabled:opacity-50"
+                className={`inline-flex items-center px-4 py-2 rounded-r-md border ${
+                  page >= Math.ceil(totalPosts / limit)
+                    ? "bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                    : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
               >
                 Next
               </button>
@@ -373,7 +393,7 @@ const UserProfilePage = () => {
       {selectedPost && (
         <PostModal
           selectedPost={selectedPost}
-          setSelectedPostId={() => setSelectedPost(null)}
+          onClose={() => setSelectedPost(null)}
           userId={localStorage.getItem("userId")}
           isProcessing={false}
           handleBuy={async (postId) => {

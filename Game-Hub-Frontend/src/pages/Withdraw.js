@@ -37,7 +37,10 @@ const Withdraw = () => {
 
       const res = await axios.post("/transactions/withdraw", payload);
 
-      setMessage(res.data.message || "Withdrawal request sent!");
+      setMessage(
+        res.data.message ||
+          "Your withdrawal request is sent to admin.waiting for admin approve."
+      );
       setAmount("");
       setPaypalEmail("");
       setIban("");
@@ -113,6 +116,10 @@ const Withdraw = () => {
         >
           {loading ? "Requesting..." : "Request Withdrawal"}
         </button>
+        <p className="text-yellow-400 text-sm mt-3">
+          Note: Make Sure to enter vaild information, Transaction fees
+          included!.
+        </p>
       </form>
       {message && (
         <p className="mt-4 text-center text-sm text-red-600 dark:text-red-400">

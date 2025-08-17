@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios from "../api/axiosInstance";
-
+import { FaCopy } from "react-icons/fa";
 const Deposit = () => {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("paypal");
@@ -8,7 +8,25 @@ const Deposit = () => {
   const [accountNumber, setAccountNumber] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showBankDetails, setShowBankDetails] = useState(false);
 
+  // Your bank details (replace with your actual information)
+  const bankDetails = {
+    yourIban: "EG760037011308181130815055352",
+    yourAccountNumber: "1130815055352",
+    yourSwiftCode: "QNBAEGCXXXX",
+  };
+  const copyToClipboard = (text) => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        // You can add a temporary notification here if you want
+        alert("Copied to clipboard!");
+      })
+      .catch((err) => {
+        console.error("Failed to copy: ", err);
+      });
+  };
   const isValidIban = (iban) => /^[A-Z0-9]{15,34}$/.test(iban);
   const isValidAccountNumber = (acc) => /^[0-9]{6,20}$/.test(acc);
 
@@ -61,6 +79,9 @@ const Deposit = () => {
         );
         window.location.href = res.data.approvalUrl;
       } else {
+        // Show bank details popup before processing
+        setShowBankDetails(true);
+
         await axios.post(
           "/transactions/deposit",
           {
@@ -102,7 +123,7 @@ const Deposit = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-gray-900 text-white rounded-xl shadow-xl mt-10">
+    <div className="max-w-md mx-auto p-6 bg-gray-900 text-white rounded-xl shadow-xl mt-10 relative">
       <h2 className="text-xl font-semibold mb-4">Deposit Coins</h2>
 
       <input
@@ -168,8 +189,9 @@ const Deposit = () => {
         {loading ? "Processing..." : "Deposit"}
       </button>
       <p className="text-yellow-400 text-sm mt-3">
-        Note: Coins will be added once your payment is reviewed and approved by
-        an admin.
+        Note: Please make sure to pay all Bank Fees , Paypal Fees & transactions
+        Fees, If u enter 100 coins and we recieve only 99euros, you will get
+        only 99 coins.
       </p>
 
       {status && (
@@ -184,6 +206,77 @@ const Deposit = () => {
         >
           {status}
         </p>
+      )}
+
+      {/* Bank Details Popup */}
+      {showBankDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold mb-4">
+              Bank Transfer Details
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between items-center">
+                  <p className="text-gray-400">IBAN:</p>
+                  <button
+                    onClick={() => copyToClipboard(bankDetails.yourIban)}
+                    className="text-blue-400 hover:text-blue-300"
+                    title="Copy to clipboard"
+                  >
+                    <FaCopy />
+                  </button>
+                </div>
+                <p className="text-white font-mono">{bankDetails.yourIban}</p>
+              </div>
+              <div>
+                <div className="flex justify-between items-center">
+                  <p className="text-gray-400">Account Number:</p>
+                  <button
+                    onClick={() =>
+                      copyToClipboard(bankDetails.yourAccountNumber)
+                    }
+                    className="text-blue-400 hover:text-blue-300"
+                    title="Copy to clipboard"
+                  >
+                    <FaCopy />
+                  </button>
+                </div>
+                <p className="text-white font-mono">
+                  {bankDetails.yourAccountNumber}
+                </p>
+              </div>
+              <div>
+                <div className="flex justify-between items-center">
+                  <p className="text-gray-400">SWIFT/BIC Code:</p>
+                  <button
+                    onClick={() => copyToClipboard(bankDetails.yourSwiftCode)}
+                    className="text-blue-400 hover:text-blue-300"
+                    title="Copy to clipboard"
+                  >
+                    <FaCopy />
+                  </button>
+                </div>
+                <p className="text-white font-mono">
+                  {bankDetails.yourSwiftCode}
+                </p>
+              </div>
+              <div className="mt-4">
+                <p className="text-yellow-400 text-sm">
+                  Please make sure to pay all Bank Fees & transactions Fees, If
+                  u enter 100 coins and we recieve only 99euros, you will get
+                  only 99 coins.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowBankDetails(false)}
+              className="mt-6 bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 text-white w-full"
+            >
+              I've noted these details
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

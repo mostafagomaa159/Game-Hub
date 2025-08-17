@@ -187,7 +187,7 @@ const AllPosts = () => {
       return updatedPost;
     } catch (err) {
       console.error("Report failed:", err);
-      //  toast.error(err.message || "Failed to submit report");
+
       return null;
     }
   };

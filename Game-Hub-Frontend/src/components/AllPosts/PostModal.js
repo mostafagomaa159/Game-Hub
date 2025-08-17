@@ -107,13 +107,13 @@ const PostModal = ({
     handleCancelTrade(selectedPost);
   };
 
-  const handleShowProfile = () => {
+  const handleShowProfile = (profileId) => {
     if (!localStorage.getItem("token")) {
       navigate("/login");
       return;
     }
     setSelectedPostId(null);
-    navigate(`/profile/${ownerId}`);
+    navigate(`/profile/${profileId}`);
   };
 
   let accusedWarning = null;
@@ -242,7 +242,7 @@ const PostModal = ({
         <MessageCard
           key="buy-warning"
           sender="System"
-          message="Don't confirm until you chat with seller in-website."
+          message="Don't confirm until you chat with seller, Send Chat Request in-website."
           type="error"
           timestamp={new Date().toLocaleTimeString()}
         />
