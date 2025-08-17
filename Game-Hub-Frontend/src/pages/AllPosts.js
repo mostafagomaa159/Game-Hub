@@ -176,15 +176,20 @@ const AllPosts = () => {
   }, [selectedPost, showLoginModal, handleClickOutside]);
 
   const handlePostReport = async (post, reportData) => {
-    if (!post || !post._id) {
-      console.error("handlePostReport: post or post._id is undefined");
+    if (!post || !post._id) return null;
+
+    try {
+      const updatedPost = await submitReport(post, reportData);
+
+      if (!updatedPost) throw new Error("Failed to submit report");
+
+      // Return updated post for modal refresh
+      return updatedPost;
+    } catch (err) {
+      console.error("Report failed:", err);
+      //  toast.error(err.message || "Failed to submit report");
       return null;
     }
-    const result = await submitReport(post, reportData); // submit via usePostActions
-    if (result?.success && result.data?.post) {
-      return result.data.post; // updated post to refresh modal
-    }
-    return null;
   };
 
   const handlePostVote = (postId, voteType) => {
