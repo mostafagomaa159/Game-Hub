@@ -60,10 +60,12 @@ const AllPosts = () => {
         )
       );
 
-      // Update modal if it's open on the same post
-      if (selectedPost && selectedPost._id === updatedData._id) {
-        setSelectedPost(updatedData);
-      }
+      // Update modal if it's open on this post
+      setSelectedPost((prev) =>
+        prev && prev._id === updatedData._id
+          ? { ...prev, ...updatedData } // merge updated fields
+          : prev
+      );
     };
 
     socket.on("postUpdated", handlePostUpdated);
@@ -71,7 +73,7 @@ const AllPosts = () => {
     return () => {
       socket.off("postUpdated", handlePostUpdated);
     };
-  }, [selectedPost, setPosts]);
+  }, [setPosts]); // ✅ remove selectedPost from dependency
 
   const filtered = useMemo(() => {
     let temp = [...posts];
@@ -194,7 +196,6 @@ const AllPosts = () => {
 
   const handlePostBuy = async () => {
     if (!selectedPost) return;
-
     const updatedPost = await handleBuy(selectedPost); // handleBuy should return updated post
     if (updatedPost) setSelectedPost(updatedPost); // <-- update modal state immediately
 
