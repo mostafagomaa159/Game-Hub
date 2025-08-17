@@ -74,24 +74,29 @@ router.get("/all", async (req, res) => {
 // Get single post (by owner)
 router.get("/newpost/:id", auth, async (req, res) => {
   try {
-    const post = await newPost.findById(req.params.id);
+    const post = await newPost
+      .findById(req.params.id)
+      .populate("owner", "name username email")
+      .populate("buyer", "name username email"); // Add buyer population
+
     if (!post) return res.status(404).send({ error: "Post not found" });
 
     // Find the trade transaction for this post
     const transaction = await TradeTransaction.findOne({ post: post._id })
-      .populate("buyer", "name")
-      .populate("seller", "name");
+      .populate("buyer", "name username email") // Enhanced buyer info
+      .populate("seller", "name username email"); // Enhanced seller info
 
     res.send({
       ...post.toObject(),
-      tradeTransaction: transaction ? transaction.toObject() : null, // attach dispute here
+      tradeTransaction: transaction ? transaction.toObject() : null,
+      // Include populated buyer directly on post object for easier access
+      buyer: post.buyer || (transaction ? transaction.buyer : null),
     });
   } catch (err) {
     console.error("Error fetching post:", err);
     res.status(500).send({ error: "Server error" });
   }
 });
-
 // Update post
 router.patch("/newpost/:id", auth, async (req, res) => {
   const updates = Object.keys(req.body);
@@ -223,7 +228,6 @@ router.post("/newpost/:id/buy", auth, async (req, res) => {
       return res.status(400).send({ error: "You cannot buy your own item" });
     }
 
-    // ✅ Check both availability fields
     if (!post.avaliable || post.tradeStatus !== "available") {
       return res.status(400).send({ error: "Item is not available to buy" });
     }
@@ -232,7 +236,7 @@ router.post("/newpost/:id/buy", auth, async (req, res) => {
       return res.status(400).send({ error: "Insufficient coins" });
     }
 
-    // ✅ Atomically reserve the post
+    // Atomically reserve the post with population
     const reservedPost = await newPost.findOneAndUpdate(
       {
         _id: req.params.id,
@@ -245,26 +249,32 @@ router.post("/newpost/:id/buy", auth, async (req, res) => {
           tradeStatus: "pending",
         },
       },
-      { new: true }
+      {
+        new: true,
+        populate: {
+          path: "owner",
+          select: "name username email", // Include all fields you need
+        },
+      }
     );
 
     if (!reservedPost) {
-      return res
-        .status(400)
-        .send({ error: "Item has already been reserved by someone else" });
+      return res.status(400).send({
+        error: "Item has already been reserved by someone else",
+      });
     }
-
-    // ✅ Deduct coins
+    // :white_check_mark: Deduct coins
     // req.user.coins -= reservedPost.price;
     // await req.user.save();
 
-    // Emit update to clients watching this post room
+    // Emit update to clients
     if (req.io) {
       req.io.to(`post:${reservedPost._id}`).emit("postUpdated", {
         _id: reservedPost._id,
         tradeStatus: reservedPost.tradeStatus,
         avaliable: reservedPost.avaliable,
         buyer: reservedPost.buyer,
+        owner: reservedPost.owner, // Include owner in the update
       });
     }
 
@@ -605,13 +615,17 @@ router.post("/newpost/finalize-trades", auth, async (req, res) => {
 });
 
 // Send request to buy (without reserving)
+
 router.post("/newpost/:id/request", auth, async (req, res) => {
   try {
-    const post = await newPost.findById(req.params.id);
+    const post = await newPost
+      .findById(req.params.id)
+      .populate("owner", "name username email"); // Add population here
+
     if (!post) return res.status(404).send({ error: "Post not found" });
 
     // Prevent self-request
-    if (post.owner.toString() === req.user._id.toString()) {
+    if (post.owner._id.toString() === req.user._id.toString()) {
       return res.status(400).send({ error: "You can't request your own post" });
     }
 
@@ -624,13 +638,13 @@ router.post("/newpost/:id/request", auth, async (req, res) => {
     post.requests.push(req.user._id);
     await post.save();
 
-    // Create new TradeTransaction document
+    // Create new TradeTransaction document with populated references
     const tradeTransaction = new TradeTransaction({
       post: post._id,
       buyer: req.user._id,
-      seller: post.owner,
+      seller: post.owner._id,
       amount: post.price,
-      status: "pending", // or "reserved" depending on your flow
+      status: "pending",
       logs: [
         {
           message: "Trade request created",
@@ -641,7 +655,21 @@ router.post("/newpost/:id/request", auth, async (req, res) => {
 
     await tradeTransaction.save();
 
-    res.status(201).send({ message: "Request sent", post });
+    // Populate the trade transaction before sending response
+    const populatedTransaction = await TradeTransaction.findById(
+      tradeTransaction._id
+    )
+      .populate("buyer", "name username")
+      .populate("seller", "name username");
+
+    res.status(201).send({
+      message: "Request sent",
+      post: {
+        ...post.toObject(),
+        owner: post.owner, // Already populated
+      },
+      transaction: populatedTransaction,
+    });
   } catch (e) {
     console.error("Send request error:", e);
     res.status(500).send({ error: "Failed to send request" });
@@ -650,7 +678,10 @@ router.post("/newpost/:id/request", auth, async (req, res) => {
 // Cancel request
 router.post("/newpost/:id/cancel-request", auth, async (req, res) => {
   try {
-    const post = await newPost.findById(req.params.id);
+    const post = await newPost
+      .findById(req.params.id)
+      .populate("owner", "name username email"); // Add population here
+
     if (!post) return res.status(404).send({ error: "Post not found" });
 
     // Remove user from post.requests array
@@ -665,7 +696,13 @@ router.post("/newpost/:id/cancel-request", auth, async (req, res) => {
       post: post._id,
     });
 
-    res.send({ message: "Request cancelled", post });
+    res.send({
+      message: "Request cancelled",
+      post: {
+        ...post.toObject(),
+        owner: post.owner, // Already populated
+      },
+    });
   } catch (e) {
     console.error("Cancel request error:", e);
     res.status(500).send({ error: "Failed to cancel request" });

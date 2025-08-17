@@ -47,26 +47,30 @@ const ReportModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Selected post at submit:", selectedPost);
 
     if (!validateForm()) return;
+
     const dataToSubmit = {
       videoUrls: [reportData.videoUrl.trim()],
       reason: reportData.reason.trim() || "No reason provided",
       urgency: reportData.urgency,
     };
 
-    console.log("Selected post in ReportModal:", selectedPost);
-    console.log("Dataaaaaaaa to submit: ", dataToSubmit);
     try {
       const result = await submitReport(selectedPost, dataToSubmit);
       console.log("submitReport result:", result);
 
-      if (result?.success) {
+      if (result?.success && result.data?.post) {
+        const updatedPost = result.data.post;
+
         toast.success("Report submitted successfully");
-        setShowReportModal(true);
+
+        // ✅ Pass the updated post, not the whole result
+        onReportSuccess?.(updatedPost);
+
+        // reset form & close modal
         setReportData({ videoUrl: "", reason: "", urgency: "medium" });
-        onReportSuccess?.(result);
+        setShowReportModal(false);
       } else {
         toast.error(result?.error || "Failed to submit report");
       }

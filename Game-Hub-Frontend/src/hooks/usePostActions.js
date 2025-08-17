@@ -74,10 +74,13 @@ const usePostActions = (
 
     const requested = post.requests?.includes(userId);
     const previousPost = { ...post };
+
+    // Create optimistic update with preserved owner data
     const optimisticPost = {
       ...post,
+      owner: post.owner, // Explicitly preserve owner
       requests: requested
-        ? post.requests.filter((id) => id !== userId)
+        ? post.requests.filter((id) => String(id) !== String(userId))
         : [...(post.requests || []), userId],
     };
 
@@ -91,9 +94,16 @@ const usePostActions = (
       }`;
       const res = await axios.post(url);
       const updatedPost = res.data?.post || res.data;
+
       if (updatedPost) {
-        updatePost(updatedPost);
-        setSelectedPostId(updatedPost._id);
+        // Ensure owner data is preserved in the update
+        const completePost = {
+          ...updatedPost,
+          owner: updatedPost.owner || post.owner, // Fallback to original owner
+        };
+
+        updatePost(completePost);
+        setSelectedPostId(completePost._id);
 
         if (!requested && post.owner?._id) {
           socket.emit("notify-request", {
@@ -103,10 +113,14 @@ const usePostActions = (
           });
         }
 
-        return updatedPost; // ✅ return updated post
+        return completePost;
       }
     } catch (err) {
-      updatePost(previousPost);
+      // Revert to previous post with owner data intact
+      updatePost({
+        ...previousPost,
+        owner: previousPost.owner, // Ensure owner is preserved in rollback
+      });
       toast.error(err.response?.data?.error || "Request failed");
     } finally {
       removeProcessingId(postId);
@@ -124,10 +138,17 @@ const usePostActions = (
     try {
       const res = await axios.post(`/newpost/${postId}/buy`);
       const updatedPost = res.data?.post || res.data;
+
       if (updatedPost) {
-        updatePost(updatedPost); // update global posts list
-        setSelectedPostId(updatedPost._id); // optional
-        return updatedPost; // ✅ return for modal
+        // Preserve the original owner data if not returned in response
+        const completePost = {
+          ...updatedPost,
+          owner: updatedPost.owner || post.owner, // Fallback to original owner
+        };
+
+        updatePost(completePost);
+        setSelectedPostId(completePost._id);
+        return completePost;
       }
     } catch (err) {
       toast.error(err.response?.data?.error || "Purchase failed");
@@ -135,7 +156,6 @@ const usePostActions = (
       removeProcessingId(postId);
     }
   };
-
   // ------------------------ Confirm / Cancel Trade ------------------------
   const handleConfirmTrade = async (post) => {
     if (!userId) return setShowLoginModal(true);
