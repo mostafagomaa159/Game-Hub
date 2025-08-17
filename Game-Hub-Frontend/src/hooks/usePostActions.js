@@ -199,6 +199,7 @@ const usePostActions = (
       };
 
       const res = await axios.post(`/newpost/${post._id}/report`, payload);
+
       if (!res.data?.message) {
         toast.error(res.data?.error || "Report submission failed");
         return { success: false };
@@ -223,7 +224,6 @@ const usePostActions = (
       setReportSubmitting(false);
     }
   };
-
   // ------------------------ Helpers ------------------------
   const getId = (id) => (id?._id ? id._id : id);
 

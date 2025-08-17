@@ -327,7 +327,6 @@ const PostModal = ({
                 </button>
               </>
             )}
-
             {showReportButton && (
               <button
                 onClick={() => setShowReportModal(true)}

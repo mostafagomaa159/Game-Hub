@@ -41,6 +41,7 @@ const AllPosts = () => {
   useEffect(() => {
     setHasConfirmed(false);
   }, [selectedPostId]);
+
   useEffect(() => {
     if (!posts.length) return;
 
@@ -51,13 +52,18 @@ const AllPosts = () => {
   }, [posts]); // only join rooms when posts change
 
   useEffect(() => {
-    // Listen for post updates only once
     const handlePostUpdated = (updatedData) => {
+      // Update the main posts list
       setPosts((prevPosts) =>
         prevPosts.map((p) =>
           p._id === updatedData._id ? { ...p, ...updatedData } : p
         )
       );
+
+      // Update modal if it's open on the same post
+      if (selectedPost && selectedPost._id === updatedData._id) {
+        setSelectedPost(updatedData);
+      }
     };
 
     socket.on("postUpdated", handlePostUpdated);
@@ -65,7 +71,7 @@ const AllPosts = () => {
     return () => {
       socket.off("postUpdated", handlePostUpdated);
     };
-  }, [setPosts]); // don't re-run on posts change
+  }, [selectedPost, setPosts]);
 
   const filtered = useMemo(() => {
     let temp = [...posts];
@@ -170,9 +176,13 @@ const AllPosts = () => {
   const handlePostReport = async (post, reportData) => {
     if (!post || !post._id) {
       console.error("handlePostReport: post or post._id is undefined");
-      return { success: false };
+      return null;
     }
-    return await submitReport(post, reportData);
+    const result = await submitReport(post, reportData); // submit via usePostActions
+    if (result?.success && result.data?.post) {
+      return result.data.post; // updated post to refresh modal
+    }
+    return null;
   };
 
   const handlePostVote = (postId, voteType) => {
@@ -203,6 +213,7 @@ const AllPosts = () => {
     const updated = await handleCancelTrade(selectedPost);
     if (updated) setSelectedPost(updated); // update modal live
   };
+
   useEffect(() => {
     const handlePostUpdated = (updatedData) => {
       setPosts((prevPosts) =>
@@ -293,6 +304,18 @@ const AllPosts = () => {
           reportSubmitting={reportSubmitting}
           submitReport={handlePostReport}
           selectedPost={selectedPost}
+          onReportSuccess={(updatedPost) => {
+            // 1. Update selectedPost in modal
+            setSelectedPost(updatedPost);
+
+            // 2. Update the main post list
+            setPosts((prev) =>
+              prev.map((p) => (p._id === updatedPost._id ? updatedPost : p))
+            );
+
+            // 3. Close the modal
+            setShowReportModal(false);
+          }}
         />
       )}
 

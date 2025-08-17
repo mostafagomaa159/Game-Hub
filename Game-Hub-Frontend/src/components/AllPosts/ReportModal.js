@@ -64,7 +64,7 @@ const ReportModal = ({
 
       if (result?.success) {
         toast.success("Report submitted successfully");
-        setShowReportModal(false);
+        setShowReportModal(true);
         setReportData({ videoUrl: "", reason: "", urgency: "medium" });
         onReportSuccess?.(result);
       } else {
