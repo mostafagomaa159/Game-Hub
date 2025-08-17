@@ -32,12 +32,16 @@ const usePostActions = (
   };
 
   // ------------------------ Dispute Fetching ------------------------
-  const fetchDispute = async (post) => {
-    const tradeId = post.tradeTransaction?._id;
-    if (!tradeId) return null;
-
+  const fetchDisputeForPost = async (post) => {
     try {
-      const res = await axios.get(`/trade/${tradeId}/dispute`);
+      if (!post?.tradeTransaction?._id) {
+        setDispute(null);
+        return;
+      }
+
+      const res = await axios.get(
+        `/trade/${post.tradeTransaction._id}/dispute`
+      );
       setDispute(res.data);
       return res.data;
     } catch (err) {
@@ -257,7 +261,7 @@ const usePostActions = (
     isProcessing,
     reportSubmitting,
     dispute,
-    fetchDispute,
+    fetchDispute: fetchDisputeForPost,
     handleVote,
     handleToggleRequest,
     handleBuy,

@@ -30,6 +30,7 @@ import PrivacyPolicyPage from "./pages/AboutUs/PrivacyPolicyPage";
 import TermsPage from "./pages/AboutUs/TermsOfUsePage";
 import DisclaimerPage from "./pages/AboutUs/DisclaimerPage";
 import DisputePolicyPage from "./pages/AboutUs/DisputePolicyPage";
+import DisputeDetailsPage from "./pages/DisputeDetailsPage";
 
 import UserProfilePage from "./pages/UserProfilePage.js";
 
@@ -105,6 +106,15 @@ function App() {
                   </RequireAuth>
                 }
               />
+              <Route
+                path="/trade/:id/dispute"
+                element={
+                  <RequireAuth>
+                    <DisputeDetailsPage />
+                  </RequireAuth>
+                }
+              />
+
               <Route path="/deposit-success" element={<DepositSuccess />} />
               <Route path="/my-transactions" element={<MyTransactions />} />
               <Route path="/profile/:userId" element={<UserProfilePage />} />

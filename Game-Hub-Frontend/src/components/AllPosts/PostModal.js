@@ -18,7 +18,6 @@ const PostModal = ({
   bothConfirmed,
   modalRef,
   hasConfirmed,
-  dispute,
 }) => {
   const [showBuyMessage, setShowBuyMessage] = useState(false);
   const [confirmDisabled, setConfirmDisabled] = useState(false);
@@ -52,35 +51,6 @@ const PostModal = ({
     typeof userAlreadyConfirmed === "function" && userAlreadyConfirmed()
   );
   const isAvailable = Boolean(selectedPost.avaliable);
-
-  const getDisputeMessage = () => {
-    if (!dispute || dispute.status === "none") return null;
-
-    const currentUserIsSeller = isOwner;
-    const currentUserIsBuyer = isBuyer;
-
-    switch (dispute.status) {
-      case "seller_reported":
-        return currentUserIsBuyer
-          ? "⚠️ Seller has reported an issue with this trade"
-          : null;
-      case "buyer_reported":
-        return currentUserIsSeller
-          ? "⚠️ Buyer has reported an issue with this trade"
-          : null;
-      case "both_reported":
-        return "⏳ Admin is reviewing your reports";
-      case "resolved":
-      case "refunded":
-        return dispute.adminDecision?.winner
-          ? `🏆 Dispute resolved in favor of ${dispute.adminDecision.winner}`
-          : "✅ Dispute has been resolved";
-      default:
-        return null;
-    }
-  };
-
-  const disputeMessage = getDisputeMessage();
 
   const showBuyButton =
     userId &&
@@ -122,10 +92,12 @@ const PostModal = ({
 
   const handleShowProfile = () => {
     if (!localStorage.getItem("token")) {
+      // If user not logged in
       navigate("/login");
       return;
     }
-    setSelectedPostId(null);
+    setSelectedPostId(null); // Close modal first
+
     navigate(`/profile/${ownerId}`);
   };
 
@@ -178,21 +150,6 @@ const PostModal = ({
           </p>
         )}
 
-        {/* Dispute message */}
-        {disputeMessage && (
-          <div className="mt-3 p-3 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
-            <p className="text-yellow-800 dark:text-yellow-200 font-semibold">
-              {disputeMessage}
-            </p>
-            {dispute?.status === "both_reported" && dispute?.expiresAt && (
-              <p className="text-sm mt-1 text-yellow-700 dark:text-yellow-300">
-                Expected resolution time:{" "}
-                {new Date(dispute.expiresAt).toLocaleString()}
-              </p>
-            )}
-          </div>
-        )}
-
         {/* Confirmation status messages */}
         {isPendingOrPendingRelease && (
           <>
@@ -227,7 +184,7 @@ const PostModal = ({
         )}
 
         {/* Show buy message inside modal after clicking Buy */}
-        {showBuyMessage && !bothConfirmedFlag && (
+        {showBuyMessage && (
           <p className="mt-3 text-red-600 font-semibold">
             ⚠️ Please Don't confirm till you chat with seller and meet with him
             in-game.
@@ -278,6 +235,18 @@ const PostModal = ({
               className="w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"
             >
               Report
+            </button>
+          )}
+
+          {/* ✅ NEW View Dispute Button */}
+          {selectedPost.tradeTransaction && (
+            <button
+              onClick={() =>
+                navigate(`/trade/${selectedPost.tradeTransaction._id}/dispute`)
+              }
+              className="w-full py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl"
+            >
+              View Dispute
             </button>
           )}
 

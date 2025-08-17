@@ -142,6 +142,14 @@ const AllPosts = () => {
     setSelectedPostId,
     setHasConfirmed
   );
+  useEffect(() => {
+    const fetchDisputeData = async () => {
+      if (selectedPost) {
+        await fetchDispute(selectedPost);
+      }
+    };
+    fetchDisputeData();
+  }, [selectedPost, fetchDispute]);
 
   const handleClickOutside = useCallback((e) => {
     if (modalRef.current && !modalRef.current.contains(e.target)) {
@@ -182,11 +190,6 @@ const AllPosts = () => {
     selectedPost && handleConfirmTrade(selectedPost);
   const handlePostCancelTrade = () =>
     selectedPost && handleCancelTrade(selectedPost);
-  useEffect(() => {
-    if (selectedPost) {
-      fetchDispute(selectedPost);
-    }
-  }, [selectedPost, fetchDispute]);
 
   return (
     <div className="bg-background dark:bg-darkBackground text-black dark:text-white min-h-screen py-8 px-4">
