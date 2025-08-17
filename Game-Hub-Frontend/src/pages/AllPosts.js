@@ -7,7 +7,7 @@ import React, {
   useCallback,
 } from "react";
 import usePosts from "../hooks/usePosts";
-import { useUser } from "../context/UserContext";
+import { useUser } from "../context/UserContext"; // <-- updated import
 import usePostActions from "../hooks/usePostActions";
 import Filters from "../components/AllPosts/Filters";
 import PostGrid from "../components/AllPosts/PostGrid";
@@ -16,21 +16,17 @@ import ReportModal from "../components/AllPosts/ReportModal";
 import LoginModal from "../components/AllPosts/LoginModal";
 import Pagination from "../components/AllPosts/Pagination";
 import socket from "../utils/socket";
+import axiosInstance from "../api/axiosInstance"; // or wherever your axios is
 
 const POSTS_PER_PAGE = 12;
 
 const AllPosts = () => {
+  // State declarations
   const { posts, loading, error, setPosts } = usePosts();
-  const { user } = useUser();
-  const userId = user?._id || null;
-
-  // --- Filters state ---
+  const { user } = useUser(); // get full user object
+  const userId = user?._id || null; // safely get userId
   const [searchTerm, setSearchTerm] = useState("");
   const [serverFilter, setServerFilter] = useState("All");
-  const [priceMin, setPriceMin] = useState("");
-  const [priceMax, setPriceMax] = useState("");
-  const [availableOnly, setAvailableOnly] = useState(false);
-
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -39,19 +35,23 @@ const AllPosts = () => {
   const [processingIds, setProcessingIds] = useState(new Set());
   const [hasConfirmed, setHasConfirmed] = useState(false);
   const modalRef = useRef(null);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
   useEffect(() => {
     setHasConfirmed(false);
   }, [selectedPostId]);
-
   useEffect(() => {
     if (!posts.length) return;
+
+    // Join all post rooms once
     posts.forEach((post) => {
       socket.emit("joinRoom", { roomId: `post:${post._id}` });
     });
-  }, [posts]);
+  }, [posts]); // only join rooms when posts change
 
   useEffect(() => {
+    // Listen for post updates only once
     const handlePostUpdated = (updatedData) => {
       setPosts((prevPosts) =>
         prevPosts.map((p) =>
@@ -61,37 +61,27 @@ const AllPosts = () => {
     };
 
     socket.on("postUpdated", handlePostUpdated);
+
     return () => {
       socket.off("postUpdated", handlePostUpdated);
     };
-  }, [setPosts]);
+  }, [setPosts]); // don't re-run on posts change
 
-  // --- Filter posts ---
   const filtered = useMemo(() => {
-    return posts.filter((post) => {
-      const matchesSearch = (post.description || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-
-      const matchesServer =
-        serverFilter === "All" || post.server === serverFilter;
-
-      const matchesPriceMin = !priceMin || post.price >= parseFloat(priceMin);
-      const matchesPriceMax = !priceMax || post.price <= parseFloat(priceMax);
-
-      const matchesAvailable = !availableOnly || post.avaliable;
-
-      return (
-        matchesSearch &&
-        matchesServer &&
-        matchesPriceMin &&
-        matchesPriceMax &&
-        matchesAvailable
+    let temp = [...posts];
+    if (searchTerm) {
+      temp = temp.filter((post) =>
+        (post.description || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())
       );
-    });
-  }, [posts, searchTerm, serverFilter, priceMin, priceMax, availableOnly]);
+    }
+    if (serverFilter !== "All") {
+      temp = temp.filter((post) => post.server === serverFilter);
+    }
+    return temp;
+  }, [searchTerm, serverFilter, posts]);
 
-  // --- Pagination ---
   const { currentPosts, totalPages } = useMemo(() => {
     const indexOfLast = currentPage * POSTS_PER_PAGE;
     const indexOfFirst = indexOfLast - POSTS_PER_PAGE;
@@ -101,10 +91,28 @@ const AllPosts = () => {
     };
   }, [currentPage, filtered]);
 
-  const selectedPost = useMemo(
-    () => posts.find((p) => p._id === selectedPostId),
-    [posts, selectedPostId]
-  );
+  const handleOpenPost = async (postId) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      // Show a message instead of fetching
+      alert("⚠️ Please log in first to view post details!");
+      return; // stop execution
+    }
+
+    // User is logged in, continue normally
+    setModalLoading(true);
+    setSelectedPost({ _id: postId }); // placeholder so modal opens
+    setSelectedPostId(postId);
+
+    try {
+      const res = await axiosInstance.get(`/newpost/${postId}`);
+      setSelectedPost(res.data); // update with full data
+    } catch (err) {
+      console.error("Failed to fetch post details:", err);
+    } finally {
+      setModalLoading(false);
+    }
+  };
 
   const isOwner = useMemo(
     () =>
@@ -119,7 +127,6 @@ const AllPosts = () => {
       (selectedPost.buyer?._id === userId || selectedPost.buyer === userId),
     [selectedPost, userId]
   );
-
   const {
     isProcessing,
     reportSubmitting,
@@ -131,8 +138,6 @@ const AllPosts = () => {
     submitReport,
     userAlreadyConfirmed,
     bothConfirmed,
-    dispute,
-    fetchDispute,
   } = usePostActions(
     setPosts,
     userId,
@@ -142,14 +147,6 @@ const AllPosts = () => {
     setSelectedPostId,
     setHasConfirmed
   );
-  useEffect(() => {
-    const fetchDisputeData = async () => {
-      if (selectedPost) {
-        await fetchDispute(selectedPost);
-      }
-    };
-    fetchDisputeData();
-  }, [selectedPost, fetchDispute]);
 
   const handleClickOutside = useCallback((e) => {
     if (modalRef.current && !modalRef.current.contains(e.target)) {
@@ -167,7 +164,10 @@ const AllPosts = () => {
   }, [selectedPost, showLoginModal, handleClickOutside]);
 
   const handlePostReport = async (post, reportData) => {
-    if (!post || !post._id) return { success: false };
+    if (!post || !post._id) {
+      console.error("handlePostReport: post or post._id is undefined");
+      return { success: false };
+    }
     return await submitReport(post, reportData);
   };
 
@@ -180,31 +180,58 @@ const AllPosts = () => {
 
   const handlePostBuy = (postId) => {
     const post = posts.find((p) => p._id === postId);
-    if (!post) return;
+    if (!post) {
+      console.error("Post not found for id", postId);
+      return;
+    }
     handleBuy(post);
   };
 
-  const handlePostToggleRequest = () =>
-    selectedPost && handleToggleRequest(selectedPost);
-  const handlePostConfirmTrade = () =>
-    selectedPost && handleConfirmTrade(selectedPost);
-  const handlePostCancelTrade = () =>
-    selectedPost && handleCancelTrade(selectedPost);
+  const handlePostToggleRequest = () => {
+    if (selectedPost) {
+      handleToggleRequest(selectedPost);
+    }
+  };
+
+  const handlePostConfirmTrade = () => {
+    if (selectedPost) {
+      handleConfirmTrade(selectedPost);
+    }
+  };
+
+  const handlePostCancelTrade = () => {
+    if (selectedPost) {
+      handleCancelTrade(selectedPost);
+    }
+  };
+  useEffect(() => {
+    const handlePostUpdated = (updatedData) => {
+      setPosts((prevPosts) =>
+        prevPosts.map((p) =>
+          p._id === updatedData._id ? { ...p, ...updatedData } : p
+        )
+      );
+
+      if (selectedPostId === updatedData._id) {
+        // Update selectedPostId to trigger modal re-render with new data
+        setSelectedPostId(updatedData._id);
+      }
+    };
+
+    socket.on("postUpdated", handlePostUpdated);
+
+    return () => {
+      socket.off("postUpdated", handlePostUpdated);
+    };
+  }, [selectedPostId, setPosts, setSelectedPostId]);
 
   return (
     <div className="bg-background dark:bg-darkBackground text-black dark:text-white min-h-screen py-8 px-4">
-      {/* Filters */}
       <Filters
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
         serverFilter={serverFilter}
         setServerFilter={setServerFilter}
-        priceMin={priceMin}
-        setPriceMin={setPriceMin}
-        priceMax={priceMax}
-        setPriceMax={setPriceMax}
-        availableOnly={availableOnly}
-        setAvailableOnly={setAvailableOnly}
         posts={posts}
       />
 
@@ -218,7 +245,7 @@ const AllPosts = () => {
         currentPosts={currentPosts}
         userId={userId}
         processingIds={processingIds}
-        setSelectedPostId={setSelectedPostId}
+        setSelectedPostId={handleOpenPost}
         handleVote={handlePostVote}
       />
 
@@ -234,6 +261,11 @@ const AllPosts = () => {
       {selectedPost && (
         <PostModal
           selectedPost={selectedPost}
+          loading={modalLoading}
+          onClose={() => {
+            setSelectedPost(null);
+            setSelectedPostId(null);
+          }}
           setSelectedPostId={setSelectedPostId}
           userId={userId}
           isProcessing={isProcessing}
@@ -250,7 +282,6 @@ const AllPosts = () => {
           modalRef={modalRef}
           processingIds={processingIds}
           hasConfirmed={hasConfirmed}
-          dispute={dispute}
         />
       )}
 

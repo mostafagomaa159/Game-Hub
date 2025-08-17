@@ -14,7 +14,6 @@ const usePostActions = (
 ) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
-  const [dispute, setDispute] = useState(null);
 
   const updatePost = (updated) =>
     setPosts((prev) => prev.map((p) => (p._id === updated._id ? updated : p)));
@@ -29,26 +28,6 @@ const usePostActions = (
       next.delete(id);
       return next;
     });
-  };
-
-  // ------------------------ Dispute Fetching ------------------------
-  const fetchDisputeForPost = async (post) => {
-    try {
-      if (!post?.tradeTransaction?._id) {
-        setDispute(null);
-        return;
-      }
-
-      const res = await axios.get(
-        `/trade/${post.tradeTransaction._id}/dispute`
-      );
-      setDispute(res.data);
-      return res.data;
-    } catch (err) {
-      console.error("Failed to fetch dispute:", err);
-      setDispute(null);
-      return null;
-    }
   };
 
   // ------------------------ Voting ------------------------
@@ -230,7 +209,7 @@ const usePostActions = (
       }
 
       toast.success(res.data.message);
-      return { success: true };
+      return { success: true, data: res.data };
     } catch (err) {
       toast.error(err.response?.data?.error || "Report submission failed");
       return { success: false };
@@ -260,8 +239,7 @@ const usePostActions = (
   return {
     isProcessing,
     reportSubmitting,
-    dispute,
-    fetchDispute: fetchDisputeForPost,
+
     handleVote,
     handleToggleRequest,
     handleBuy,

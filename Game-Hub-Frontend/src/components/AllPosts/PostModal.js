@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
+import SkeletonCard from "../common/SkeletonCard";
+
 const PostModal = ({
   selectedPost,
   setSelectedPostId,
@@ -18,6 +20,8 @@ const PostModal = ({
   bothConfirmed,
   modalRef,
   hasConfirmed,
+  onClose,
+  loading, // ✅ مهم
 }) => {
   const [showBuyMessage, setShowBuyMessage] = useState(false);
   const [confirmDisabled, setConfirmDisabled] = useState(false);
@@ -32,24 +36,33 @@ const PostModal = ({
 
   if (!selectedPost) return null;
 
+  // ======= Show loading state inside modal =======
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+        <SkeletonCard variant="modal" />
+      </div>
+    );
+  }
+
+  // ======= بعد ما التحميل يخلص =======
+  const tradeTx = selectedPost.tradeTransaction;
+  const buyerReport = tradeTx?.dispute?.buyerReport;
+  const sellerReport = tradeTx?.dispute?.sellerReport;
   const buyerId = selectedPost.buyer?._id || selectedPost.buyer;
   const ownerId = selectedPost.owner?._id || selectedPost.owner;
 
-  const currentUserIsBuyer = Boolean(
-    userId && buyerId && String(buyerId) === String(userId)
-  );
-  const currentUserIsOwner = Boolean(
-    userId && ownerId && String(ownerId) === String(userId)
-  );
-  const bothConfirmedFlag = Boolean(
-    typeof bothConfirmed === "function" && bothConfirmed(selectedPost)
-  );
+  const currentUserIsBuyer =
+    userId && buyerId && String(buyerId) === String(userId);
+  const currentUserIsOwner =
+    userId && ownerId && String(ownerId) === String(userId);
+  const bothConfirmedFlag =
+    typeof bothConfirmed === "function" && bothConfirmed(selectedPost);
   const isPending = selectedPost.tradeStatus === "pending";
   const isPendingOrPendingRelease =
     isPending || selectedPost.tradeStatus === "pending_release";
-  const alreadyConfirmed = Boolean(
-    typeof userAlreadyConfirmed === "function" && userAlreadyConfirmed()
-  );
+  const alreadyConfirmed =
+    typeof userAlreadyConfirmed === "function" && userAlreadyConfirmed();
   const isAvailable = Boolean(selectedPost.avaliable);
 
   const showBuyButton =
@@ -92,175 +105,231 @@ const PostModal = ({
 
   const handleShowProfile = () => {
     if (!localStorage.getItem("token")) {
-      // If user not logged in
       navigate("/login");
       return;
     }
     setSelectedPostId(null); // Close modal first
-
     navigate(`/profile/${ownerId}`);
   };
+
+  let accusedWarning = null;
+  if (selectedPost.dispute?.sellerReport && currentUserIsBuyer) {
+    accusedWarning = "⚠️ You have been reported by the seller!";
+  }
+  if (selectedPost.dispute?.buyerReport && currentUserIsOwner) {
+    accusedWarning = "⚠️ You have been reported by the buyer!";
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
       <div
         ref={modalRef}
-        className="bg-white dark:bg-darkCard text-black dark:text-white rounded-2xl shadow-xl w-full max-w-md p-6 relative"
+        className="bg-white dark:bg-darkCard text-black dark:text-white rounded-2xl shadow-xl w-full max-w-md relative max-h-[90vh] overflow-y-auto"
       >
-        <button
-          onClick={() => setSelectedPostId(null)}
-          className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 dark:hover:text-white text-xl"
-          aria-label="Close modal"
-        >
-          &times;
-        </button>
+        {/* ===== Sticky Red Banner (if reported) ===== */}
+        {accusedWarning && (
+          <div className="sticky top-0 z-20 bg-red-600 text-white font-semibold text-center px-4 py-3 rounded-t-2xl shadow-md">
+            {accusedWarning}
+          </div>
+        )}
 
-        <h2 className="text-2xl font-bold mb-2">{selectedPost.description}</h2>
+        <div className="p-6">
+          {/* ===== Close button ===== */}
+          <button
+            onClick={onClose}
+            className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 dark:hover:text-white text-xl"
+          >
+            &times;
+          </button>
 
-        <div className="flex justify-between items-center mb-2">
-          <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">
-            Server: {selectedPost.server}
+          {/* ===== Dispute / Report Status ===== */}
+          {selectedPost.tradeStatus === "disputed" && (
+            <div className="mt-3 space-y-2">
+              {buyerReport && !sellerReport && currentUserIsOwner && (
+                <div className="p-3 rounded-lg bg-red-100 text-red-700">
+                  ⚠️ You have been reported by the buyer!, you have 24h to
+                  submit a report to protect yourself
+                  <br />
+                  <span className="font-semibold">Reason:</span>{" "}
+                  {buyerReport.reason}
+                  <br />
+                  <a
+                    href={sellerReport.evidenceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-700 transition-colors duration-200"
+                  >
+                    🔗 View Evidence
+                  </a>
+                </div>
+              )}
+
+              {sellerReport && !buyerReport && currentUserIsBuyer && (
+                <div className="p-3 rounded-lg bg-red-100 text-red-700">
+                  ⚠️ You have been reported by the seller!, you have 24h to
+                  submit a report to protect yourself
+                  <br />
+                  <span className="font-semibold">Reason:</span>{" "}
+                  {sellerReport.reason}
+                  <br />
+                  <a
+                    href={sellerReport.evidenceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-700 transition-colors duration-200"
+                  >
+                    🔗 View Evidence
+                  </a>
+                </div>
+              )}
+
+              {buyerReport && sellerReport && (
+                <div className="p-3 rounded-lg bg-yellow-100 text-yellow-700">
+                  ⚖️ Both parties have reported each other. Admin is reviewing
+                  the dispute.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== Post content ===== */}
+          <h2 className="text-2xl font-bold mb-2">
+            {selectedPost.description}
+          </h2>
+
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">
+              Server: {selectedPost.server}
+            </p>
+            {selectedPost.owner && (
+              <button
+                onClick={handleShowProfile}
+                className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Show Profile
+              </button>
+            )}
+          </div>
+
+          <p className="mb-2 text-yellow-500 font-semibold">
+            Price: {selectedPost.price}{" "}
+            {selectedPost.price === 1 ? "Coin" : "Coins"}
           </p>
+
+          <p
+            className={`text-sm font-semibold ${
+              isAvailable ? "text-green-600" : "text-red-500"
+            }`}
+          >
+            {isAvailable ? "Available ✔️" : "Not Available ❌"}
+          </p>
+
           {selectedPost.owner && (
-            <button
-              onClick={handleShowProfile}
-              className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              Show Profile
-            </button>
-          )}
-        </div>
-
-        <p className="mb-2 text-yellow-500 font-semibold">
-          Price: {selectedPost.price}{" "}
-          {selectedPost.price === 1 ? "Coin" : "Coins"}
-        </p>
-
-        <p
-          className={`text-sm font-semibold ${
-            isAvailable ? "text-green-600" : "text-red-500"
-          }`}
-        >
-          {isAvailable ? "Available ✔️" : "Not Available ❌"}
-        </p>
-
-        {selectedPost.owner && (
-          <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-400">
-            Seller: {selectedPost.owner.name || "Unknown"}
-          </p>
-        )}
-
-        {/* Confirmation status messages */}
-        {isPendingOrPendingRelease && (
-          <>
-            {currentUserIsOwner &&
-              buyerId &&
-              selectedPost.tradeConfirmations?.includes(buyerId) &&
-              !bothConfirmedFlag && (
-                <p className="mt-3 text-red-500 font-semibold">
-                  ✅ Buyer has confirmed the trade, Chat with him before you
-                  Confirm Trade
-                </p>
-              )}
-
-            {currentUserIsBuyer &&
-              ownerId &&
-              selectedPost.tradeConfirmations?.includes(ownerId) &&
-              !bothConfirmedFlag && (
-                <p className="mt-3 text-red-500 font-semibold">
-                  ✅ Seller has confirmed the trade, Make Sure to Send Request
-                  to Him before you Confirm Trade!
-                </p>
-              )}
-
-            {bothConfirmedFlag &&
-              (currentUserIsBuyer || currentUserIsOwner) && (
-                <p className="mt-3 text-blue-600 font-semibold">
-                  🎉 Trade Successful! Feel free to report if there is a
-                  problem.
-                </p>
-              )}
-          </>
-        )}
-
-        {/* Show buy message inside modal after clicking Buy */}
-        {showBuyMessage && (
-          <p className="mt-3 text-red-600 font-semibold">
-            ⚠️ Please Don't confirm till you chat with seller and meet with him
-            in-game.
-          </p>
-        )}
-
-        {/* ===== Buttons Section ===== */}
-        <div className="mt-4 space-y-2">
-          {showBuyButton && (
-            <button
-              className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={onBuyClick}
-              disabled={isProcessing}
-            >
-              Buy Now
-            </button>
+            <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-400">
+              Seller: {selectedPost.owner.name || "Unknown"}
+            </p>
           )}
 
-          {showConfirmCancelButtons && (
+          {/* Confirmation status messages */}
+          {isPendingOrPendingRelease && (
             <>
-              <button
-                onClick={onConfirmClick}
-                disabled={isProcessing || confirmDisabled}
-                className={`w-full py-2 rounded-xl text-white ${
-                  isProcessing || confirmDisabled
-                    ? "bg-green-400"
-                    : "bg-green-600 hover:bg-green-700"
-                }`}
-              >
-                Confirm Trade
-              </button>
+              {currentUserIsOwner &&
+                buyerId &&
+                selectedPost.tradeConfirmations?.includes(buyerId) &&
+                !bothConfirmedFlag && (
+                  <p className="mt-3 text-red-500 font-semibold">
+                    ✅ Buyer has confirmed the trade, Chat with him before you
+                    Confirm Trade
+                  </p>
+                )}
 
-              <button
-                onClick={onCancelClick}
-                disabled={isProcessing}
-                className={`w-full py-2 rounded-xl text-white ${
-                  isProcessing ? "bg-red-400" : "bg-red-600 hover:bg-red-700"
-                }`}
-              >
-                Cancel Trade
-              </button>
+              {currentUserIsBuyer &&
+                ownerId &&
+                selectedPost.tradeConfirmations?.includes(ownerId) &&
+                !bothConfirmedFlag && (
+                  <p className="mt-3 text-red-500 font-semibold">
+                    ✅ Seller has confirmed the trade, Make Sure to Send Request
+                    to Him before you Confirm Trade!
+                  </p>
+                )}
+
+              {bothConfirmedFlag &&
+                (currentUserIsBuyer || currentUserIsOwner) && (
+                  <p className="mt-3 text-blue-600 font-semibold">
+                    🎉 Trade Successful! Feel free to report if there is a
+                    problem.
+                  </p>
+                )}
             </>
           )}
 
-          {showReportButton && (
-            <button
-              onClick={() => setShowReportModal(true)}
-              className="w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"
-            >
-              Report
-            </button>
+          {/* Show buy message inside modal after clicking Buy */}
+          {showBuyMessage && (
+            <p className="mt-3 text-red-600 font-semibold">
+              ⚠️ Please Don't confirm till you chat with seller and meet with
+              him in-game.
+            </p>
           )}
 
-          {/* ✅ NEW View Dispute Button */}
-          {selectedPost.tradeTransaction && (
-            <button
-              onClick={() =>
-                navigate(`/trade/${selectedPost.tradeTransaction._id}/dispute`)
-              }
-              className="w-full py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl"
-            >
-              View Dispute
-            </button>
-          )}
+          {/* ===== Buttons Section ===== */}
+          <div className="mt-4 space-y-2">
+            {showBuyButton && (
+              <button
+                className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={onBuyClick}
+                disabled={isProcessing}
+              >
+                Buy Now
+              </button>
+            )}
 
-          {showRequestButton && (
-            <button
-              className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
-              onClick={() => handleToggleRequest(selectedPost)}
-              disabled={isProcessing}
-            >
-              {selectedPost.requests?.includes(userId)
-                ? "Cancel Chat Request"
-                : "Send Chat Request"}
-            </button>
-          )}
+            {showConfirmCancelButtons && (
+              <>
+                <button
+                  onClick={onConfirmClick}
+                  disabled={isProcessing || confirmDisabled}
+                  className={`w-full py-2 rounded-xl text-white ${
+                    isProcessing || confirmDisabled
+                      ? "bg-green-400"
+                      : "bg-green-600 hover:bg-green-700"
+                  }`}
+                >
+                  Confirm Trade
+                </button>
+
+                <button
+                  onClick={onCancelClick}
+                  disabled={isProcessing}
+                  className={`w-full py-2 rounded-xl text-white ${
+                    isProcessing ? "bg-red-400" : "bg-red-600 hover:bg-red-700"
+                  }`}
+                >
+                  Cancel Trade
+                </button>
+              </>
+            )}
+
+            {showReportButton && (
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"
+              >
+                Report
+              </button>
+            )}
+
+            {showRequestButton && (
+              <button
+                className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
+                onClick={() => handleToggleRequest(selectedPost)}
+                disabled={isProcessing}
+              >
+                {selectedPost.requests?.includes(userId)
+                  ? "Cancel Chat Request"
+                  : "Send Chat Request"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

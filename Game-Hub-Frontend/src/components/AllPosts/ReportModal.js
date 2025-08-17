@@ -48,18 +48,20 @@ const ReportModal = ({
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("Selected post at submit:", selectedPost);
-    console.log("handleSubmit triggered");
+
     if (!validateForm()) return;
     const dataToSubmit = {
       videoUrls: [reportData.videoUrl.trim()],
       reason: reportData.reason.trim() || "No reason provided",
       urgency: reportData.urgency,
     };
-    console.log("Dataaaaaaaa to submit: ", dataToSubmit);
+
     console.log("Selected post in ReportModal:", selectedPost);
+    console.log("Dataaaaaaaa to submit: ", dataToSubmit);
     try {
       const result = await submitReport(selectedPost, dataToSubmit);
       console.log("submitReport result:", result);
+
       if (result?.success) {
         toast.success("Report submitted successfully");
         setShowReportModal(false);

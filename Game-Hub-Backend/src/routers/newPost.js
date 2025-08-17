@@ -819,7 +819,10 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
       success: true,
       message: "Trade dispute submitted, trade pending",
       tradeTransaction: tx,
-      post,
+      post: {
+        ...post.toObject(),
+        tradeTransaction: tx, // ✅ أضمن إن الـfrontend يستقبل الـdispute
+      },
     });
   } catch (error) {
     await session.abortTransaction().catch(() => {});

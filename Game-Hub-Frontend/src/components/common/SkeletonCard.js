@@ -53,6 +53,16 @@ const SkeletonCard = ({ variant = "post", count = 1, isHistory = false }) => {
     </div>
   );
 
+  const renderModalSkeleton = () => (
+    <div className="bg-white dark:bg-darkCard rounded-2xl shadow-xl w-full max-w-md p-6 animate-pulse">
+      <div className="h-6 bg-gray-300 dark:bg-gray-700 rounded w-3/4 mb-4" />
+      <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-1/3 mb-2" />
+      <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-1/2 mb-2" />
+      <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-2/3 mb-4" />
+      <div className="h-8 bg-blue-300 dark:bg-blue-800 rounded-xl w-full mt-4" />
+    </div>
+  );
+
   const skeletons = [];
   const iterations = variant === "post" ? count : 1;
 
@@ -66,6 +76,11 @@ const SkeletonCard = ({ variant = "post", count = 1, isHistory = false }) => {
       case "form":
         skeletons.push(
           <React.Fragment key={i}>{renderFormSkeleton()}</React.Fragment>
+        );
+        break;
+      case "modal":
+        skeletons.push(
+          <React.Fragment key={i}>{renderModalSkeleton()}</React.Fragment>
         );
         break;
       default:
