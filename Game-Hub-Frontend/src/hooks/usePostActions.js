@@ -94,14 +94,16 @@ const usePostActions = (
       if (updatedPost) {
         updatePost(updatedPost);
         setSelectedPostId(updatedPost._id);
-      }
 
-      if (!requested && post.owner?._id) {
-        socket.emit("notify-request", {
-          toUserId: post.owner._id,
-          message: `A Buyer sent you a chat request for item: ${post.description}`,
-          postId: post._id,
-        });
+        if (!requested && post.owner?._id) {
+          socket.emit("notify-request", {
+            toUserId: post.owner._id,
+            message: `A Buyer sent you a chat request for item: ${post.description}`,
+            postId: post._id,
+          });
+        }
+
+        return updatedPost; // ✅ return updated post
       }
     } catch (err) {
       updatePost(previousPost);
@@ -110,7 +112,6 @@ const usePostActions = (
       removeProcessingId(postId);
     }
   };
-
   // ------------------------ Buy ------------------------
   const handleBuy = async (post) => {
     if (!post || !userId) return setShowLoginModal(true);
@@ -124,8 +125,9 @@ const usePostActions = (
       const res = await axios.post(`/newpost/${postId}/buy`);
       const updatedPost = res.data?.post || res.data;
       if (updatedPost) {
-        updatePost(updatedPost);
-        setSelectedPostId(updatedPost._id);
+        updatePost(updatedPost); // update global posts list
+        setSelectedPostId(updatedPost._id); // optional
+        return updatedPost; // ✅ return for modal
       }
     } catch (err) {
       toast.error(err.response?.data?.error || "Purchase failed");
@@ -141,10 +143,12 @@ const usePostActions = (
 
     try {
       const res = await axios.post(`/newpost/${post._id}/confirm-trade`);
-      if (res.data) {
-        updatePost(res.data);
-        setSelectedPostId(res.data._id);
+      const updatedPost = res.data;
+      if (updatedPost) {
+        updatePost(updatedPost);
+        setSelectedPostId(updatedPost._id);
         setHasConfirmed(true);
+        return updatedPost; // ✅ return updated post
       }
     } catch (err) {
       toast.error(err.response?.data?.error || "Confirmation failed");
@@ -163,9 +167,11 @@ const usePostActions = (
 
     try {
       const res = await axios.post(`/newpost/${post._id}/cancel-trade`);
-      if (res.data?.post) {
-        updatePost(res.data.post);
-        setSelectedPostId(res.data.post._id);
+      const updatedPost = res.data?.post;
+      if (updatedPost) {
+        updatePost(updatedPost);
+        setSelectedPostId(updatedPost._id);
+        return updatedPost; // ✅ return updated post
       }
     } catch (err) {
       toast.error(err.response?.data?.error || "Cancellation failed");

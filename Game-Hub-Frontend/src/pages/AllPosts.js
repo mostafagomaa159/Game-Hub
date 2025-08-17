@@ -94,19 +94,23 @@ const AllPosts = () => {
   const handleOpenPost = async (postId) => {
     const token = localStorage.getItem("token");
     if (!token) {
-      // Show a message instead of fetching
       alert("⚠️ Please log in first to view post details!");
-      return; // stop execution
+      return;
     }
 
-    // User is logged in, continue normally
     setModalLoading(true);
-    setSelectedPost({ _id: postId }); // placeholder so modal opens
+
+    // If modal already open, keep the object reference
+    setSelectedPost((prev) => ({ ...prev, _id: postId }));
+
     setSelectedPostId(postId);
 
     try {
       const res = await axiosInstance.get(`/newpost/${postId}`);
-      setSelectedPost(res.data); // update with full data
+      setSelectedPost((prev) => ({
+        ...prev, // keep the original object reference
+        ...res.data, // merge API data
+      }));
     } catch (err) {
       console.error("Failed to fetch post details:", err);
     } finally {
@@ -178,31 +182,26 @@ const AllPosts = () => {
     );
   };
 
-  const handlePostBuy = (postId) => {
-    const post = posts.find((p) => p._id === postId);
-    if (!post) {
-      console.error("Post not found for id", postId);
-      return;
-    }
-    handleBuy(post);
+  const handlePostBuy = async () => {
+    if (!selectedPost) return;
+    return await handleBuy(selectedPost); // return for modal
   };
 
-  const handlePostToggleRequest = () => {
-    if (selectedPost) {
-      handleToggleRequest(selectedPost);
-    }
+  const handlePostToggleRequest = async () => {
+    if (!selectedPost) return;
+    const updated = await handleToggleRequest(selectedPost);
+    if (updated) setSelectedPost(updated); // update modal live
   };
 
-  const handlePostConfirmTrade = () => {
-    if (selectedPost) {
-      handleConfirmTrade(selectedPost);
-    }
+  const handlePostConfirmTrade = async () => {
+    if (!selectedPost) return;
+    const updated = await handleConfirmTrade(selectedPost);
+    if (updated) setSelectedPost(updated); // update modal live
   };
-
-  const handlePostCancelTrade = () => {
-    if (selectedPost) {
-      handleCancelTrade(selectedPost);
-    }
+  const handlePostCancelTrade = async () => {
+    if (!selectedPost) return;
+    const updated = await handleCancelTrade(selectedPost);
+    if (updated) setSelectedPost(updated); // update modal live
   };
   useEffect(() => {
     const handlePostUpdated = (updatedData) => {
@@ -267,6 +266,7 @@ const AllPosts = () => {
             setSelectedPostId(null);
           }}
           setSelectedPostId={setSelectedPostId}
+          setSelectedPost={setSelectedPost}
           userId={userId}
           isProcessing={isProcessing}
           handleBuy={handlePostBuy}

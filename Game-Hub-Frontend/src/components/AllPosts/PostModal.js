@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
 import SkeletonCard from "../common/SkeletonCard";
 
 const PostModal = ({
@@ -13,15 +12,12 @@ const PostModal = ({
   handleConfirmTrade,
   handleCancelTrade,
   setShowReportModal,
-  isOwner,
-  isBuyer,
-  processingIds,
-  userAlreadyConfirmed,
   bothConfirmed,
+  userAlreadyConfirmed,
   modalRef,
-  hasConfirmed,
+  setSelectedPost,
   onClose,
-  loading, // ✅ مهم
+  loading,
 }) => {
   const [showBuyMessage, setShowBuyMessage] = useState(false);
   const [confirmDisabled, setConfirmDisabled] = useState(false);
@@ -36,7 +32,6 @@ const PostModal = ({
 
   if (!selectedPost) return null;
 
-  // ======= Show loading state inside modal =======
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
@@ -45,7 +40,6 @@ const PostModal = ({
     );
   }
 
-  // ======= بعد ما التحميل يخلص =======
   const tradeTx = selectedPost.tradeTransaction;
   const buyerReport = tradeTx?.dispute?.buyerReport;
   const sellerReport = tradeTx?.dispute?.sellerReport;
@@ -71,26 +65,24 @@ const PostModal = ({
     isAvailable &&
     !bothConfirmedFlag &&
     !currentUserIsBuyer;
-
   const showConfirmCancelButtons =
     isPending &&
     (currentUserIsOwner || currentUserIsBuyer) &&
     !alreadyConfirmed &&
     !bothConfirmedFlag;
-
   const showReportButton =
     userId &&
     bothConfirmedFlag &&
     (selectedPost.tradeStatus === "pending_release" ||
       selectedPost.tradeStatus === "disputed") &&
     (currentUserIsOwner || currentUserIsBuyer);
-
   const showRequestButton =
     userId && !currentUserIsOwner && (!bothConfirmedFlag || showReportButton);
 
-  const onBuyClick = () => {
-    handleBuy(selectedPost._id);
+  const onBuyClick = async () => {
     setShowBuyMessage(true);
+    const updated = await handleBuy(selectedPost); // receives updated post
+    if (updated) setSelectedPost(updated); // update modal live
   };
 
   const onConfirmClick = () => {
@@ -108,7 +100,7 @@ const PostModal = ({
       navigate("/login");
       return;
     }
-    setSelectedPostId(null); // Close modal first
+    setSelectedPostId(null);
     navigate(`/profile/${ownerId}`);
   };
 
@@ -120,13 +112,50 @@ const PostModal = ({
     accusedWarning = "⚠️ You have been reported by the buyer!";
   }
 
+  const ReportCard = ({ title, reason, evidenceUrl }) => (
+    <div className="p-3 bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col gap-2 border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center gap-2">
+        <svg
+          className="w-5 h-5 text-red-500 animate-pulse"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+        >
+          <path
+            fillRule="evenodd"
+            d="M18 10c0 4.418-3.582 8-8 8s-8-3.582-8-8 3.582-8 8-8 8 3.582 8 8zm-8-4a1 1 0 00-.993.883L9 7v4a1 1 0 001.993.117L11 11V7a1 1 0 00-1-1zm0 8a1.25 1.25 0 100 2.5 1.25 1.25 0 000-2.5z"
+            clipRule="evenodd"
+          />
+        </svg>
+        <span className="font-semibold text-red-600">{title}</span>
+      </div>
+      <p className="text-sm text-gray-700 dark:text-gray-300">
+        <span className="font-medium">Reason:</span> {reason}
+      </p>
+      {evidenceUrl && (
+        <a
+          href={evidenceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-blue-600 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 hover:text-blue-800 transition-all duration-200 shadow-sm"
+        >
+          🔗 View Evidence
+        </a>
+      )}
+    </div>
+  );
+
+  const StatusMessage = ({ icon, message, colorClass }) => (
+    <p className={`mt-3 font-semibold flex items-center gap-2 ${colorClass}`}>
+      {icon} {message}
+    </p>
+  );
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
       <div
         ref={modalRef}
-        className="bg-white dark:bg-darkCard text-black dark:text-white rounded-2xl shadow-xl w-full max-w-md relative max-h-[90vh] overflow-y-auto"
+        className="bg-white dark:bg-darkCard text-black dark:text-white rounded-2xl shadow-xl w-full max-w-md relative max-h-[90vh] overflow-y-auto animate-fadeIn"
       >
-        {/* ===== Sticky Red Banner (if reported) ===== */}
         {accusedWarning && (
           <div className="sticky top-0 z-20 bg-red-600 text-white font-semibold text-center px-4 py-3 rounded-t-2xl shadow-md">
             {accusedWarning}
@@ -134,7 +163,6 @@ const PostModal = ({
         )}
 
         <div className="p-6">
-          {/* ===== Close button ===== */}
           <button
             onClick={onClose}
             className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 dark:hover:text-white text-xl"
@@ -142,61 +170,53 @@ const PostModal = ({
             &times;
           </button>
 
-          {/* ===== Dispute / Report Status ===== */}
+          {/* ===== Dispute / Report Section ===== */}
           {selectedPost.tradeStatus === "disputed" && (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 space-y-4">
               {buyerReport && !sellerReport && currentUserIsOwner && (
-                <div className="p-3 rounded-lg bg-red-100 text-red-700">
-                  ⚠️ You have been reported by the buyer!, you have 24h to
-                  submit a report to protect yourself
-                  <br />
-                  <span className="font-semibold">Reason:</span>{" "}
-                  {buyerReport.reason}
-                  <br />
-                  <a
-                    href={sellerReport.evidenceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-700 transition-colors duration-200"
-                  >
-                    🔗 View Evidence
-                  </a>
-                </div>
+                <ReportCard
+                  title="Buyer Report"
+                  reason={buyerReport.reason}
+                  evidenceUrl={buyerReport.evidenceUrl}
+                />
               )}
-
               {sellerReport && !buyerReport && currentUserIsBuyer && (
-                <div className="p-3 rounded-lg bg-red-100 text-red-700">
-                  ⚠️ You have been reported by the seller!, you have 24h to
-                  submit a report to protect yourself
-                  <br />
-                  <span className="font-semibold">Reason:</span>{" "}
-                  {sellerReport.reason}
-                  <br />
-                  <a
-                    href={sellerReport.evidenceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 hover:text-blue-700 transition-colors duration-200"
-                  >
-                    🔗 View Evidence
-                  </a>
-                </div>
+                <ReportCard
+                  title="Seller Report"
+                  reason={sellerReport.reason}
+                  evidenceUrl={sellerReport.evidenceUrl}
+                />
               )}
-
               {buyerReport && sellerReport && (
-                <div className="p-3 rounded-lg bg-yellow-100 text-yellow-700">
-                  ⚖️ Both parties have reported each other. Admin is reviewing
-                  the dispute.
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-yellow-50 via-yellow-100 to-yellow-50 shadow-lg border border-yellow-300 animate-fadeIn space-y-3">
+                  <h3 className="text-lg font-bold text-yellow-800 flex items-center gap-2">
+                    ⚖️ Both parties reported
+                  </h3>
+                  <p className="text-sm text-yellow-700">
+                    Admin is reviewing the dispute. You can check the reasons
+                    and evidence below.
+                  </p>
+                  <div className="space-y-3">
+                    <ReportCard
+                      title="Seller Report"
+                      reason={sellerReport.reason}
+                      evidenceUrl={sellerReport.evidenceUrl}
+                    />
+                    <ReportCard
+                      title="Buyer Report"
+                      reason={buyerReport.reason}
+                      evidenceUrl={buyerReport.evidenceUrl}
+                    />
+                  </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* ===== Post content ===== */}
+          {/* ===== Post Content ===== */}
           <h2 className="text-2xl font-bold mb-2">
             {selectedPost.description}
           </h2>
-
           <div className="flex justify-between items-center mb-2">
             <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">
               Server: {selectedPost.server}
@@ -210,12 +230,10 @@ const PostModal = ({
               </button>
             )}
           </div>
-
           <p className="mb-2 text-yellow-500 font-semibold">
             Price: {selectedPost.price}{" "}
             {selectedPost.price === 1 ? "Coin" : "Coins"}
           </p>
-
           <p
             className={`text-sm font-semibold ${
               isAvailable ? "text-green-600" : "text-red-500"
@@ -223,59 +241,59 @@ const PostModal = ({
           >
             {isAvailable ? "Available ✔️" : "Not Available ❌"}
           </p>
-
           {selectedPost.owner && (
             <p className="mt-2 text-sm font-semibold text-gray-700 dark:text-gray-400">
               Seller: {selectedPost.owner.name || "Unknown"}
             </p>
           )}
 
-          {/* Confirmation status messages */}
+          {/* Confirmation / Trade messages */}
           {isPendingOrPendingRelease && (
             <>
               {currentUserIsOwner &&
                 buyerId &&
                 selectedPost.tradeConfirmations?.includes(buyerId) &&
                 !bothConfirmedFlag && (
-                  <p className="mt-3 text-red-500 font-semibold">
-                    ✅ Buyer has confirmed the trade, Chat with him before you
-                    Confirm Trade
-                  </p>
+                  <StatusMessage
+                    icon="✅"
+                    message="Buyer has confirmed the trade, Chat with him before you Confirm Trade"
+                    colorClass="text-red-500"
+                  />
                 )}
-
               {currentUserIsBuyer &&
                 ownerId &&
                 selectedPost.tradeConfirmations?.includes(ownerId) &&
                 !bothConfirmedFlag && (
-                  <p className="mt-3 text-red-500 font-semibold">
-                    ✅ Seller has confirmed the trade, Make Sure to Send Request
-                    to Him before you Confirm Trade!
-                  </p>
+                  <StatusMessage
+                    icon="✅"
+                    message="Seller has confirmed the trade, Make Sure to Send Request to Him before you Confirm Trade!"
+                    colorClass="text-red-500"
+                  />
                 )}
-
               {bothConfirmedFlag &&
                 (currentUserIsBuyer || currentUserIsOwner) && (
-                  <p className="mt-3 text-blue-600 font-semibold">
-                    🎉 Trade Successful! Feel free to report if there is a
-                    problem.
-                  </p>
+                  <StatusMessage
+                    icon="🎉"
+                    message="Trade Successful! Feel free to report if there is a problem."
+                    colorClass="text-blue-600"
+                  />
                 )}
             </>
           )}
 
-          {/* Show buy message inside modal after clicking Buy */}
           {showBuyMessage && (
-            <p className="mt-3 text-red-600 font-semibold">
-              ⚠️ Please Don't confirm till you chat with seller and meet with
-              him in-game.
-            </p>
+            <StatusMessage
+              icon="⚠️"
+              message="Please Don't confirm till you chat with seller and meet with him in-game."
+              colorClass="text-red-600"
+            />
           )}
 
-          {/* ===== Buttons Section ===== */}
+          {/* ===== Buttons ===== */}
           <div className="mt-4 space-y-2">
             {showBuyButton && (
               <button
-                className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+                className="w-full py-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
                 onClick={onBuyClick}
                 disabled={isProcessing}
               >
@@ -288,20 +306,21 @@ const PostModal = ({
                 <button
                   onClick={onConfirmClick}
                   disabled={isProcessing || confirmDisabled}
-                  className={`w-full py-2 rounded-xl text-white ${
+                  className={`w-full py-2 rounded-xl text-white shadow-md hover:shadow-lg transition-all duration-200 ${
                     isProcessing || confirmDisabled
                       ? "bg-green-400"
-                      : "bg-green-600 hover:bg-green-700"
+                      : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
                   }`}
                 >
                   Confirm Trade
                 </button>
-
                 <button
                   onClick={onCancelClick}
                   disabled={isProcessing}
-                  className={`w-full py-2 rounded-xl text-white ${
-                    isProcessing ? "bg-red-400" : "bg-red-600 hover:bg-red-700"
+                  className={`w-full py-2 rounded-xl text-white shadow-md hover:shadow-lg transition-all duration-200 ${
+                    isProcessing
+                      ? "bg-red-400"
+                      : "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
                   }`}
                 >
                   Cancel Trade
@@ -312,7 +331,7 @@ const PostModal = ({
             {showReportButton && (
               <button
                 onClick={() => setShowReportModal(true)}
-                className="w-full py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl"
+                className="w-full py-2 rounded-xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
               >
                 Report
               </button>
@@ -320,7 +339,7 @@ const PostModal = ({
 
             {showRequestButton && (
               <button
-                className="mt-3 w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
+                className="mt-3 w-full py-2 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200"
                 onClick={() => handleToggleRequest(selectedPost)}
                 disabled={isProcessing}
               >
