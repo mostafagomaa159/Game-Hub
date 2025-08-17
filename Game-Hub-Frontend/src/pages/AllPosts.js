@@ -194,7 +194,11 @@ const AllPosts = () => {
 
   const handlePostBuy = async () => {
     if (!selectedPost) return;
-    return await handleBuy(selectedPost); // return for modal
+
+    const updatedPost = await handleBuy(selectedPost); // handleBuy should return updated post
+    if (updatedPost) setSelectedPost(updatedPost); // <-- update modal state immediately
+
+    return updatedPost;
   };
 
   const handlePostToggleRequest = async () => {
