@@ -775,7 +775,7 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
     const postId = req.params.id;
     const { videoUrls, reason, urgency } = req.body;
 
-    // Validate videoUrls is an array with exactly one non-empty string
+    // ✅ Validate videoUrls
     if (
       !Array.isArray(videoUrls) ||
       videoUrls.length !== 1 ||
@@ -787,15 +787,27 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
       return res.status(400).send({ error: "One valid video URL is required" });
     }
 
-    // Validate urgency enum
+    // ✅ Validate urgency
     const validUrgencies = ["low", "medium", "high"];
     const safeUrgency = validUrgencies.includes(urgency) ? urgency : "medium";
 
+    // ✅ Get post
     const post = await newPost.findById(postId).session(session);
     if (!post) {
       await session.abortTransaction();
       session.endSession();
       return res.status(404).send({ error: "Post not found" });
+    }
+
+    // 🚨 Block disputes if trade already completed
+    if (post.tradeStatus === "completed") {
+      await session.abortTransaction();
+      session.endSession();
+      return res
+        .status(400)
+        .send({
+          error: "Trade is already completed. Disputes are not allowed.",
+        });
     }
 
     const ownerId = post.owner.toString();
@@ -809,6 +821,7 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
         .send({ error: "Not authorized to report this trade" });
     }
 
+    // ✅ Find or create trade transaction
     let tx = await TradeTransaction.findOne({ post: postId }).session(session);
     if (!tx) {
       tx = new TradeTransaction({
@@ -852,7 +865,7 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
       tx.dispute.status = "none";
     }
 
-    // Force dispute state
+    // ✅ Force dispute state
     tx.releaseAt = null;
     tx.status = "disputed";
 
@@ -865,12 +878,12 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    // 🔥 Emit socket update so buyer/seller see the dispute instantly
+    // 🔥 Emit socket update
     if (req.io) {
       req.io.to(`post:${post._id}`).emit("postUpdated", {
         _id: post._id,
         tradeStatus: post.tradeStatus,
-        dispute: tx.dispute, // send only what frontend needs for banner
+        dispute: tx.dispute,
       });
     }
 
@@ -880,7 +893,7 @@ router.post("/newpost/:id/report", auth, async (req, res) => {
       tradeTransaction: tx,
       post: {
         ...post.toObject(),
-        tradeTransaction: tx, // ✅ أضمن إن الـfrontend يستقبل الـdispute
+        tradeTransaction: tx,
       },
     });
   } catch (error) {

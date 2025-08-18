@@ -7,21 +7,22 @@ import {
   Coins,
   CheckCircle,
   XCircle,
+  ArrowRight,
 } from "lucide-react";
 
 const VoteButton = ({ type, count, onClick, active, disabled }) => {
   const Icon = type === "good" ? ThumbsUp : ThumbsDown;
 
   const baseStyles =
-    "flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200";
+    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200";
 
   const styles = {
     good: active
-      ? "bg-green-500 text-white"
-      : "bg-green-100 hover:bg-green-200 dark:bg-green-800 dark:hover:bg-green-700 text-green-800 dark:text-white",
+      ? "bg-green-100/90 dark:bg-green-900/60 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-700"
+      : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:text-green-700 dark:hover:text-green-400",
     bad: active
-      ? "bg-red-500 text-white"
-      : "bg-red-100 hover:bg-red-200 dark:bg-red-800 dark:hover:bg-red-700 text-red-800 dark:text-white",
+      ? "bg-red-100/90 dark:bg-red-900/60 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-700"
+      : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 hover:text-red-700 dark:hover:text-red-400",
   };
 
   return (
@@ -31,12 +32,12 @@ const VoteButton = ({ type, count, onClick, active, disabled }) => {
       title={active ? `Remove ${type} vote` : `Vote ${type}`}
       className={`${baseStyles} ${
         disabled && !active
-          ? "bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed"
+          ? "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
           : styles[type]
       }`}
     >
-      <Icon className="w-4 h-4" />
-      {count || 0}
+      <Icon className={`w-4 h-4 ${active ? "fill-current" : ""}`} />
+      <span className="font-medium">{count || 0}</span>
     </button>
   );
 };
@@ -48,63 +49,87 @@ const PostCard = ({
   setSelectedPostId,
   handleVote,
 }) => {
-  // Find if this user already voted
   const userVote = post.voters?.find((v) => v.user === userId);
 
   return (
-    <div className="bg-white dark:bg-darkCard rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-transform duration-300 p-5 flex flex-col justify-between border border-gray-200 dark:border-gray-700 h-full min-h-[320px] cursor-pointer">
+    <div
+      onClick={() => setSelectedPostId(post._id)}
+      className="group bg-white dark:bg-gray-900 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 p-4 flex flex-col justify-between border border-gray-200 dark:border-gray-700 h-full min-h-[280px] cursor-pointer hover:border-gray-300 dark:hover:border-gray-600"
+    >
       {/* Top Section */}
-      <div className="flex flex-col flex-grow">
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-3 line-clamp-2">
+      <div className="flex flex-col flex-grow space-y-3">
+        <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
           {post.description}
         </h2>
-        <p className="flex items-center gap-1 text-sm font-semibold text-yellow-500 mb-1">
-          <Coins className="w-4 h-4" />
-          {post.price} {post.price === 1 ? "Coin" : "Coins"}
-        </p>
-        <p className="flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
-          <Monitor className="w-4 h-4" />
-          {post.server}
-        </p>
-        <p
-          className={`flex items-center gap-1 text-sm font-semibold mb-2 ${
-            post.avaliable ? "text-green-600" : "text-red-500"
-          }`}
-        >
-          {post.avaliable ? (
-            <CheckCircle className="w-4 h-4" />
-          ) : (
-            <XCircle className="w-4 h-4" />
-          )}
-          {post.avaliable ? "Available" : "Not Available"}
-        </p>
-        <div className="flex-grow" /> {/* Push footer down */}
+
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-full text-xs font-medium">
+            <Monitor className="w-3 h-3" />
+            {post.server}
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm">
+            <Coins className="w-4 h-4 text-yellow-500" />
+            <span className="font-semibold text-yellow-600 dark:text-yellow-500">
+              {post.price} {post.price === 1 ? "Coin" : "Coins"}
+            </span>
+          </div>
+
+          <div
+            className={`flex items-center gap-2 text-sm ${
+              post.avaliable
+                ? "text-green-600 dark:text-green-400"
+                : "text-red-600 dark:text-red-400"
+            }`}
+          >
+            {post.avaliable ? (
+              <CheckCircle className="w-4 h-4" />
+            ) : (
+              <XCircle className="w-4 h-4" />
+            )}
+            <span className="font-medium">
+              {post.avaliable ? "Available" : "Not Available"}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Footer */}
-      <div>
-        <div className="flex items-center gap-3 mb-3">
+      <div className="mt-4 space-y-3">
+        <div className="flex items-center gap-2">
           <VoteButton
             type="good"
             count={post.good_response}
-            onClick={() => handleVote(post._id, "good")}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleVote(post._id, "good");
+            }}
             active={userVote?.vote === "good"}
             disabled={isProcessing}
           />
           <VoteButton
             type="bad"
             count={post.bad_response}
-            onClick={() => handleVote(post._id, "bad")}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleVote(post._id, "bad");
+            }}
             active={userVote?.vote === "bad"}
             disabled={isProcessing}
           />
         </div>
 
         <button
-          onClick={() => setSelectedPostId(post._id)}
-          className="mt-auto w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedPostId(post._id);
+          }}
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200"
         >
           View Details
+          <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </div>
