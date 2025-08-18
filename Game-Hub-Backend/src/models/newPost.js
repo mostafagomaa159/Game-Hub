@@ -34,11 +34,21 @@ const newPostSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    voters: {
-      type: [mongoose.Schema.Types.ObjectId],
-      ref: "User",
-      default: [],
-    },
+    voters: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        vote: {
+          type: String,
+          enum: ["good", "bad"],
+          required: true,
+        },
+      },
+    ],
+
     requests: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: "User",

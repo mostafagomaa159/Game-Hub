@@ -40,12 +40,14 @@ const usePostActions = (
     const postId = post._id;
     if (processingIds.has(postId) || post.voters?.includes(userId)) return;
 
+    // Determine which field to increment
+    const field = voteType === "good" ? "good_response" : "bad_response";
+
     const previousPost = { ...post, voters: [...(post.voters || [])] };
     const optimisticPost = {
       ...post,
       voters: [...(post.voters || []), userId],
-      [voteType === "good" ? "good_response" : "bad_response"]:
-        (post[voteType === "good" ? "good_response" : "bad_response"] || 0) + 1,
+      [field]: (post[field] || 0) + 1,
     };
 
     updatePost(optimisticPost);
@@ -55,11 +57,15 @@ const usePostActions = (
       const res = await axios.patch(`/newpost/${postId}/vote`, {
         vote: voteType,
       });
-      if (res.data) updatePost(res.data);
-      else toast.success("Vote recorded");
+
+      if (res.data) {
+        updatePost(res.data); // trust server as source of truth
+      } else {
+        toast.success("Vote recorded");
+      }
     } catch (err) {
-      updatePost(previousPost);
-      toast.error(err.response?.data?.error || "Vote failed");
+      updatePost(previousPost); // rollback optimistic update
+      toast.error(err.response?.data?.error || "Failed to record vote");
     } finally {
       removeProcessingId(postId);
     }

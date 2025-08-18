@@ -155,7 +155,7 @@ router.patch("/newpost/:id", auth, async (req, res) => {
 
 // Vote on a post
 router.patch("/newpost/:id/vote", auth, async (req, res) => {
-  const { vote } = req.body;
+  const { vote } = req.body; // "good" | "bad"
   const userId = req.user._id;
 
   if (!["good", "bad"].includes(vote)) {
@@ -166,16 +166,38 @@ router.patch("/newpost/:id/vote", auth, async (req, res) => {
     const post = await newPost.findById(req.params.id);
     if (!post) return res.status(404).send({ error: "Post not found" });
 
-    if (post.voters.includes(userId)) {
-      return res.status(403).send({ error: "You already voted" });
+    const existingVote = post.voters.find(
+      (v) => v.user.toString() === userId.toString()
+    );
+
+    if (existingVote) {
+      // If same vote → remove it (toggle off)
+      if (existingVote.vote === vote) {
+        if (vote === "good") post.good_response -= 1;
+        else post.bad_response -= 1;
+
+        post.voters = post.voters.filter(
+          (v) => v.user.toString() !== userId.toString()
+        );
+      } else {
+        // If different vote → switch
+        if (existingVote.vote === "good") {
+          post.good_response -= 1;
+          post.bad_response += 1;
+        } else {
+          post.bad_response -= 1;
+          post.good_response += 1;
+        }
+        existingVote.vote = vote;
+      }
+    } else {
+      // New vote
+      post.voters.push({ user: userId, vote });
+      if (vote === "good") post.good_response += 1;
+      else post.bad_response += 1;
     }
 
-    if (vote === "good") post.good_response += 1;
-    else post.bad_response += 1;
-
-    post.voters.push(userId);
     await post.save();
-
     res.send(post);
   } catch (e) {
     res.status(500).send({ error: "Voting failed" });

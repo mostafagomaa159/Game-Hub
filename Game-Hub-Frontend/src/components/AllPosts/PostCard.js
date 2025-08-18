@@ -9,19 +9,30 @@ import {
   XCircle,
 } from "lucide-react";
 
-const VoteButton = ({ type, count, onClick, disabled }) => {
+const VoteButton = ({ type, count, onClick, active, disabled }) => {
   const Icon = type === "good" ? ThumbsUp : ThumbsDown;
-  const bgColor = type === "good" ? "green" : "red";
+
+  const baseStyles =
+    "flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200";
+
+  const styles = {
+    good: active
+      ? "bg-green-500 text-white"
+      : "bg-green-100 hover:bg-green-200 dark:bg-green-800 dark:hover:bg-green-700 text-green-800 dark:text-white",
+    bad: active
+      ? "bg-red-500 text-white"
+      : "bg-red-100 hover:bg-red-200 dark:bg-red-800 dark:hover:bg-red-700 text-red-800 dark:text-white",
+  };
 
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      title={disabled ? "Already voted or processing..." : `Vote ${type}`}
-      className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-        disabled
+      title={active ? `Remove ${type} vote` : `Vote ${type}`}
+      className={`${baseStyles} ${
+        disabled && !active
           ? "bg-gray-300 dark:bg-gray-600 text-gray-500 cursor-not-allowed"
-          : `bg-${bgColor}-100 hover:bg-${bgColor}-200 dark:bg-${bgColor}-800 dark:hover:bg-${bgColor}-700 text-${bgColor}-800 dark:text-white`
+          : styles[type]
       }`}
     >
       <Icon className="w-4 h-4" />
@@ -37,7 +48,8 @@ const PostCard = ({
   setSelectedPostId,
   handleVote,
 }) => {
-  const hasVoted = post.voters?.includes(userId);
+  // Find if this user already voted
+  const userVote = post.voters?.find((v) => v.user === userId);
 
   return (
     <div className="bg-white dark:bg-darkCard rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] transition-transform duration-300 p-5 flex flex-col justify-between border border-gray-200 dark:border-gray-700 h-full min-h-[320px] cursor-pointer">
@@ -76,13 +88,15 @@ const PostCard = ({
             type="good"
             count={post.good_response}
             onClick={() => handleVote(post._id, "good")}
-            disabled={hasVoted || isProcessing}
+            active={userVote?.vote === "good"}
+            disabled={isProcessing}
           />
           <VoteButton
             type="bad"
             count={post.bad_response}
             onClick={() => handleVote(post._id, "bad")}
-            disabled={hasVoted || isProcessing}
+            active={userVote?.vote === "bad"}
+            disabled={isProcessing}
           />
         </div>
 
