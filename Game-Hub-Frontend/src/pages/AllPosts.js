@@ -38,6 +38,8 @@ const AllPosts = () => {
   const [selectedPost, setSelectedPost] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [availableOnly, setAvailableOnly] = useState(false);
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
 
   useEffect(() => {
     setHasConfirmed(false);
@@ -91,8 +93,16 @@ const AllPosts = () => {
     if (availableOnly) {
       temp = temp.filter((post) => !post.buyer); // show posts that are not sold
     }
+    const min = priceMin !== "" ? Number(priceMin) : -Infinity;
+    const max = priceMax !== "" ? Number(priceMax) : Infinity;
+
+    temp = temp.filter((post) => {
+      const price = Number(post?.price ?? 0); // لو السعر جايلك string
+      return price >= min && price <= max;
+    });
+
     return temp;
-  }, [searchTerm, serverFilter, posts, availableOnly]);
+  }, [searchTerm, serverFilter, posts, availableOnly, priceMin, priceMax]);
 
   const { currentPosts, totalPages } = useMemo(() => {
     const indexOfLast = currentPage * POSTS_PER_PAGE;
@@ -257,6 +267,10 @@ const AllPosts = () => {
         serverFilter={serverFilter}
         setServerFilter={setServerFilter}
         setAvailableOnly={setAvailableOnly}
+        priceMax={priceMax}
+        setPriceMax={setPriceMax}
+        priceMin={priceMin}
+        setPriceMin={setPriceMin}
         posts={posts}
       />
 
