@@ -37,6 +37,7 @@ const AllPosts = () => {
   const modalRef = useRef(null);
   const [selectedPost, setSelectedPost] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const [availableOnly, setAvailableOnly] = useState(false);
 
   useEffect(() => {
     setHasConfirmed(false);
@@ -87,8 +88,11 @@ const AllPosts = () => {
     if (serverFilter !== "All") {
       temp = temp.filter((post) => post.server === serverFilter);
     }
+    if (availableOnly) {
+      temp = temp.filter((post) => !post.buyer); // show posts that are not sold
+    }
     return temp;
-  }, [searchTerm, serverFilter, posts]);
+  }, [searchTerm, serverFilter, posts, availableOnly]);
 
   const { currentPosts, totalPages } = useMemo(() => {
     const indexOfLast = currentPage * POSTS_PER_PAGE;
@@ -252,6 +256,7 @@ const AllPosts = () => {
         setSearchTerm={setSearchTerm}
         serverFilter={serverFilter}
         setServerFilter={setServerFilter}
+        setAvailableOnly={setAvailableOnly}
         posts={posts}
       />
 
