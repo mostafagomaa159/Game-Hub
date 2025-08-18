@@ -38,7 +38,9 @@ const transactionSchema = new mongoose.Schema(
     },
     screenshot: {
       type: String,
-      required: true,
+      required: function () {
+        return this.type === "deposit";
+      },
     },
     iban: {
       type: String,

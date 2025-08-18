@@ -3,10 +3,15 @@ import axios from "../api/axiosInstance";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-
-// React Icons imports for input adornments
-import { FiEdit2, FiDollarSign, FiServer, FiCheckCircle } from "react-icons/fi";
+import {
+  FiEdit2,
+  FiDollarSign,
+  FiServer,
+  FiCheckCircle,
+  FiPlus,
+} from "react-icons/fi";
 import { FaDiscord } from "react-icons/fa";
+
 const NewPostForm = () => {
   const [formData, setFormData] = useState({
     description: "",
@@ -45,26 +50,29 @@ const NewPostForm = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4 py-12 transition-colors duration-300">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 shadow-2xl rounded-3xl p-8">
-        <h2 className="text-3xl font-extrabold text-center mb-8 text-gray-900 dark:text-white">
-          Create a New Post
-        </h2>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-8 transition-colors duration-200">
+      <div className="w-full max-w-md bg-white dark:bg-gray-800 shadow-lg rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+        {/* Form Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 p-6">
+          <h2 className="text-2xl font-bold text-white text-center">
+            Create New Post
+          </h2>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Description */}
-          <div>
+          <div className="space-y-1">
             <label
               htmlFor="description"
-              className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               Description
             </label>
-            <div className="relative flex items-center">
-              <FiEdit2
-                className="absolute left-3 text-gray-400 dark:text-gray-500"
-                size={20}
-              />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FiEdit2 className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+              </div>
               <input
                 type="text"
                 id="description"
@@ -72,25 +80,24 @@ const NewPostForm = () => {
                 value={formData.description}
                 onChange={handleChange}
                 required
-                placeholder="Enter post description"
-                className="pl-10 w-full py-3 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                placeholder="What are you offering?"
+                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
             </div>
           </div>
 
           {/* Price */}
-          <div>
+          <div className="space-y-1">
             <label
               htmlFor="price"
-              className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
-              Price (coins)
+              Price (Coins)
             </label>
-            <div className="relative flex items-center">
-              <FiDollarSign
-                className="absolute left-3 text-gray-400 dark:text-gray-500"
-                size={20}
-              />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FiDollarSign className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+              </div>
               <input
                 type="number"
                 id="price"
@@ -98,26 +105,25 @@ const NewPostForm = () => {
                 value={formData.price}
                 onChange={handleChange}
                 required
-                placeholder="Enter price"
+                placeholder="0"
                 min={0}
-                className="pl-10 w-full py-3 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
             </div>
           </div>
 
           {/* Server */}
-          <div>
+          <div className="space-y-1">
             <label
               htmlFor="server"
-              className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
               Server
             </label>
-            <div className="relative flex items-center">
-              <FiServer
-                className="absolute left-3 text-gray-400 dark:text-gray-500"
-                size={20}
-              />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FiServer className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+              </div>
               <input
                 type="text"
                 id="server"
@@ -125,25 +131,24 @@ const NewPostForm = () => {
                 value={formData.server}
                 onChange={handleChange}
                 required
-                placeholder="Enter server name"
-                className="pl-10 w-full py-3 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                placeholder="Server name"
+                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
             </div>
           </div>
 
           {/* Discord */}
-          <div>
+          <div className="space-y-1">
             <label
               htmlFor="discord"
-              className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
-              Discord Username
+              Discord
             </label>
-            <div className="relative flex items-center">
-              <FaDiscord
-                className="absolute left-3 text-gray-400 dark:text-gray-500"
-                size={20}
-              />
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FaDiscord className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+              </div>
               <input
                 type="text"
                 id="discord"
@@ -151,41 +156,41 @@ const NewPostForm = () => {
                 value={formData.discord}
                 onChange={handleChange}
                 required
-                placeholder="Enter Discord username"
-                className="pl-10 w-full py-3 border dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                placeholder="Your Discord username"
+                className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
             </div>
           </div>
 
-          {/* Available checkbox */}
-          <div className="flex items-center space-x-3">
+          {/* Availability */}
+          <div className="flex items-center">
             <input
               type="checkbox"
               id="avaliable"
               name="avaliable"
               checked={formData.avaliable}
               onChange={handleChange}
-              className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:checked:bg-blue-600 rounded transition"
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded transition"
             />
             <label
               htmlFor="avaliable"
-              className="text-sm text-gray-700 dark:text-gray-300 select-none flex items-center gap-2"
+              className="ml-2 block text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2"
             >
-              <FiCheckCircle
-                size={18}
-                className="text-blue-600 dark:text-blue-400"
-              />
-              Available
+              <FiCheckCircle className="text-blue-600 dark:text-blue-400" />
+              Currently Available
             </label>
           </div>
 
           {/* Submit Button */}
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition dark:bg-blue-500 dark:hover:bg-blue-600 font-semibold text-lg shadow-md"
-          >
-            Submit Post
-          </button>
+          <div className="pt-2">
+            <button
+              type="submit"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              <FiPlus className="w-5 h-5" />
+              Create Post
+            </button>
+          </div>
         </form>
       </div>
     </div>

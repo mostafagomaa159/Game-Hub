@@ -1,13 +1,23 @@
 import React, { useState } from "react";
 import axios from "../api/axiosInstance";
-import { FaCopy, FaChevronDown, FaChevronUp } from "react-icons/fa";
+import {
+  ArrowPathIcon,
+  BanknotesIcon,
+  CreditCardIcon,
+  IdentificationIcon,
+  DocumentTextIcon,
+  XMarkIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ClipboardDocumentIcon,
+} from "@heroicons/react/24/outline";
 
 const Deposit = () => {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("paypal");
   const [iban, setIban] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
-  const [screenshot, setScreenshot] = useState(""); // base64 string
+  const [screenshot, setScreenshot] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [showBankDetails, setShowBankDetails] = useState(false);
@@ -43,7 +53,7 @@ const Deposit = () => {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setScreenshot(reader.result.toString()); // base64 string
+      setScreenshot(reader.result.toString());
     };
     reader.readAsDataURL(file);
   };
@@ -84,11 +94,11 @@ const Deposit = () => {
 
       const payload = {
         amount: Number(amount),
-        screenshot, // base64 screenshot
+        screenshot,
       };
 
       if (method === "paypal") {
-        payload.method = "paypal"; // optional, backend already knows
+        payload.method = "paypal";
         const res = await axios.post("/transactions/deposit/paypal", payload, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
@@ -101,7 +111,6 @@ const Deposit = () => {
           window.location.href = res.data.approvalUrl;
         }
       } else {
-        // Bank deposit
         payload.method = "bank";
         payload.iban = iban;
         payload.accountNumber = accountNumber;
@@ -137,166 +146,232 @@ const Deposit = () => {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-gray-900 text-white rounded-xl shadow-xl mt-10 relative">
-      <h2 className="text-xl font-semibold mb-4">Deposit Coins</h2>
+    <div className="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden border border-gray-200 dark:border-gray-700">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800 p-6">
+        <h2 className="text-xl font-bold text-white text-center">
+          Deposit Coins
+        </h2>
+      </div>
 
-      <input
-        type="number"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        className="w-full p-2 mb-4 rounded bg-gray-800 border border-gray-700 text-white placeholder-gray-400"
-        placeholder="Enter amount"
-        min="10"
-      />
+      {/* Form */}
+      <div className="p-6 space-y-4">
+        {/* Amount */}
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Amount (Minimum 10 coins)
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <BanknotesIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+            </div>
+            <input
+              type="number"
+              placeholder="Enter amount"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              min="10"
+              required
+            />
+          </div>
+        </div>
 
-      <label className="block mb-1 text-gray-300">Select Payment Method:</label>
-      <select
-        value={method}
-        onChange={(e) => setMethod(e.target.value)}
-        className="w-full p-2 mb-4 rounded bg-gray-800 border border-gray-700 text-white"
-      >
-        <option value="paypal">PayPal</option>
-        <option value="bank">Bank Transfer</option>
-      </select>
+        {/* Method */}
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Payment Method
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <CreditCardIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+            </div>
+            <select
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
+              className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition appearance-none"
+            >
+              <option value="paypal">PayPal</option>
+              <option value="bank">Bank Transfer</option>
+            </select>
+          </div>
+        </div>
 
-      {/* Collapsible Bank Details */}
-      {method === "bank" && (
-        <div className="mb-4">
-          <button
-            className="w-full flex justify-between items-center bg-gray-800 p-2 rounded"
-            onClick={() => setShowBankDetails(!showBankDetails)}
-          >
-            <span className="text-gray-300 font-semibold">
-              Our Bank Details
-            </span>
-            {showBankDetails ? <FaChevronUp /> : <FaChevronDown />}
-          </button>
+        {/* Bank Details */}
+        {method === "bank" && (
+          <>
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => setShowBankDetails(!showBankDetails)}
+                className="w-full flex justify-between items-center p-3 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+              >
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Our Bank Details
+                </span>
+                {showBankDetails ? (
+                  <ChevronUpIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                ) : (
+                  <ChevronDownIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                )}
+              </button>
 
-          {showBankDetails && (
-            <div className="bg-gray-700 p-3 mt-2 rounded space-y-2">
-              {["IBAN", "Account Number", "SWIFT/BIC"].map((label, idx) => (
-                <div key={idx} className="flex justify-between items-center">
-                  <p className="text-gray-400">{label}:</p>
-                  <button
-                    onClick={() =>
-                      copyToClipboard(
-                        label === "IBAN"
-                          ? bankDetails.yourIban
-                          : label === "Account Number"
-                          ? bankDetails.yourAccountNumber
-                          : bankDetails.yourSwiftCode
-                      )
-                    }
-                    className="text-blue-400 hover:text-blue-300"
-                  >
-                    <FaCopy />
-                  </button>
+              {showBankDetails && (
+                <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg border border-gray-200 dark:border-gray-600 space-y-3">
+                  {[
+                    { label: "IBAN", value: bankDetails.yourIban },
+                    {
+                      label: "Account Number",
+                      value: bankDetails.yourAccountNumber,
+                    },
+                    { label: "SWIFT/BIC", value: bankDetails.yourSwiftCode },
+                  ].map((item, idx) => (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          {item.label}
+                        </span>
+                        <button
+                          onClick={() => copyToClipboard(item.value)}
+                          className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                          title="Copy to clipboard"
+                        >
+                          <ClipboardDocumentIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <p className="font-mono text-sm text-gray-800 dark:text-gray-200 break-all">
+                        {item.value}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              <p className="text-white font-mono">{bankDetails.yourIban}</p>
-              <p className="text-white font-mono">
-                {bankDetails.yourAccountNumber}
-              </p>
-              <p className="text-white font-mono">
-                {bankDetails.yourSwiftCode}
-              </p>
+              )}
+            </div>
+
+            {/* User Bank Info */}
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Your IBAN
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <IdentificationIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <input
+                    type="text"
+                    value={iban}
+                    onChange={(e) => setIban(e.target.value)}
+                    className={`block w-full pl-10 pr-3 py-2.5 border ${
+                      iban && !isValidIban(iban)
+                        ? "border-red-500"
+                        : "border-gray-300 dark:border-gray-600"
+                    } rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition`}
+                    placeholder="Your IBAN"
+                  />
+                </div>
+                {iban && !isValidIban(iban) && (
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    Invalid IBAN format
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Your Account Number
+                </label>
+                <input
+                  type="text"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  className={`block w-full px-3 py-2.5 border ${
+                    accountNumber && !isValidAccountNumber(accountNumber)
+                      ? "border-red-500"
+                      : "border-gray-300 dark:border-gray-600"
+                  } rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition`}
+                  placeholder="Your Account Number"
+                />
+                {accountNumber && !isValidAccountNumber(accountNumber) && (
+                  <p className="text-sm text-red-500 dark:text-red-400">
+                    Invalid account number format
+                  </p>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Screenshot Upload */}
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Payment Proof
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <DocumentTextIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleScreenshotUpload}
+              className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200 dark:file:bg-gray-600 dark:file:text-gray-200"
+            />
+          </div>
+
+          {screenshot && (
+            <div className="relative mt-2">
+              <img
+                src={screenshot}
+                alt="Payment proof preview"
+                className="w-full h-auto rounded-lg border border-gray-300 dark:border-gray-600"
+              />
+              <button
+                type="button"
+                onClick={() => setScreenshot("")}
+                className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+              >
+                <XMarkIcon className="h-4 w-4" />
+              </button>
             </div>
           )}
         </div>
-      )}
 
-      {/* User input for bank info */}
-      {method === "bank" && (
-        <>
-          <input
-            type="text"
-            value={iban}
-            onChange={(e) => setIban(e.target.value)}
-            className={`w-full p-2 mb-1 rounded bg-gray-800 border ${
-              iban && !isValidIban(iban) ? "border-red-500" : "border-gray-700"
-            } text-white placeholder-gray-400`}
-            placeholder="Your IBAN"
-          />
-          {iban && !isValidIban(iban) && (
-            <p className="text-red-400 text-sm mb-2">Invalid IBAN format</p>
+        {/* Submit Button */}
+        <button
+          onClick={handleDeposit}
+          disabled={
+            !amount ||
+            Number(amount) <= 0 ||
+            loading ||
+            isBankInvalid ||
+            isScreenshotMissing
+          }
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-70 disabled:cursor-not-allowed"
+        >
+          {loading ? (
+            <>
+              <ArrowPathIcon className="w-5 h-5 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            "Deposit Coins"
           )}
+        </button>
 
-          <input
-            type="text"
-            value={accountNumber}
-            onChange={(e) => setAccountNumber(e.target.value)}
-            className={`w-full p-2 mb-1 rounded bg-gray-800 border ${
-              accountNumber && !isValidAccountNumber(accountNumber)
-                ? "border-red-500"
-                : "border-gray-700"
-            } text-white placeholder-gray-400`}
-            placeholder="Your Account Number"
-          />
-          {accountNumber && !isValidAccountNumber(accountNumber) && (
-            <p className="text-red-400 text-sm mb-2">
-              Invalid account number format
-            </p>
-          )}
-        </>
-      )}
-
-      {/* Screenshot upload */}
-      {/* Screenshot upload */}
-      <div className="mb-4">
-        <label className="block mb-1 text-gray-300">Upload Screenshot:</label>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleScreenshotUpload}
-          className="w-full text-white"
-        />
-
-        {/* Preview */}
-        {screenshot && (
-          <div className="relative mt-2">
-            <img
-              src={screenshot}
-              alt="Screenshot Preview"
-              className="w-full h-auto rounded-md border border-gray-700"
-            />
-            <button
-              type="button"
-              onClick={() => setScreenshot("")}
-              className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"
-            >
-              ✕
-            </button>
+        {/* Status Message */}
+        {status && (
+          <div
+            className={`p-3 rounded-lg text-sm ${
+              status.startsWith("✅")
+                ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-l-4 border-green-500"
+                : "bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-l-4 border-red-500"
+            }`}
+          >
+            {status}
           </div>
         )}
       </div>
-
-      <button
-        onClick={handleDeposit}
-        disabled={
-          !amount ||
-          Number(amount) <= 0 ||
-          loading ||
-          isBankInvalid ||
-          isScreenshotMissing
-        }
-        className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white"
-      >
-        {loading ? "Processing..." : "Deposit"}
-      </button>
-
-      {status && (
-        <p
-          className={`mt-4 ${
-            status.startsWith("✅")
-              ? "text-green-400"
-              : status.startsWith("❌")
-              ? "text-red-500"
-              : "text-red-400"
-          }`}
-        >
-          {status}
-        </p>
-      )}
     </div>
   );
 };

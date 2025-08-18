@@ -97,7 +97,7 @@ const AllPosts = () => {
     const max = priceMax !== "" ? Number(priceMax) : Infinity;
 
     temp = temp.filter((post) => {
-      const price = Number(post?.price ?? 0); // لو السعر جايلك string
+      const price = Number(post?.price ?? 0);
       return price >= min && price <= max;
     });
 

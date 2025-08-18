@@ -1,7 +1,14 @@
-// src/components/adminTabs/DepositsTab.js
 import React, { useEffect, useState, useCallback } from "react";
 import axios from "../../api/axiosInstance";
 import SkeletonCard from "../common/SkeletonCard";
+import {
+  CheckIcon,
+  XMarkIcon,
+  ArrowPathIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
 
 const ITEMS_PER_PAGE = 5;
 const SKELETON_COUNT = 6;
@@ -128,7 +135,7 @@ const DepositsTab = ({
   if (loading) {
     return (
       <div className="py-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto px-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto px-4">
           {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
             <SkeletonCard key={i} variant="post" isHistory />
           ))}
@@ -140,16 +147,20 @@ const DepositsTab = ({
   if (error) {
     return (
       <div className="py-8">
-        <div className="max-w-2xl mx-auto text-center px-3">
-          <div className="text-red-600 dark:text-red-400 font-semibold mb-3">
-            {error}
+        <div className="max-w-2xl mx-auto text-center px-4">
+          <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-4 rounded-r-lg flex flex-col items-center gap-3">
+            <ExclamationTriangleIcon className="w-8 h-8 text-red-500 dark:text-red-400" />
+            <div className="text-red-700 dark:text-red-300 font-medium">
+              {error}
+            </div>
+            <button
+              onClick={retryFetch}
+              className="mt-2 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              <ArrowPathIcon className="w-5 h-5" />
+              Retry
+            </button>
           </div>
-          <button
-            onClick={retryFetch}
-            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 transition"
-          >
-            Retry
-          </button>
         </div>
       </div>
     );
@@ -159,16 +170,17 @@ const DepositsTab = ({
     return (
       <div className="py-8">
         <div className="max-w-2xl mx-auto text-center px-4">
-          <div className="text-4xl animate-bounce mb-2">📭</div>
-          <div className="text-gray-600 dark:text-gray-300 text-lg">
-            No pending deposits.
-          </div>
-          <div className="mt-6 flex items-center justify-center gap-4">
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+            <div className="text-4xl mb-3">📭</div>
+            <div className="text-gray-600 dark:text-gray-300 text-lg font-medium">
+              No pending deposits found
+            </div>
             <button
               onClick={retryFetch}
-              className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 transition"
+              className="mt-4 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium shadow-md hover:shadow-lg transition-all duration-200"
             >
-              Retry
+              <ArrowPathIcon className="w-5 h-5" />
+              Refresh
             </button>
           </div>
         </div>
@@ -176,87 +188,116 @@ const DepositsTab = ({
     );
   }
 
-  // Normal render
   return (
     <div className="py-4">
-      <div className="max-w-6xl mx-auto px-3 space-y-4">
+      <div className="max-w-6xl mx-auto px-4 space-y-4">
         {paginated.map((item) => (
           <div
             key={item._id}
-            className="p-4 rounded-xl shadow-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col gap-4 hover:shadow-xl transition-shadow duration-200"
+            className="p-5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow duration-200"
           >
             {/* Info + Screenshot */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Left: User info */}
-              <div className="space-y-1 text-sm">
-                <p>
-                  <strong>Name:</strong> {item.userId?.name || "N/A"}
-                </p>
-                <p>
-                  <strong>Email:</strong> {item.userId?.email || "N/A"}
-                </p>
-                <p>
-                  <strong>Amount:</strong> {item.amount ?? "-"} coins
-                </p>
-                <p>
-                  <strong>Status:</strong> {item.status ?? "-"}
-                </p>
-                <p>
-                  <strong>Method:</strong> {item.method ?? "-"}
-                </p>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Name
+                    </p>
+                    <p className="font-medium">{item.userId?.name || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Email
+                    </p>
+                    <p className="font-medium">{item.userId?.email || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Amount
+                    </p>
+                    <p className="font-medium text-yellow-600 dark:text-yellow-500">
+                      {item.amount ?? "-"} coins
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Method
+                    </p>
+                    <p className="font-medium capitalize">
+                      {item.method ?? "-"}
+                    </p>
+                  </div>
+                </div>
+
                 {item.method === "paypal" && item.paypalEmail && (
-                  <p>
-                    <strong>PayPal Email:</strong> {item.paypalEmail}
-                  </p>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      PayPal Email
+                    </p>
+                    <p className="font-medium">{item.paypalEmail}</p>
+                  </div>
                 )}
+
                 {item.method === "bank" && (
-                  <>
-                    <p>
-                      <strong>IBAN:</strong> {item.iban || "-"}
-                    </p>
-                    <p>
-                      <strong>Account Number:</strong>{" "}
-                      {item.accountNumber || "-"}
-                    </p>
-                  </>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        IBAN
+                      </p>
+                      <p className="font-medium">{item.iban || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Account Number
+                      </p>
+                      <p className="font-medium">{item.accountNumber || "-"}</p>
+                    </div>
+                  </div>
                 )}
               </div>
 
               {/* Right: Screenshot */}
               {item.screenshot && (
-                <div className="flex justify-center items-start">
+                <div className="flex flex-col items-center">
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                    Payment Proof
+                  </p>
                   <img
                     src={item.screenshot}
                     alt="Deposit Screenshot"
-                    className="rounded-md border border-gray-300 dark:border-gray-600 max-w-xs max-h-48 object-contain shadow-sm hover:scale-105 transition-transform duration-200"
+                    className="rounded-lg border border-gray-300 dark:border-gray-600 max-w-xs max-h-48 object-contain shadow-sm hover:scale-105 transition-transform duration-200"
                   />
                 </div>
               )}
             </div>
 
             {/* Bottom: Action buttons */}
-            <div className="flex gap-2 mt-3 justify-start">
+            <div className="flex gap-3 mt-5">
               <button
                 onClick={() => handleAction(item._id, "approve")}
                 disabled={processingId === item._id}
-                className={`px-4 py-2 rounded text-white transition ${
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white font-medium shadow-md transition-all duration-200 ${
                   processingId === item._id
-                    ? "bg-green-400 dark:bg-green-500"
-                    : "bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
+                    ? "bg-green-400 dark:bg-green-600 cursor-not-allowed"
+                    : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
                 }`}
               >
-                {processingId === item._id ? "..." : "Approve"}
+                <CheckIcon className="w-5 h-5" />
+                Approve
               </button>
               <button
                 onClick={() => handleAction(item._id, "reject")}
                 disabled={processingId === item._id}
-                className={`px-4 py-2 rounded text-white transition ${
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white font-medium shadow-md transition-all duration-200 ${
                   processingId === item._id
-                    ? "bg-red-400 dark:bg-red-500"
-                    : "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
+                    ? "bg-red-400 dark:bg-red-600 cursor-not-allowed"
+                    : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
                 }`}
               >
-                {processingId === item._id ? "..." : "Reject"}
+                <XMarkIcon className="w-5 h-5" />
+                Reject
               </button>
             </div>
           </div>
@@ -264,20 +305,38 @@ const DepositsTab = ({
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-center mt-6 gap-2">
+          <div className="flex justify-center mt-6 gap-1">
+            <button
+              onClick={() => setCurrentPage?.(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              <ArrowLeftIcon className="w-5 h-5" />
+            </button>
+
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
               <button
                 key={pg}
                 onClick={() => setCurrentPage?.(pg)}
-                className={`px-3 py-1 rounded transition ${
+                className={`px-4 py-2 rounded-lg transition ${
                   pg === currentPage
                     ? "bg-blue-600 text-white dark:bg-blue-500"
-                    : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                    : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
                 }`}
               >
                 {pg}
               </button>
             ))}
+
+            <button
+              onClick={() =>
+                setCurrentPage?.(Math.min(totalPages, currentPage + 1))
+              }
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              <ArrowRightIcon className="w-5 h-5" />
+            </button>
           </div>
         )}
       </div>
