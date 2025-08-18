@@ -12,7 +12,6 @@ import {
   Sun,
   ShieldCheck,
   Send,
-  Gamepad2,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -190,8 +189,7 @@ const Navbar = () => {
             className="font-bold text-xl tracking-tight flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
             aria-label="Go to homepage"
           >
-            <Gamepad2 size={22} className="flex-shrink-0" />
-            <span className="hidden sm:inline">GamesX Market</span>
+            <span className="hidden sm:inline">Generic-Shop</span>
           </Link>
 
           {/* Desktop nav */}

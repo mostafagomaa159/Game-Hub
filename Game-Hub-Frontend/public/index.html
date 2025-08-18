@@ -3,30 +3,74 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GamesX Market</title>
+
+  <!-- SEO -->
+  <title>Generic-Shop | Buy & Sell Last Chaos Game Items Online</title>
+  <meta name="description" content="Generic-Shop - Buy and sell Last Chaos game items safely and quickly.">
+  <meta name="keywords" content="Last Chaos, game items, buy game items, sell game items">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph / Social Sharing -->
+  <meta property="og:title" content="Generic-Shop | Buy & Sell Last Chaos Game Items">
+  <meta property="og:description" content="Trade Last Chaos game items safely and quickly.">
+  <meta property="og:image" content="%PUBLIC_URL%/social-image.png">
+  <meta property="og:url" content="https://yourwebsite.com">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Generic-Shop | Buy & Sell Last Chaos Game Items">
+  <meta name="twitter:description" content="Trade Last Chaos game items safely and quickly.">
+  <meta name="twitter:image" content="%PUBLIC_URL%/social-image.png">
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="%PUBLIC_URL%/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon.png">
+  <link rel="manifest" href="%PUBLIC_URL%/manifest.json">
+  <meta name="theme-color" content="#1e40af">
+
+  <!-- Preload critical resources -->
+  <link rel="preload" href="%PUBLIC_URL%/main.css" as="style">
+  <link rel="preload" href="%PUBLIC_URL%/main.js" as="script">
+
+  <!-- Preconnect to important domains -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Structured Data (JSON-LD) for SEO -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Store",
+    "name": "Generic-Shop",
+    "url": "https://yourwebsite.com",
+    "logo": "%PUBLIC_URL%/favicon-32x32.png",
+    "sameAs": [
+      "https://www.facebook.com/yourpage",
+      "https://twitter.com/yourhandle"
+    ],
+    "description": "Buy and sell Last Chaos game items safely and quickly.",
+    "currenciesAccepted": "USD",
+    "paymentAccepted": "PayPal, Credit Card"
+  }
+  </script>
+
 </head>
 
 <body>
   <noscript>You need to enable JavaScript to run this app.</noscript>
-  <div id="root"></div> <!-- 👈 This MUST exist -->
-</body>
+  <div id="root"></div> <!-- React will mount here -->
 
-</html>
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-  <meta charset="UTF-8" />
-  <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GamesX Market For Online Shopping</title>
-</head>
-
-<body>
-  <noscript>You need to enable JavaScript to run this app.</noscript>
-  <div id="root"></div> <!-- 👈 This MUST exist -->
+  <!-- Optional: Analytics snippet -->
+  <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=YOUR_GA_ID"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'YOUR_GA_ID');
+  </script> -->
 </body>
 
 </html>
