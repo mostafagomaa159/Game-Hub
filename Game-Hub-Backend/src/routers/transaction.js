@@ -33,7 +33,7 @@ router.get("/transactions/pending", auth, adminAuth, async (req, res) => {
 // 💰 Deposit Request (PayPal or Bank)
 router.post("/transactions/deposit", auth, async (req, res) => {
   try {
-    const { amount, method, iban, accountNumber } = req.body;
+    const { amount, method, iban, accountNumber, screenshot } = req.body;
 
     // ✅ Minimum 10 coins check
     if (!amount || amount < 10) {
@@ -45,6 +45,10 @@ router.post("/transactions/deposit", auth, async (req, res) => {
     if (!["paypal", "bank"].includes(method)) {
       return res.status(400).send({ error: "Unsupported deposit method" });
     }
+    if (!screenshot)
+      return res
+        .status(400)
+        .send({ error: "You must provide a screenshot as proof." });
 
     if (method === "bank") {
       const ibanRegex = /^[A-Z0-9]{15,34}$/;
@@ -89,6 +93,7 @@ router.post("/transactions/deposit", auth, async (req, res) => {
       status: "pending", // 👈 pending now
       iban: method === "bank" ? iban : undefined,
       accountNumber: method === "bank" ? accountNumber : undefined,
+      screenshot,
     });
 
     await transaction.save();
@@ -260,60 +265,6 @@ router.post("/transactions/withdraw", auth, async (req, res) => {
   }
 });
 
-router.post("/transactions/deposit/paypal", auth, async (req, res) => {
-  const { amount } = req.body;
-
-  try {
-    const auth = Buffer.from(
-      `${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`
-    ).toString("base64");
-    const tokenRes = await axios.post(
-      "https://api-m.sandbox.paypal.com/v1/oauth2/token",
-      "grant_type=client_credentials",
-      {
-        headers: {
-          Authorization: `Basic ${auth}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      }
-    );
-
-    const accessToken = tokenRes.data.access_token;
-
-    const orderRes = await axios.post(
-      "https://api-m.sandbox.paypal.com/v2/checkout/orders",
-      {
-        intent: "CAPTURE",
-        purchase_units: [
-          {
-            amount: {
-              currency_code: "USD",
-              value: amount.toFixed(2),
-            },
-          },
-        ],
-        application_context: {
-          return_url: "http://localhost:3000/deposit-success",
-          cancel_url: "http://localhost:3000/deposit-cancel",
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    const approvalUrl = orderRes.data.links.find(
-      (l) => l.rel === "approve"
-    ).href;
-    res.send({ approvalUrl });
-  } catch (e) {
-    console.error("PayPal error", e?.response?.data || e.message);
-    res.status(500).send({ error: "Failed to initiate PayPal payment." });
-  }
-});
 // 🧾 Get Current User Transactions
 router.get("/transactions/me", auth, async (req, res) => {
   try {
@@ -486,13 +437,34 @@ router.patch(
 
 //Deposit Section!!!
 router.post("/transactions/deposit/paypal", auth, async (req, res) => {
-  const { amount } = req.body;
+  const { amount, screenshot } = req.body;
 
+  // Validate amount
   if (!amount || amount <= 0) {
     return res.status(400).send({ error: "Invalid amount" });
   }
 
+  // Validate screenshot
+  if (!screenshot) {
+    return res
+      .status(400)
+      .send({ error: "You must provide a screenshot as proof." });
+  }
+
   try {
+    // Save the transaction in DB as pending
+    const transaction = new Transaction({
+      userId: req.user._id,
+      type: "deposit",
+      method: "paypal",
+      amount,
+      screenshot,
+      status: "pending",
+    });
+
+    await transaction.save();
+
+    // PayPal API credentials
     const authHeader = Buffer.from(
       `${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`
     ).toString("base64");

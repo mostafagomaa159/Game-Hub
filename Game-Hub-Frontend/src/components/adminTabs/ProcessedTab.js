@@ -217,7 +217,15 @@ const ProcessedTab = ({
                   </p>
                 </div>
               </div>
-
+              {item.screenshot && (
+                <div className="flex justify-center items-start">
+                  <img
+                    src={item.screenshot}
+                    alt="Deposit Screenshot"
+                    className="rounded-md border border-gray-300 dark:border-gray-600 max-w-xs max-h-48 object-contain shadow-sm hover:scale-105 transition-transform duration-200"
+                  />
+                </div>
+              )}
               <div className="mt-3">
                 <label className="text-sm text-gray-700 dark:text-gray-300">
                   Admin Note:

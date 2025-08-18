@@ -1,32 +1,30 @@
 import React, { useState } from "react";
 import axios from "../api/axiosInstance";
-import { FaCopy } from "react-icons/fa";
+import { FaCopy, FaChevronDown, FaChevronUp } from "react-icons/fa";
+
 const Deposit = () => {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("paypal");
   const [iban, setIban] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
+  const [screenshot, setScreenshot] = useState(""); // base64 string
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [showBankDetails, setShowBankDetails] = useState(false);
 
-  // Your bank details (replace with your actual information)
   const bankDetails = {
     yourIban: "EG760037011308181130815055352",
     yourAccountNumber: "1130815055352",
     yourSwiftCode: "QNBAEGCXXXX",
   };
+
   const copyToClipboard = (text) => {
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        // You can add a temporary notification here if you want
-        alert("Copied to clipboard!");
-      })
-      .catch((err) => {
-        console.error("Failed to copy: ", err);
-      });
+    navigator.clipboard.writeText(text).then(
+      () => alert("Copied to clipboard!"),
+      (err) => console.error("Failed to copy: ", err)
+    );
   };
+
   const isValidIban = (iban) => /^[A-Z0-9]{15,34}$/.test(iban);
   const isValidAccountNumber = (acc) => /^[0-9]{6,20}$/.test(acc);
 
@@ -37,6 +35,19 @@ const Deposit = () => {
       !isValidIban(iban) ||
       !isValidAccountNumber(accountNumber));
 
+  const isScreenshotMissing = !screenshot;
+
+  const handleScreenshotUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setScreenshot(reader.result.toString()); // base64 string
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleDeposit = async () => {
     setStatus("");
 
@@ -45,7 +56,6 @@ const Deposit = () => {
       return;
     }
 
-    // ✅ Minimum deposit check
     if (Number(amount) < 10) {
       setStatus("Minimum deposit is 10 coins.");
       return;
@@ -64,43 +74,47 @@ const Deposit = () => {
       return;
     }
 
+    if (!screenshot) {
+      setStatus("Please upload a screenshot of your transaction.");
+      return;
+    }
+
     try {
       setLoading(true);
 
-      if (method === "paypal") {
-        const res = await axios.post(
-          "/transactions/deposit/paypal",
-          { amount: Number(amount) },
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
-        window.location.href = res.data.approvalUrl;
-      } else {
-        // Show bank details popup before processing
-        setShowBankDetails(true);
+      const payload = {
+        amount: Number(amount),
+        screenshot, // base64 screenshot
+      };
 
-        await axios.post(
-          "/transactions/deposit",
-          {
-            amount: Number(amount),
-            method,
-            iban,
-            accountNumber,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
+      if (method === "paypal") {
+        payload.method = "paypal"; // optional, backend already knows
+        const res = await axios.post("/transactions/deposit/paypal", payload, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+
+        setStatus("✅ PayPal deposit recorded.");
+        setAmount("");
+        setScreenshot("");
+
+        if (res.data.approvalUrl) {
+          window.location.href = res.data.approvalUrl;
+        }
+      } else {
+        // Bank deposit
+        payload.method = "bank";
+        payload.iban = iban;
+        payload.accountNumber = accountNumber;
+
+        await axios.post("/transactions/deposit", payload, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
 
         setStatus("✅ Bank deposit recorded. Please send the money manually.");
         setAmount("");
         setIban("");
         setAccountNumber("");
+        setScreenshot("");
       }
     } catch (err) {
       const msg = err.response?.data?.error || "Failed to process deposit.";
@@ -145,6 +159,53 @@ const Deposit = () => {
         <option value="bank">Bank Transfer</option>
       </select>
 
+      {/* Collapsible Bank Details */}
+      {method === "bank" && (
+        <div className="mb-4">
+          <button
+            className="w-full flex justify-between items-center bg-gray-800 p-2 rounded"
+            onClick={() => setShowBankDetails(!showBankDetails)}
+          >
+            <span className="text-gray-300 font-semibold">
+              Our Bank Details
+            </span>
+            {showBankDetails ? <FaChevronUp /> : <FaChevronDown />}
+          </button>
+
+          {showBankDetails && (
+            <div className="bg-gray-700 p-3 mt-2 rounded space-y-2">
+              {["IBAN", "Account Number", "SWIFT/BIC"].map((label, idx) => (
+                <div key={idx} className="flex justify-between items-center">
+                  <p className="text-gray-400">{label}:</p>
+                  <button
+                    onClick={() =>
+                      copyToClipboard(
+                        label === "IBAN"
+                          ? bankDetails.yourIban
+                          : label === "Account Number"
+                          ? bankDetails.yourAccountNumber
+                          : bankDetails.yourSwiftCode
+                      )
+                    }
+                    className="text-blue-400 hover:text-blue-300"
+                  >
+                    <FaCopy />
+                  </button>
+                </div>
+              ))}
+              <p className="text-white font-mono">{bankDetails.yourIban}</p>
+              <p className="text-white font-mono">
+                {bankDetails.yourAccountNumber}
+              </p>
+              <p className="text-white font-mono">
+                {bankDetails.yourSwiftCode}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* User input for bank info */}
       {method === "bank" && (
         <>
           <input
@@ -152,11 +213,9 @@ const Deposit = () => {
             value={iban}
             onChange={(e) => setIban(e.target.value)}
             className={`w-full p-2 mb-1 rounded bg-gray-800 border ${
-              iban && !isValidIban(iban)
-                ? "border-red-500 focus:outline-red-500"
-                : "border-gray-700"
+              iban && !isValidIban(iban) ? "border-red-500" : "border-gray-700"
             } text-white placeholder-gray-400`}
-            placeholder="IBAN"
+            placeholder="Your IBAN"
           />
           {iban && !isValidIban(iban) && (
             <p className="text-red-400 text-sm mb-2">Invalid IBAN format</p>
@@ -168,10 +227,10 @@ const Deposit = () => {
             onChange={(e) => setAccountNumber(e.target.value)}
             className={`w-full p-2 mb-1 rounded bg-gray-800 border ${
               accountNumber && !isValidAccountNumber(accountNumber)
-                ? "border-red-500 focus:outline-red-500"
+                ? "border-red-500"
                 : "border-gray-700"
             } text-white placeholder-gray-400`}
-            placeholder="Account Number"
+            placeholder="Your Account Number"
           />
           {accountNumber && !isValidAccountNumber(accountNumber) && (
             <p className="text-red-400 text-sm mb-2">
@@ -181,18 +240,49 @@ const Deposit = () => {
         </>
       )}
 
+      {/* Screenshot upload */}
+      {/* Screenshot upload */}
+      <div className="mb-4">
+        <label className="block mb-1 text-gray-300">Upload Screenshot:</label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleScreenshotUpload}
+          className="w-full text-white"
+        />
+
+        {/* Preview */}
+        {screenshot && (
+          <div className="relative mt-2">
+            <img
+              src={screenshot}
+              alt="Screenshot Preview"
+              className="w-full h-auto rounded-md border border-gray-700"
+            />
+            <button
+              type="button"
+              onClick={() => setScreenshot("")}
+              className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+      </div>
+
       <button
         onClick={handleDeposit}
-        disabled={!amount || Number(amount) <= 0 || loading || isBankInvalid}
+        disabled={
+          !amount ||
+          Number(amount) <= 0 ||
+          loading ||
+          isBankInvalid ||
+          isScreenshotMissing
+        }
         className="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white"
       >
         {loading ? "Processing..." : "Deposit"}
       </button>
-      <p className="text-yellow-400 text-sm mt-3">
-        Note: Please make sure to pay all Bank Fees , Paypal Fees & transactions
-        Fees, If u enter 100 coins and we recieve only 99euros, you will get
-        only 99 coins.
-      </p>
 
       {status && (
         <p
@@ -206,77 +296,6 @@ const Deposit = () => {
         >
           {status}
         </p>
-      )}
-
-      {/* Bank Details Popup */}
-      {showBankDetails && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 p-6 rounded-lg max-w-md w-full mx-4">
-            <h3 className="text-xl font-semibold mb-4">
-              Bank Transfer Details
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between items-center">
-                  <p className="text-gray-400">IBAN:</p>
-                  <button
-                    onClick={() => copyToClipboard(bankDetails.yourIban)}
-                    className="text-blue-400 hover:text-blue-300"
-                    title="Copy to clipboard"
-                  >
-                    <FaCopy />
-                  </button>
-                </div>
-                <p className="text-white font-mono">{bankDetails.yourIban}</p>
-              </div>
-              <div>
-                <div className="flex justify-between items-center">
-                  <p className="text-gray-400">Account Number:</p>
-                  <button
-                    onClick={() =>
-                      copyToClipboard(bankDetails.yourAccountNumber)
-                    }
-                    className="text-blue-400 hover:text-blue-300"
-                    title="Copy to clipboard"
-                  >
-                    <FaCopy />
-                  </button>
-                </div>
-                <p className="text-white font-mono">
-                  {bankDetails.yourAccountNumber}
-                </p>
-              </div>
-              <div>
-                <div className="flex justify-between items-center">
-                  <p className="text-gray-400">SWIFT/BIC Code:</p>
-                  <button
-                    onClick={() => copyToClipboard(bankDetails.yourSwiftCode)}
-                    className="text-blue-400 hover:text-blue-300"
-                    title="Copy to clipboard"
-                  >
-                    <FaCopy />
-                  </button>
-                </div>
-                <p className="text-white font-mono">
-                  {bankDetails.yourSwiftCode}
-                </p>
-              </div>
-              <div className="mt-4">
-                <p className="text-yellow-400 text-sm">
-                  Please make sure to pay all Bank Fees & transactions Fees, If
-                  u enter 100 coins and we recieve only 99euros, you will get
-                  only 99 coins.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowBankDetails(false)}
-              className="mt-6 bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 text-white w-full"
-            >
-              I've noted these details
-            </button>
-          </div>
-        </div>
       )}
     </div>
   );

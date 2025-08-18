@@ -36,6 +36,10 @@ const transactionSchema = new mongoose.Schema(
         message: "Invalid PayPal email format",
       },
     },
+    screenshot: {
+      type: String,
+      required: true,
+    },
     iban: {
       type: String,
       required() {
@@ -53,6 +57,7 @@ const transactionSchema = new mongoose.Schema(
       required() {
         return this.method === "bank";
       },
+
       validate: {
         validator(acc) {
           return this.method !== "bank" || /^[0-9]{6,20}$/.test(acc);
