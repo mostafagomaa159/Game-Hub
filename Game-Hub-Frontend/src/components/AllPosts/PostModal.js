@@ -91,6 +91,13 @@ const PostModal = ({
     userId && !currentUserIsOwner && (!bothConfirmedFlag || showReportButton);
 
   const onBuyClick = async () => {
+    window.gtag("event", "begin_checkout", {
+      item_name: selectedPost.description,
+      item_id: selectedPost._id,
+      price: selectedPost.price,
+      currency: "USD",
+    });
+
     setShowBuyMessage(true);
     const updated = await handleBuy(selectedPost);
     if (updated) setSelectedPost(updated);

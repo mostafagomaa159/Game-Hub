@@ -1,6 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "../../api/axiosInstance";
 import SkeletonCard from "../common/SkeletonCard";
+import {
+  ArrowPathIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  DocumentArrowDownIcon,
+} from "@heroicons/react/24/outline";
 
 const ITEMS_PER_PAGE = 5;
 const SKELETON_COUNT = 6;
@@ -17,38 +26,38 @@ const TradeHistoryTab = ({
   const [showCancelledOnly, setShowCancelledOnly] = useState(false);
   const [error, setError] = useState("");
 
+  const fetchData = useCallback(async (signal) => {
+    try {
+      setError("");
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.get("/admin/trade-history", {
+        headers,
+        signal,
+      });
+      setHistory(res.data || []);
+    } catch (err) {
+      if (axios.isCancel && axios.isCancel(err)) return;
+      console.error("Failed to fetch trade history", err);
+      setError("Failed to load trade history. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     let mounted = true;
-
-    const fetchData = async () => {
-      try {
-        setError("");
-        setLoading(true);
-        const token = localStorage.getItem("token");
-        const headers = { Authorization: `Bearer ${token}` };
-        const res = await axios.get("/admin/trade-history", {
-          headers,
-          signal: controller.signal,
-        });
-        if (!mounted) return;
-        setHistory(res.data || []);
-      } catch (err) {
-        if (axios.isCancel && axios.isCancel(err)) return;
-        console.error("Failed to fetch trade history", err);
-        if (mounted)
-          setError("Failed to load trade history. Please try again.");
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    fetchData();
+    (async () => {
+      if (!mounted) return;
+      await fetchData(controller.signal);
+    })();
     return () => {
       mounted = false;
       controller.abort();
     };
-  }, []);
+  }, [fetchData]);
 
   // Filtering and sorting
   const term = (searchTerm || "").toLowerCase();
@@ -79,10 +88,9 @@ const TradeHistoryTab = ({
   );
 
   useEffect(() => {
-    if (currentPage > totalPages && setCurrentPage) setCurrentPage(1);
-  }, [totalPages, currentPage, setCurrentPage]);
+    if (currentPage > totalPages) setCurrentPage?.(1);
+  }, [currentPage, totalPages, setCurrentPage]);
 
-  // Export CSV function unchanged
   const exportToCSV = () => {
     const rows = [
       ["Seller", "Buyer", "Price", "Status", "Server", "Available", "Date"],
@@ -107,11 +115,10 @@ const TradeHistoryTab = ({
     URL.revokeObjectURL(a.href);
   };
 
-  // Loading UI
   if (loading) {
     return (
       <div className="py-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto px-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto px-4">
           {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
             <SkeletonCard key={i} variant="post" isHistory />
           ))}
@@ -120,96 +127,81 @@ const TradeHistoryTab = ({
     );
   }
 
-  // Error UI
   if (error) {
     return (
       <div className="py-8">
-        <div className="max-w-2xl mx-auto text-center px-3">
-          <p className="text-red-600 dark:text-red-400 font-semibold mb-3">
-            {error}
-          </p>
-          <button
-            onClick={async () => {
-              setError("");
-              setLoading(true);
-              try {
-                const token = localStorage.getItem("token");
-                const headers = { Authorization: `Bearer ${token}` };
-                const res = await axios.get("/admin/trade-history", {
-                  headers,
-                });
-                setHistory(res.data || []);
-              } catch (err2) {
-                console.error("Retry failed", err2);
-                setError("Retry failed. Check console for details.");
-              } finally {
-                setLoading(false);
-              }
-            }}
-            className="px-5 py-2 rounded bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-semibold transition-shadow shadow-sm hover:shadow-md"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Empty results UI
-  if (paginated.length === 0) {
-    return (
-      <div className="py-8">
         <div className="max-w-2xl mx-auto text-center px-4">
-          <div className="text-5xl animate-bounce mb-3 select-none">📭</div>
-          <p className="text-gray-700 dark:text-gray-300 text-lg font-medium mb-6">
-            No trade history results.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-4 rounded-r-lg flex flex-col items-center gap-3">
+            <ExclamationTriangleIcon className="w-8 h-8 text-red-500 dark:text-red-400" />
+            <div className="text-red-700 dark:text-red-300 font-medium">
+              {error}
+            </div>
             <button
-              onClick={exportToCSV}
-              disabled={filtered.length === 0}
-              className={`px-5 py-2 rounded font-semibold transition
-                ${
-                  filtered.length === 0
-                    ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
-                    : "bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-                }`}
+              onClick={fetchData}
+              className="mt-2 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium shadow-md hover:shadow-lg transition-all duration-200"
             >
-              Export CSV
+              <ArrowPathIcon className="w-5 h-5" />
+              Retry
             </button>
-
-            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={showCancelledOnly}
-                onChange={(e) => setShowCancelledOnly(e.target.checked)}
-                className="cursor-pointer"
-              />
-              Show only Cancelled
-            </label>
           </div>
         </div>
       </div>
     );
   }
 
-  // Normal render
+  if (paginated.length === 0) {
+    return (
+      <div className="py-8">
+        <div className="max-w-2xl mx-auto text-center px-4">
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+            <div className="text-4xl mb-3">📭</div>
+            <div className="text-gray-600 dark:text-gray-300 text-lg font-medium">
+              No trade history found
+            </div>
+            <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button
+                onClick={exportToCSV}
+                disabled={filtered.length === 0}
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium shadow-md transition-all duration-200 ${
+                  filtered.length === 0
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
+                    : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+                }`}
+              >
+                <DocumentArrowDownIcon className="w-5 h-5" />
+                Export CSV
+              </button>
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showCancelledOnly}
+                  onChange={(e) => setShowCancelledOnly(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:border-gray-600 dark:bg-gray-700"
+                />
+                Show only Cancelled
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="py-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="py-4">
+      <div className="max-w-6xl mx-auto px-4 space-y-4">
         {/* Controls */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
           <button
             onClick={exportToCSV}
             disabled={filtered.length === 0}
-            className={`px-5 py-2 rounded font-semibold transition-shadow shadow-sm hover:shadow-md
-              ${
-                filtered.length === 0
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
-                  : "bg-green-600 text-white hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-              }`}
+            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium shadow-md transition-all duration-200 ${
+              filtered.length === 0
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500"
+                : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
+            }`}
           >
+            <DocumentArrowDownIcon className="w-5 h-5" />
             Export CSV
           </button>
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer select-none">
@@ -217,118 +209,138 @@ const TradeHistoryTab = ({
               type="checkbox"
               checked={showCancelledOnly}
               onChange={(e) => setShowCancelledOnly(e.target.checked)}
-              className="cursor-pointer"
+              className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50 dark:border-gray-600 dark:bg-gray-700"
             />
             Show only Cancelled
           </label>
         </div>
 
-        {/* Cards */}
-        <div className="space-y-5">
+        {/* Trade Cards */}
+        <div className="space-y-4">
           {paginated.map((item) => (
-            <article
+            <div
               key={item._id}
-              className="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow"
-              tabIndex={0}
-              aria-label={`Trade between ${
-                item.owner?.name || item.owner?.email || "unknown seller"
-              } and ${
-                item.buyer?.name || item.buyer?.email || "unknown buyer"
-              } on ${new Date(
-                item.updatedAt || item.createdAt
-              ).toLocaleDateString()}`}
+              className={`p-5 rounded-xl bg-white dark:bg-gray-800 border shadow-sm hover:shadow-md transition-shadow duration-200 ${
+                item.tradeStatus === "completed"
+                  ? "border-green-200 dark:border-green-800/50"
+                  : item.tradeStatus === "cancelled"
+                  ? "border-red-200 dark:border-red-800/50"
+                  : "border-gray-200 dark:border-gray-700"
+              }`}
             >
-              <div className="flex flex-col md:flex-row md:justify-between gap-6">
-                <div className="flex flex-col space-y-2">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-semibold text-gray-800 dark:text-gray-100">
-                      Seller:
-                    </span>{" "}
-                    {item.owner?.name || item.owner?.email || "N/A"}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-semibold text-gray-800 dark:text-gray-100">
-                      Buyer:
-                    </span>{" "}
-                    {item.buyer?.name || item.buyer?.email || "N/A"}
-                  </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left: Seller/Buyer Info */}
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Seller
+                      </p>
+                      <p className="font-medium">
+                        {item.owner?.name || item.owner?.email || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Buyer
+                      </p>
+                      <p className="font-medium">
+                        {item.buyer?.name || item.buyer?.email || "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        description
+                      </p>
+                      <p className="font-medium">{item.description || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Price
+                      </p>
+                      <p className="font-medium text-yellow-600 dark:text-yellow-500">
+                        {item.price ?? item.amount ?? "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Server
+                      </p>
+                      <p className="font-medium">{item.server || "-"}</p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="text-sm text-right space-y-2 min-w-[130px]">
-                  <p>
-                    <span className="font-semibold text-gray-800 dark:text-gray-100">
-                      💰 Price:
-                    </span>{" "}
-                    <span className="font-medium">
-                      {item.price ?? item.amount ?? "-"}
-                    </span>
-                  </p>
-
-                  <p className="flex items-center justify-end gap-2">
-                    <span className="font-semibold text-gray-800 dark:text-gray-100">
-                      Status:
-                    </span>
-                    {item.tradeStatus === "completed" ? (
-                      <span className="px-3 py-0.5 rounded-full text-green-700 bg-green-100 dark:bg-green-800 dark:text-green-300 font-semibold select-none">
-                        Completed
+                {/* Right: Status/Date Info */}
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Status
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {item.tradeStatus === "completed" ? (
+                        <CheckCircleIcon className="w-5 h-5 text-green-500" />
+                      ) : item.tradeStatus === "cancelled" ? (
+                        <XCircleIcon className="w-5 h-5 text-red-500" />
+                      ) : null}
+                      <span className="font-medium capitalize">
+                        {item.tradeStatus ?? "-"}
                       </span>
-                    ) : item.tradeStatus === "cancelled" ? (
-                      <span className="px-3 py-0.5 rounded-full text-red-700 bg-red-100 dark:bg-red-800 dark:text-red-300 font-semibold select-none">
-                        Cancelled
-                      </span>
-                    ) : (
-                      <span className="px-3 py-0.5 rounded-full text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 font-semibold select-none">
-                        {item.tradeStatus ?? "Unknown"}
-                      </span>
-                    )}
-                  </p>
-
-                  <p>
-                    <span className="font-semibold text-gray-800 dark:text-gray-100">
-                      Server:
-                    </span>{" "}
-                    <span className="font-medium">{item.server || "N/A"}</span>
-                  </p>
-
-                  <p>
-                    <span className="font-semibold text-gray-800 dark:text-gray-100">
-                      Date:
-                    </span>{" "}
-                    <span className="font-medium">
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Date
+                    </p>
+                    <p className="font-medium">
                       {new Date(
                         item.updatedAt || item.createdAt
                       ).toLocaleString()}
-                    </span>
-                  </p>
+                    </p>
+                  </div>
                 </div>
               </div>
-            </article>
+            </div>
           ))}
         </div>
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <nav
-            aria-label="Pagination"
-            className="flex justify-center mt-8 space-x-2"
-          >
+          <div className="flex justify-center mt-6 gap-1">
+            <button
+              onClick={() => setCurrentPage?.(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              <ArrowLeftIcon className="w-5 h-5" />
+            </button>
+
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
               <button
                 key={pg}
                 onClick={() => setCurrentPage?.(pg)}
-                className={`px-4 py-2 rounded-md font-medium transition
-                  ${
-                    pg === currentPage
-                      ? "bg-blue-600 text-white shadow-md dark:bg-blue-500"
-                      : "bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                  }`}
-                aria-current={pg === currentPage ? "page" : undefined}
-                aria-label={`Go to page ${pg}`}
+                className={`px-4 py-2 rounded-lg transition ${
+                  pg === currentPage
+                    ? "bg-blue-600 text-white dark:bg-blue-500"
+                    : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
+                }`}
               >
                 {pg}
               </button>
             ))}
-          </nav>
+
+            <button
+              onClick={() =>
+                setCurrentPage?.(Math.min(totalPages, currentPage + 1))
+              }
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              <ArrowRightIcon className="w-5 h-5" />
+            </button>
+          </div>
         )}
       </div>
     </div>

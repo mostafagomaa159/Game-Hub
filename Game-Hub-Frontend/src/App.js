@@ -30,135 +30,146 @@ import PrivacyPolicyPage from "./pages/AboutUs/PrivacyPolicyPage";
 import TermsPage from "./pages/AboutUs/TermsOfUsePage";
 import DisclaimerPage from "./pages/AboutUs/DisclaimerPage";
 import DisputePolicyPage from "./pages/AboutUs/DisputePolicyPage";
-
 import UserProfilePage from "./pages/UserProfilePage.js";
+import { initGA } from "./analytics";
+// 👇 import your GA hook
+import usePageTracking from "./hooks/usePageTracking";
+
+function AnalyticsWrapper({ children }) {
+  usePageTracking();
+  return children;
+}
+initGA();
 
 function App() {
   return (
     <UserProvider>
       <BrowserRouter>
-        <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
-          <Navbar />
+        {/* Analytics must be inside BrowserRouter so useLocation works */}
+        <AnalyticsWrapper>
+          <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+            <Navbar />
 
-          {/* Toast notifications container with pro styling and animation */}
-          <ToastContainer
-            position="top-center"
-            autoClose={1000}
-            hideProgressBar={false}
-            newestOnTop={true}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="dark"
-            transition={Slide}
-            toastStyle={{
-              borderRadius: "12px",
-              boxShadow: "0 4px 15px rgba(0, 0, 0, 0.15)",
-              fontWeight: "600",
-              fontSize: "14px",
-              padding: "12px 20px",
-              maxWidth: "380px",
-            }}
-          />
+            {/* Toast notifications */}
+            <ToastContainer
+              position="top-center"
+              autoClose={1000}
+              hideProgressBar={false}
+              newestOnTop={true}
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme="dark"
+              transition={Slide}
+              toastStyle={{
+                borderRadius: "12px",
+                boxShadow: "0 4px 15px rgba(0, 0, 0, 0.15)",
+                fontWeight: "600",
+                fontSize: "14px",
+                padding: "12px 20px",
+                maxWidth: "380px",
+              }}
+            />
 
-          <main className="flex-1 container mx-auto px-4 py-6">
-            <Routes>
-              {/* Redirect / to /all-posts */}
-              <Route path="/" element={<Navigate to="/all-posts" />} />
-
-              {/* Only logged in users can access Dashboard */}
-              <Route
-                path="/dashboard"
-                element={
-                  <RequireAuth>
-                    <Dashboard />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <RequireAuth>
-                    <PostList />
-                  </RequireAuth>
-                }
-              />
-
-              <Route path="/requests" element={<Requests />} />
-
-              <Route path="/all-posts" element={<AllPosts />} />
-              <Route
-                path="/profile"
-                element={
-                  <RequireAuth>
-                    <Profile />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/deposit"
-                element={
-                  <RequireAuth>
-                    <Deposit />
-                  </RequireAuth>
-                }
-              />
-              <Route path="/deposit-success" element={<DepositSuccess />} />
-              <Route path="/my-transactions" element={<MyTransactions />} />
-              <Route path="/profile/:userId" element={<UserProfilePage />} />
-              <Route
-                path="/withdraw"
-                element={
-                  <RequireAuth>
-                    <Withdraw />
-                  </RequireAuth>
-                }
-              />
-              <Route path="/transactions" element={<TransactionHistory />} />
-              <Route
-                path="/admin"
-                element={
-                  <RequireAdmin>
-                    <AdminDashboard />
-                  </RequireAdmin>
-                }
-              />
-              <Route
-                path="/admin/deposits"
-                element={
-                  <RequireAdmin>
-                    <AdminDepositDashboard />
-                  </RequireAdmin>
-                }
-              />
-              <Route
-                path="/newpost"
-                element={
-                  <RequireAuth>
-                    <NewPostForm />
-                  </RequireAuth>
-                }
-              />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="*" element={<NotFound />} />
-              <Route path="/rules" element={<RulesPage />} />
-              <Route path="/about" element={<InfoCenter />}>
-                <Route path="rules" element={<RulesPage />} />
-                <Route path="about" element={<AboutPage />} />
-                <Route path="help" element={<HelpPage />} />
-                <Route path="contact" element={<ContactPage />} />
-                <Route path="privacy-policy" element={<PrivacyPolicyPage />} />
-                <Route path="terms" element={<TermsPage />} />
-
-                <Route path="disclaimer" element={<DisclaimerPage />} />
-                <Route path="dispute-policy" element={<DisputePolicyPage />} />
-              </Route>
-            </Routes>
-          </main>
-        </div>
+            <main className="flex-1 container mx-auto px-4 py-6">
+              <Routes>
+                <Route path="/" element={<Navigate to="/all-posts" />} />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <RequireAuth>
+                      <Dashboard />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <RequireAuth>
+                      <PostList />
+                    </RequireAuth>
+                  }
+                />
+                <Route path="/requests" element={<Requests />} />
+                <Route path="/all-posts" element={<AllPosts />} />
+                <Route
+                  path="/profile"
+                  element={
+                    <RequireAuth>
+                      <Profile />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/deposit"
+                  element={
+                    <RequireAuth>
+                      <Deposit />
+                    </RequireAuth>
+                  }
+                />
+                <Route path="/deposit-success" element={<DepositSuccess />} />
+                <Route path="/my-transactions" element={<MyTransactions />} />
+                <Route path="/profile/:userId" element={<UserProfilePage />} />
+                <Route
+                  path="/withdraw"
+                  element={
+                    <RequireAuth>
+                      <Withdraw />
+                    </RequireAuth>
+                  }
+                />
+                <Route path="/transactions" element={<TransactionHistory />} />
+                <Route
+                  path="/admin"
+                  element={
+                    <RequireAdmin>
+                      <AdminDashboard />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/admin/deposits"
+                  element={
+                    <RequireAdmin>
+                      <AdminDepositDashboard />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/newpost"
+                  element={
+                    <RequireAuth>
+                      <NewPostForm />
+                    </RequireAuth>
+                  }
+                />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="*" element={<NotFound />} />
+                <Route path="/rules" element={<RulesPage />} />
+                <Route path="/about" element={<InfoCenter />}>
+                  <Route path="rules" element={<RulesPage />} />
+                  <Route path="about" element={<AboutPage />} />
+                  <Route path="help" element={<HelpPage />} />
+                  <Route path="contact" element={<ContactPage />} />
+                  <Route
+                    path="privacy-policy"
+                    element={<PrivacyPolicyPage />}
+                  />
+                  <Route path="terms" element={<TermsPage />} />
+                  <Route path="disclaimer" element={<DisclaimerPage />} />
+                  <Route
+                    path="dispute-policy"
+                    element={<DisputePolicyPage />}
+                  />
+                </Route>
+              </Routes>
+            </main>
+          </div>
+        </AnalyticsWrapper>
       </BrowserRouter>
     </UserProvider>
   );

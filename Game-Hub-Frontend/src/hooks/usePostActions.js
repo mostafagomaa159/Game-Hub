@@ -149,11 +149,29 @@ const usePostActions = (
         // Preserve the original owner data if not returned in response
         const completePost = {
           ...updatedPost,
-          owner: updatedPost.owner || post.owner, // Fallback to original owner
+          owner: updatedPost.owner || post.owner,
         };
 
         updatePost(completePost);
         setSelectedPostId(completePost._id);
+
+        // ✅ GA4 purchase tracking
+        if (window.gtag) {
+          window.gtag("event", "purchase", {
+            transaction_id: completePost._id, // unique ID for this purchase
+            value: completePost.price,
+            currency: "USD",
+            items: [
+              {
+                item_id: completePost._id,
+                item_name: completePost.description,
+                price: completePost.price,
+                quantity: 1,
+              },
+            ],
+          });
+        }
+
         return completePost;
       }
     } catch (err) {
@@ -162,6 +180,7 @@ const usePostActions = (
       removeProcessingId(postId);
     }
   };
+
   // ------------------------ Confirm / Cancel Trade ------------------------
   const handleConfirmTrade = async (post) => {
     if (!userId) return setShowLoginModal(true);

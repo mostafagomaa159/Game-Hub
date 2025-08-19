@@ -1,7 +1,15 @@
-// src/components/adminTabs/WithdrawalsTab.js
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "../../api/axiosInstance";
 import SkeletonCard from "../common/SkeletonCard";
+import {
+  CheckIcon,
+  XMarkIcon,
+  ArrowPathIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ExclamationTriangleIcon,
+  ShieldExclamationIcon,
+} from "@heroicons/react/24/outline";
 
 const ITEMS_PER_PAGE = 5;
 const SKELETON_COUNT = 6;
@@ -19,30 +27,33 @@ const WithdrawalsTab = ({
   const [processingId, setProcessingId] = useState(null);
   const [error, setError] = useState("");
 
-  const fetchData = async (signal) => {
-    try {
-      setError("");
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const headers = { Authorization: `Bearer ${token}` };
-      const res = await axios.get("/transactions/pending-withdrawals", {
-        headers,
-        signal,
-      });
-      const data = res.data || [];
-      setTransactions(data);
-      setPendingCounts?.((prev) => ({
-        ...prev,
-        withdrawals: data?.length ?? 0,
-      }));
-    } catch (err) {
-      if (axios.isCancel && axios.isCancel(err)) return;
-      console.error("Failed to fetch pending withdrawals", err);
-      setError("Failed to load pending withdrawals. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const fetchData = useCallback(
+    async (signal) => {
+      try {
+        setError("");
+        setLoading(true);
+        const token = localStorage.getItem("token");
+        const headers = { Authorization: `Bearer ${token}` };
+        const res = await axios.get("/transactions/pending-withdrawals", {
+          headers,
+          signal,
+        });
+        const data = res.data || [];
+        setTransactions(data);
+        setPendingCounts?.((prev) => ({
+          ...prev,
+          withdrawals: data?.length ?? 0,
+        }));
+      } catch (err) {
+        if (axios.isCancel && axios.isCancel(err)) return;
+        console.error("Failed to fetch pending withdrawals", err);
+        setError("Failed to load pending withdrawals. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [setPendingCounts]
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -55,8 +66,7 @@ const WithdrawalsTab = ({
       mounted = false;
       controller.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setPendingCounts]);
+  }, [fetchData]);
 
   const retryFetch = async () => {
     const controller = new AbortController();
@@ -67,9 +77,8 @@ const WithdrawalsTab = ({
     setProcessingId(id);
     try {
       const token = localStorage.getItem("token");
-      const url = `/transactions/${id}/approve`;
       await axios.patch(
-        url,
+        `/transactions/${id}/approve`,
         {
           status: action === "approve" ? "approved" : "rejected",
           adminNote: `Marked ${action}`,
@@ -92,7 +101,7 @@ const WithdrawalsTab = ({
   // Filtering
   const term = (searchTerm || "").toLowerCase();
   const filtered = transactions.filter((tx) => {
-    const owner = tx.userId?.name || tx.userId?.email || "";
+    const owner = tx.userId?.name || "";
     const email = tx.userId?.email || "";
     if (!term) return true;
     return (
@@ -122,14 +131,12 @@ const WithdrawalsTab = ({
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage?.(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalPages]);
+  }, [currentPage, totalPages, setCurrentPage]);
 
-  // UI branches
   if (loading) {
     return (
       <div className="py-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto px-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto px-4">
           {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
             <SkeletonCard key={i} variant="post" isHistory />
           ))}
@@ -141,16 +148,20 @@ const WithdrawalsTab = ({
   if (error) {
     return (
       <div className="py-8">
-        <div className="max-w-2xl mx-auto text-center px-3">
-          <div className="text-red-600 dark:text-red-400 font-semibold mb-3">
-            {error}
+        <div className="max-w-2xl mx-auto text-center px-4">
+          <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 p-4 rounded-r-lg flex flex-col items-center gap-3">
+            <ExclamationTriangleIcon className="w-8 h-8 text-red-500 dark:text-red-400" />
+            <div className="text-red-700 dark:text-red-300 font-medium">
+              {error}
+            </div>
+            <button
+              onClick={retryFetch}
+              className="mt-2 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium shadow-md hover:shadow-lg transition-all duration-200"
+            >
+              <ArrowPathIcon className="w-5 h-5" />
+              Retry
+            </button>
           </div>
-          <button
-            onClick={retryFetch}
-            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 transition"
-          >
-            Retry
-          </button>
         </div>
       </div>
     );
@@ -160,17 +171,17 @@ const WithdrawalsTab = ({
     return (
       <div className="py-8">
         <div className="max-w-2xl mx-auto text-center px-4">
-          <div className="text-4xl animate-bounce mb-2">📭</div>
-          <div className="text-gray-600 dark:text-gray-300 text-lg">
-            No pending withdrawals.
-          </div>
-
-          <div className="mt-6 flex items-center justify-center gap-4">
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700">
+            <div className="text-4xl mb-3">📭</div>
+            <div className="text-gray-600 dark:text-gray-300 text-lg font-medium">
+              No pending withdrawals found
+            </div>
             <button
               onClick={retryFetch}
-              className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600 transition"
+              className="mt-4 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium shadow-md hover:shadow-lg transition-all duration-200"
             >
-              Retry
+              <ArrowPathIcon className="w-5 h-5" />
+              Refresh
             </button>
           </div>
         </div>
@@ -178,132 +189,191 @@ const WithdrawalsTab = ({
     );
   }
 
-  // Normal render
   return (
     <div className="py-4">
-      <div className="max-w-6xl mx-auto px-3">
-        <div className="space-y-4">
-          {paginated.map((item) => (
-            <div
-              key={item._1d || item._id}
-              className={`p-4 rounded-lg shadow-md mb-2 ${
-                item.fraudFlag
-                  ? "bg-red-50 text-red-900 border border-red-300 dark:bg-red-900 dark:text-red-100 dark:border-red-700"
-                  : "bg-white text-gray-900 border border-gray-100 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
-              }`}
-            >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <p className="text-sm">
-                    <strong className="mr-2">Name:</strong>
-                    <span className="font-medium">
-                      {item.userId?.name || "N/A"}
-                    </span>
-                  </p>
-                  <p className="text-sm mt-1">
-                    <strong className="mr-2">Email:</strong>
-                    <span className="font-medium">
-                      {item.userId?.email || "N/A"}
-                    </span>
-                  </p>
-                  <p className="text-sm mt-1">
-                    <strong className="mr-2">Amount:</strong>
-                    <span className="font-medium">
+      <div className="max-w-6xl mx-auto px-4 space-y-4">
+        {paginated.map((item) => (
+          <div
+            key={item._id}
+            className={`p-5 rounded-xl border shadow-sm hover:shadow-md transition-shadow duration-200 ${
+              item.fraudFlag
+                ? "bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-700/50"
+                : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+            }`}
+          >
+            {/* Fraud warning */}
+            {item.fraudFlag && (
+              <div className="flex items-center gap-2 mb-4 p-3 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-700 dark:text-red-300 font-medium">
+                <ShieldExclamationIcon className="w-5 h-5" />
+                <span>Potential Fraud Flagged</span>
+              </div>
+            )}
+
+            {/* Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left: User info */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Name
+                    </p>
+                    <p className="font-medium">{item.userId?.name || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Email
+                    </p>
+                    <p className="font-medium">{item.userId?.email || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Amount
+                    </p>
+                    <p className="font-medium text-yellow-600 dark:text-yellow-500">
                       {item.amount ?? "-"} coins
-                    </span>
-                  </p>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Method
+                    </p>
+                    <p className="font-medium capitalize">
+                      {item.method ?? "-"}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="text-sm text-right">
-                  <p>
-                    <strong className="mr-2">Status:</strong>
-                    <span className="font-medium">{item.status ?? "-"}</span>
-                  </p>
-                  <p className="mt-1">
-                    <strong className="mr-2">Method:</strong>
-                    <span className="font-medium">{item.method ?? "-"}</span>
-                  </p>
-
-                  {item.method === "paypal" && item.paypalEmail && (
-                    <p className="mt-1">
-                      <strong className="mr-2">PayPal Email:</strong>
-                      <span className="font-medium">{item.paypalEmail}</span>
+                {item.method === "paypal" && item.paypalEmail && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      PayPal Email
                     </p>
-                  )}
+                    <p className="font-medium">{item.paypalEmail}</p>
+                  </div>
+                )}
 
-                  {item.method === "bank" && (
-                    <>
-                      <p className="mt-1">
-                        <strong className="mr-2">IBAN:</strong>
-                        <span className="font-medium">{item.iban || "-"}</span>
+                {item.method === "bank" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        IBAN
                       </p>
-                      <p className="mt-1">
-                        <strong className="mr-2">Account Number:</strong>
-                        <span className="font-medium">
-                          {item.accountNumber || "-"}
-                        </span>
+                      <p className="font-medium">{item.iban || "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Account Number
                       </p>
-                    </>
-                  )}
+                      <p className="font-medium">{item.accountNumber || "-"}</p>
+                    </div>
+                  </div>
+                )}
 
-                  {item.payoutBatchId && (
-                    <p className="mt-1">
-                      <strong className="mr-2">PayPal Batch ID:</strong>
-                      <span className="font-medium">{item.payoutBatchId}</span>
+                {item.payoutBatchId && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      PayPal Batch ID
                     </p>
-                  )}
-                </div>
+                    <p className="font-medium">{item.payoutBatchId}</p>
+                  </div>
+                )}
               </div>
 
-              {item.fraudFlag && (
-                <div className="mt-2 text-red-600 dark:text-red-300 font-semibold">
-                  ⚠️ Marked as Potential Fraud
+              {/* Right: Additional details */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Status
+                    </p>
+                    <p className="font-medium">{item.status || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Date
+                    </p>
+                    <p className="font-medium">
+                      {new Date(item.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
-              )}
 
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => handleAction(item._id, "approve")}
-                  disabled={processingId === item._id}
-                  className={`px-4 py-2 rounded text-white transition-colors ${
-                    processingId === item._id
-                      ? "bg-green-400 dark:bg-green-500"
-                      : "bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600"
-                  }`}
-                >
-                  {processingId === item._id ? "..." : "Approve"}
-                </button>
-                <button
-                  onClick={() => handleAction(item._id, "reject")}
-                  disabled={processingId === item._id}
-                  className={`px-4 py-2 rounded text-white transition-colors ${
-                    processingId === item._id
-                      ? "bg-red-400 dark:bg-red-500"
-                      : "bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
-                  }`}
-                >
-                  {processingId === item._id ? "..." : "Reject"}
-                </button>
+                {item.adminNote && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Admin Note
+                    </p>
+                    <p className="font-medium">{item.adminNote}</p>
+                  </div>
+                )}
               </div>
             </div>
-          ))}
-        </div>
 
+            {/* Bottom: Action buttons */}
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => handleAction(item._id, "approve")}
+                disabled={processingId === item._id}
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white font-medium shadow-md transition-all duration-200 ${
+                  processingId === item._id
+                    ? "bg-green-400 dark:bg-green-600 cursor-not-allowed"
+                    : "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                }`}
+              >
+                <CheckIcon className="w-5 h-5" />
+                Approve
+              </button>
+              <button
+                onClick={() => handleAction(item._id, "reject")}
+                disabled={processingId === item._id}
+                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-white font-medium shadow-md transition-all duration-200 ${
+                  processingId === item._id
+                    ? "bg-red-400 dark:bg-red-600 cursor-not-allowed"
+                    : "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                }`}
+              >
+                <XMarkIcon className="w-5 h-5" />
+                Reject
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-center mt-6 gap-2">
+          <div className="flex justify-center mt-6 gap-1">
+            <button
+              onClick={() => setCurrentPage?.(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              <ArrowLeftIcon className="w-5 h-5" />
+            </button>
+
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
               <button
                 key={pg}
                 onClick={() => setCurrentPage?.(pg)}
-                className={`px-3 py-1 rounded transition-colors ${
+                className={`px-4 py-2 rounded-lg transition ${
                   pg === currentPage
                     ? "bg-blue-600 text-white dark:bg-blue-500"
-                    : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                    : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300"
                 }`}
               >
                 {pg}
               </button>
             ))}
+
+            <button
+              onClick={() =>
+                setCurrentPage?.(Math.min(totalPages, currentPage + 1))
+              }
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            >
+              <ArrowRightIcon className="w-5 h-5" />
+            </button>
           </div>
         )}
       </div>
