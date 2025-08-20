@@ -6,6 +6,8 @@ import SkeletonCard from "../components/common/SkeletonCard"; // adjust path if 
 import { useUser } from "../context/UserContext";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+{}\]:;<>,.?~\\/-]).{7,}$/;
 
 const Register = () => {
   const navigate = useNavigate();
@@ -40,13 +42,15 @@ const Register = () => {
   }, [formData.email]);
 
   useEffect(() => {
-    if (!formData.password) setPasswordError("");
-    else
+    if (!formData.password) {
+      setPasswordError("");
+    } else if (!PASSWORD_REGEX.test(formData.password)) {
       setPasswordError(
-        formData.password.length >= 6
-          ? ""
-          : "Password must be at least 6 characters"
+        "Password must be at least 7 characters and include upper, lower, number, and symbol"
       );
+    } else {
+      setPasswordError("");
+    }
   }, [formData.password]);
 
   const handleChange = (e) => {
@@ -61,8 +65,10 @@ const Register = () => {
       setEmailError("Invalid email format");
       return;
     }
-    if (formData.password.length < 6) {
-      setPasswordError("Password must be at least 6 characters");
+    if (!PASSWORD_REGEX.test(formData.password)) {
+      setPasswordError(
+        "Password must be at least 7 characters and include upper, lower, number, and symbol"
+      );
       return;
     }
 
@@ -74,7 +80,7 @@ const Register = () => {
       localStorage.setItem("token", res.data.token);
       if (res.data.user)
         localStorage.setItem("user", JSON.stringify(res.data.user));
-      navigate("/");
+      navigate("/all-posts");
     } catch (err) {
       if (err.response?.data?.error) setError(err.response.data.error);
       else if (err.response?.data?.message) setError(err.response.data.message);
@@ -89,7 +95,7 @@ const Register = () => {
       <div className="w-full max-w-md">
         <div className="bg-white dark:bg-gray-900 shadow-xl rounded-2xl p-8 border dark:border-gray-700">
           <h2 className="text-3xl font-bold mb-6 text-center text-gray-800 dark:text-white">
-            Create Account
+            Create An Account
           </h2>
 
           {/* Server / submission error */}
@@ -190,13 +196,54 @@ const Register = () => {
                     {showPassword ? "🙈" : "👁️"}
                   </span>
                 </div>
-                <p
-                  className={`mt-1 text-xs ${
-                    passwordError ? "text-red-400" : "text-gray-400"
-                  }`}
-                >
-                  {passwordError || "At least 6 characters"}
-                </p>
+
+                <ul className="mt-2 text-xs space-y-1 text-gray-500 dark:text-gray-400">
+                  <li
+                    className={
+                      formData.password.length >= 7
+                        ? "text-green-500"
+                        : "text-red-500"
+                    }
+                  >
+                    • At least 7 characters
+                  </li>
+                  <li
+                    className={
+                      /[a-z]/.test(formData.password)
+                        ? "text-green-500"
+                        : "text-red-500"
+                    }
+                  >
+                    • At least 1 lowercase letter
+                  </li>
+                  <li
+                    className={
+                      /[A-Z]/.test(formData.password)
+                        ? "text-green-500"
+                        : "text-red-500"
+                    }
+                  >
+                    • At least 1 uppercase letter
+                  </li>
+                  <li
+                    className={
+                      /\d/.test(formData.password)
+                        ? "text-green-500"
+                        : "text-red-500"
+                    }
+                  >
+                    • At least 1 number
+                  </li>
+                  <li
+                    className={
+                      /[!@#$%^&*()_+{}\]:;<>,.?~\\/-]/.test(formData.password)
+                        ? "text-green-500"
+                        : "text-red-500"
+                    }
+                  >
+                    • At least 1 special character
+                  </li>
+                </ul>
               </div>
 
               <button

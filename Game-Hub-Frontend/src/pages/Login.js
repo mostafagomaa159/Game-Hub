@@ -38,7 +38,7 @@ function Login() {
       return;
     }
     setPasswordError(
-      password.length >= 6 ? "" : "Password must be at least 6 characters"
+      password.length >= 7 ? "" : "Password must be at least 7 characters"
     );
   }, [password]);
 
@@ -54,7 +54,7 @@ function Login() {
       return;
     }
     if (password.length < 6) {
-      setPasswordError("Password must be at least 6 characters");
+      setPasswordError("Password must be at least 7 characters");
       setShake(true);
       setTimeout(() => setShake(false), 500);
       return;
@@ -154,7 +154,8 @@ function Login() {
           }`}
         >
           <h2 className="text-3xl font-bold text-center text-gray-800 dark:text-white mb-6">
-            Welcome To <br /> GamesX Market 👋
+            {/* Welcome To <br /> */}
+            Sign in
           </h2>
 
           {/* Server-level error */}
@@ -237,7 +238,7 @@ function Login() {
                   passwordError ? "text-red-400" : "text-gray-400"
                 }`}
               >
-                {passwordError || "At least 6 characters"}
+                {passwordError || "At least 7 characters"}
               </p>
             </div>
 

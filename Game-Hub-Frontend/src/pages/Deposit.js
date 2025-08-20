@@ -45,7 +45,7 @@ const Deposit = () => {
       !isValidIban(iban) ||
       !isValidAccountNumber(accountNumber));
 
-  const isScreenshotMissing = !screenshot;
+  const isScreenshotMissing = method === "bank" && !screenshot;
 
   const handleScreenshotUpload = (e) => {
     const file = e.target.files[0];
@@ -84,8 +84,8 @@ const Deposit = () => {
       return;
     }
 
-    if (!screenshot) {
-      setStatus("Please upload a screenshot of your transaction.");
+    if (method === "bank" && !screenshot) {
+      setStatus("Please upload a screenshot of your bank transfer.");
       return;
     }
 

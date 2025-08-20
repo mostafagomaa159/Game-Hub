@@ -39,9 +39,10 @@ const transactionSchema = new mongoose.Schema(
     screenshot: {
       type: String,
       required: function () {
-        return this.type === "deposit";
+        return this.type === "deposit" && this.method === "bank";
       },
     },
+
     iban: {
       type: String,
       required() {

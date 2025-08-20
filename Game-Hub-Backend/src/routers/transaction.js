@@ -445,11 +445,11 @@ router.post("/transactions/deposit/paypal", auth, async (req, res) => {
   }
 
   // Validate screenshot
-  if (!screenshot) {
-    return res
-      .status(400)
-      .send({ error: "You must provide a screenshot as proof." });
-  }
+  // if (!screenshot) {
+  //   return res
+  //     .status(400)
+  //     .send({ error: "You must provide a screenshot as proof." });
+  // }
 
   try {
     // Save the transaction in DB as pending
@@ -515,7 +515,8 @@ router.post("/transactions/deposit/paypal", auth, async (req, res) => {
 
     res.send({ approvalUrl });
   } catch (e) {
-    console.error("PayPal error:", e.response?.data || e.message);
+    console.error("PayPal error:", e.response?.data || e.message, e.stack);
+
     res.status(500).send({ error: "Failed to initiate PayPal payment." });
   }
 });
