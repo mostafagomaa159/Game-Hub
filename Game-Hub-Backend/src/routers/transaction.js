@@ -435,41 +435,19 @@ router.patch(
   }
 );
 
-//Deposit Section!!!
+// Create PayPal order
 router.post("/transactions/deposit/paypal", auth, async (req, res) => {
-  const { amount, screenshot } = req.body;
+  const { amount } = req.body;
 
-  // Validate amount
   if (!amount || amount <= 0) {
     return res.status(400).send({ error: "Invalid amount" });
   }
 
-  // Validate screenshot
-  // if (!screenshot) {
-  //   return res
-  //     .status(400)
-  //     .send({ error: "You must provide a screenshot as proof." });
-  // }
-
   try {
-    // Save the transaction in DB as pending
-    const transaction = new Transaction({
-      userId: req.user._id,
-      type: "deposit",
-      method: "paypal",
-      amount,
-      screenshot,
-      status: "pending",
-    });
-
-    await transaction.save();
-
-    // PayPal API credentials
     const authHeader = Buffer.from(
       `${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`
     ).toString("base64");
 
-    // Get PayPal access token
     const tokenRes = await axios.post(
       "https://api-m.sandbox.paypal.com/v1/oauth2/token",
       "grant_type=client_credentials",
@@ -498,7 +476,8 @@ router.post("/transactions/deposit/paypal", auth, async (req, res) => {
         ],
         application_context: {
           return_url: "https://game-hub-one-vert.vercel.app/deposit-success",
-          cancel_url: "https://game-hub-one-vert.vercel.app/deposit-success",
+          cancel_url:
+            "https://game-hub-one-vert.vercel.app/deposit-success?status=failed",
         },
       },
       {
@@ -515,14 +494,12 @@ router.post("/transactions/deposit/paypal", auth, async (req, res) => {
 
     res.send({ approvalUrl });
   } catch (e) {
-    console.error("PayPal error:", e.response?.data || e.message, e.stack);
-
+    console.error("PayPal error:", e.response?.data || e.message);
     res.status(500).send({ error: "Failed to initiate PayPal payment." });
   }
 });
 
-// ✅ Capture PayPal payment and credit coins
-// ✅ changes are inside /transactions/deposit/paypal/capture 👇
+// Capture PayPal payment and create transaction
 router.get("/transactions/deposit/paypal/capture", auth, async (req, res) => {
   const { token } = req.query;
 
@@ -548,6 +525,7 @@ router.get("/transactions/deposit/paypal/capture", auth, async (req, res) => {
 
     const accessToken = tokenRes.data.access_token;
 
+    // Capture order
     const captureRes = await axios.post(
       `https://api-m.sandbox.paypal.com/v2/checkout/orders/${token}/capture`,
       {},
@@ -564,25 +542,26 @@ router.get("/transactions/deposit/paypal/capture", auth, async (req, res) => {
       captured.purchase_units[0].payments.captures[0].amount.value
     );
 
-    // Create transaction using actual captured amount
+    // ✅ Save transaction in DB only after successful capture
     const transaction = new Transaction({
       userId: req.user._id,
       type: "deposit",
       amount: capturedAmount,
       method: "paypal",
-      status: "pending", // Coins added only after admin approval
+      status: "pending", // waiting for admin approval
       paypalOrderId: token,
     });
 
     await transaction.save();
 
+    // Redirect to frontend with transactionId
     res.redirect(
-      "https://game-hub-one-vert.vercel.app/deposit-success?status=pending&transactionId=${transaction._id}"
+      `https://game-hub-one-vert.vercel.app/deposit-success?status=pending&transactionId=${transaction._id}`
     );
   } catch (e) {
     console.error("PayPal capture error:", e.response?.data || e.message);
     res.redirect(
-      "https://game-hub-one-vert.vercel.app/deposit-success?status=failed"
+      `https://game-hub-one-vert.vercel.app/deposit-success?status=failed&error=paypal_capture_failed`
     );
   }
 });
