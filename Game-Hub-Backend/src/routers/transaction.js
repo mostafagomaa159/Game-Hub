@@ -440,10 +440,11 @@ router.post("/transactions/deposit/paypal", auth, async (req, res) => {
   const { amount } = req.body;
 
   if (!amount || amount <= 0) {
-    return res.status(400).send({ error: "Invalid amount" });
+    return res.status(400).json({ error: "Invalid amount" });
   }
 
   try {
+    // 1. Create PayPal order
     const authHeader = Buffer.from(
       `${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`
     ).toString("base64");
@@ -461,23 +462,14 @@ router.post("/transactions/deposit/paypal", auth, async (req, res) => {
 
     const accessToken = tokenRes.data.access_token;
 
-    // Create PayPal order
     const orderRes = await axios.post(
       "https://api-m.sandbox.paypal.com/v2/checkout/orders",
       {
         intent: "CAPTURE",
-        purchase_units: [
-          {
-            amount: {
-              currency_code: "USD",
-              value: amount.toFixed(2),
-            },
-          },
-        ],
+        purchase_units: [{ amount: { currency_code: "USD", value: amount } }],
         application_context: {
-          return_url: "https://game-hub-one-vert.vercel.app/deposit-success",
-          cancel_url:
-            "https://game-hub-one-vert.vercel.app/deposit-success?status=failed",
+          return_url: `${process.env.BASE_URL}/transactions/deposit/paypal/capture?transactionId=PLACEHOLDER`,
+          cancel_url: `${process.env.FRONTEND_URL}/deposit-success?status=failed`,
         },
       },
       {
@@ -488,26 +480,45 @@ router.post("/transactions/deposit/paypal", auth, async (req, res) => {
       }
     );
 
-    const approvalUrl = orderRes.data.links.find(
-      (link) => link.rel === "approve"
-    )?.href;
+    const order = orderRes.data;
 
-    res.send({ approvalUrl });
-  } catch (e) {
-    console.error("PayPal error:", e.response?.data || e.message);
-    res.status(500).send({ error: "Failed to initiate PayPal payment." });
+    // 2. Create pending transaction linked to user
+    const transaction = new Transaction({
+      userId: req.user._id,
+      type: "deposit",
+      amount,
+      method: "paypal",
+      status: "initiated",
+      paypalOrderId: order.id,
+    });
+    await transaction.save();
+
+    // 3. Replace placeholder with actual transactionId in return URL
+    const approveUrl = order.links.find((l) => l.rel === "approve").href;
+    const finalApproveUrl = approveUrl.replace(
+      "PLACEHOLDER",
+      transaction._id.toString()
+    );
+
+    res.json({ approveUrl: finalApproveUrl });
+  } catch (err) {
+    console.error("PayPal order creation failed:", err.message);
+    res.status(500).json({ error: "Failed to create PayPal order" });
   }
 });
 
 // Capture PayPal payment and create transaction
 router.get("/transactions/deposit/paypal/capture", auth, async (req, res) => {
-  const { token } = req.query;
+  const { token, transactionId } = req.query;
 
-  if (!token) {
-    return res.status(400).send({ error: "Missing PayPal token." });
+  if (!token || !transactionId) {
+    return res.redirect(
+      `${process.env.FRONTEND_URL}/deposit-success?status=failed&error=missing_token`
+    );
   }
 
   try {
+    // 1. Get PayPal access token
     const authHeader = Buffer.from(
       `${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`
     ).toString("base64");
@@ -525,7 +536,7 @@ router.get("/transactions/deposit/paypal/capture", auth, async (req, res) => {
 
     const accessToken = tokenRes.data.access_token;
 
-    // Capture order
+    // 2. Capture order
     const captureRes = await axios.post(
       `https://api-m.sandbox.paypal.com/v2/checkout/orders/${token}/capture`,
       {},
@@ -537,31 +548,31 @@ router.get("/transactions/deposit/paypal/capture", auth, async (req, res) => {
       }
     );
 
-    const captured = captureRes.data;
     const capturedAmount = parseFloat(
-      captured.purchase_units[0].payments.captures[0].amount.value
+      captureRes.data.purchase_units[0].payments.captures[0].amount.value
     );
 
-    // ✅ Save transaction in DB only after successful capture
-    const transaction = new Transaction({
-      userId: req.user._id,
-      type: "deposit",
-      amount: capturedAmount,
-      method: "paypal",
-      status: "pending", // waiting for admin approval
-      paypalOrderId: token,
-    });
+    // 3. Update existing transaction
+    const transaction = await Transaction.findById(transactionId);
+    if (!transaction) {
+      return res.redirect(
+        `${process.env.FRONTEND_URL}/deposit-success?status=failed&error=not_found`
+      );
+    }
 
+    transaction.amount = capturedAmount;
+    transaction.status = "pending"; // waiting for admin approval
+    transaction.paypalOrderId = token;
     await transaction.save();
 
-    // Redirect to frontend with transactionId
+    // 4. Redirect with transactionId
     res.redirect(
-      `https://game-hub-one-vert.vercel.app/deposit-success?status=pending&transactionId=${transaction._id}`
+      `${process.env.FRONTEND_URL}/deposit-success?status=pending&transactionId=${transaction._id}`
     );
   } catch (e) {
     console.error("PayPal capture error:", e.response?.data || e.message);
     res.redirect(
-      `https://game-hub-one-vert.vercel.app/deposit-success?status=failed&error=paypal_capture_failed`
+      `${process.env.FRONTEND_URL}/deposit-success?status=failed&error=capture_failed`
     );
   }
 });

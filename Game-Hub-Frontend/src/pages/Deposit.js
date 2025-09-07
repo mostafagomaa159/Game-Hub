@@ -98,17 +98,29 @@ const Deposit = () => {
       };
 
       if (method === "paypal") {
-        payload.method = "paypal";
-        const res = await axios.post("/transactions/deposit/paypal", payload, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
+        try {
+          const res = await axios.post(
+            "/transactions/deposit/paypal",
+            { amount: Number(amount) },
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
 
-        // setStatus("✅ PayPal deposit recorded.");
-        // setAmount("");
-        // setScreenshot("");
-
-        if (res.data.approvalUrl) {
-          window.location.href = res.data.approvalUrl;
+          if (res.data.approvalUrl) {
+            // Redirect user to PayPal approval page
+            window.location.href = res.data.approvalUrl;
+          } else {
+            setStatus("❌ Failed to start PayPal deposit.");
+          }
+        } catch (err) {
+          const msg =
+            err.response?.data?.error || "Failed to process PayPal deposit.";
+          setStatus("❌ " + msg);
+        } finally {
+          setLoading(false);
         }
       } else {
         payload.method = "bank";
