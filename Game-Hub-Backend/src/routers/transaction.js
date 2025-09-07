@@ -497,8 +497,8 @@ router.post("/transactions/deposit/paypal", auth, async (req, res) => {
           },
         ],
         application_context: {
-          return_url: "http://localhost:3000/deposit-success",
-          cancel_url: "http://localhost:3000/deposit-cancel",
+          return_url: "https://game-hub-one-vert.vercel.app/deposit-success",
+          cancel_url: "https://game-hub-one-vert.vercel.app/deposit-success",
         },
       },
       {
@@ -576,10 +576,14 @@ router.get("/transactions/deposit/paypal/capture", auth, async (req, res) => {
 
     await transaction.save();
 
-    res.redirect("http://localhost:3000/deposit-success?status=pending");
+    res.redirect(
+      "https://game-hub-one-vert.vercel.app/deposit-success?status=pending&transactionId=${transaction._id}"
+    );
   } catch (e) {
     console.error("PayPal capture error:", e.response?.data || e.message);
-    res.redirect("http://localhost:3000/deposit-success?status=failed");
+    res.redirect(
+      "https://game-hub-one-vert.vercel.app/deposit-success?status=failed"
+    );
   }
 });
 

@@ -103,9 +103,9 @@ const Deposit = () => {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
 
-        setStatus("✅ PayPal deposit recorded.");
-        setAmount("");
-        setScreenshot("");
+        // setStatus("✅ PayPal deposit recorded.");
+        // setAmount("");
+        // setScreenshot("");
 
         if (res.data.approvalUrl) {
           window.location.href = res.data.approvalUrl;
